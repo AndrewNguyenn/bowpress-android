@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple white arrow silhouette used for FCM notifications.
+     Android requires the notification small icon to be a monochrome/alpha
+     drawable — colour is applied via accent. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,11h11l-4.5,-4.5l1.41,-1.42L21.42,12l-9.51,9.5l-1.42,-1.42L15,15.5H4z" />
+</vector>

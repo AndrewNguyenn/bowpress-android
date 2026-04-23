@@ -1,0 +1,68 @@
+package com.andrewnguyen.bowpress.core.data.repository
+
+import com.andrewnguyen.bowpress.core.data.converters.toDto
+import com.andrewnguyen.bowpress.core.data.converters.toEntity
+import com.andrewnguyen.bowpress.core.data.sync.BackgroundSyncService
+import com.andrewnguyen.bowpress.core.database.dao.SessionDao
+import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.network.BowPressApi
+import com.andrewnguyen.bowpress.core.network.EndSessionRequest
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.time.Instant
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class SessionRepository @Inject constructor(
+    private val dao: SessionDao,
+    private val api: BowPressApi,
+    private val syncService: BackgroundSyncService,
+) {
+    /** Only completed sessions — iOS filters `endedAt != nil` in `LocalStore.fetchSessions`. */
+    fun observeCompleted(): Flow<List<ShootingSession>> =
+        dao.observeCompleted().map { rows -> rows.map { it.toDto() } }
+
+    fun observeActiveSession(): Flow<ShootingSession?> =
+        dao.observeActiveSession().map { it?.toDto() }
+
+    suspend fun getAll(): List<ShootingSession> = dao.getAll().map { it.toDto() }
+
+    suspend fun getById(id: String): ShootingSession? = dao.findById(id)?.toDto()
+
+    suspend fun findSince(since: Instant): List<ShootingSession> =
+        dao.findSince(since).map { it.toDto() }
+
+    suspend fun saveSession(session: ShootingSession) {
+        dao.upsert(session.toEntity(pendingSync = true))
+        syncService.enqueueSync()
+    }
+
+    suspend fun endSession(sessionId: String, endedAt: Instant, notes: String) {
+        val existing = dao.findById(sessionId) ?: return
+        dao.upsert(existing.copy(endedAt = endedAt, notes = notes, pendingSync = true))
+        runCatching { api.endSession(sessionId, EndSessionRequest(endedAt, notes)) }
+        syncService.enqueueSync()
+    }
+
+    suspend fun refreshFromRemote() {
+        val remote = api.fetchSessions()
+        dao.upsertAll(remote.map { it.toEntity(pendingSync = false) })
+    }
+
+    suspend fun deleteSession(id: String) {
+        dao.deleteById(id)
+        runCatching { api.deleteSession(id) }
+    }
+
+    suspend fun flushPendingSync() {
+        val pending = dao.findPendingSync()
+        for (entity in pending) {
+            val dto = entity.toDto()
+            runCatching {
+                api.createSession(dto)
+                dao.markSynced(entity.id)
+            }
+        }
+    }
+}
