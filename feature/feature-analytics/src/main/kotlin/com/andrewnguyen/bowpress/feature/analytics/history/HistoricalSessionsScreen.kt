@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -22,10 +24,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +60,7 @@ fun HistoricalSessionsScreen(
         state = state,
         onBack = onBack,
         onBowFilter = viewModel::setBowFilter,
+        onDeleteSession = viewModel::deleteSession,
     )
 }
 
@@ -62,7 +70,12 @@ internal fun HistoricalSessionsContent(
     state: HistoricalSessionsUiState,
     onBack: () -> Unit,
     onBowFilter: (String?) -> Unit,
+    onDeleteSession: (String) -> Unit = {},
 ) {
+    var pendingDelete by rememberSaveable { mutableStateOf<String?>(null) }
+    val pendingRow = remember(pendingDelete, state.groups) {
+        pendingDelete?.let { id -> state.groups.flatMap { it.rows }.firstOrNull { it.id == id } }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -105,12 +118,39 @@ internal fun HistoricalSessionsContent(
                             )
                         }
                         items(items = group.rows, key = { it.id }) { row ->
-                            SessionRowCard(row = row)
+                            SessionRowCard(
+                                row = row,
+                                onDelete = { pendingDelete = row.id },
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    if (pendingRow != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete session?") },
+            text = {
+                Text(
+                    "This permanently removes this session and its arrows, ends, and " +
+                        "analytics — locally and from the cloud. This cannot be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteSession(pendingRow.id)
+                    pendingDelete = null
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -153,7 +193,7 @@ private fun FilterRow(
 }
 
 @Composable
-private fun SessionRowCard(row: SessionRow) {
+private fun SessionRowCard(row: SessionRow, onDelete: () -> Unit = {}) {
     AnalyticsCard {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -168,6 +208,13 @@ private fun SessionRowCard(row: SessionRow) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = "Delete session",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
