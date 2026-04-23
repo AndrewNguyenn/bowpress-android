@@ -3,7 +3,9 @@ package com.andrewnguyen.bowpress.core.data.repository
 import com.andrewnguyen.bowpress.core.data.converters.toDto
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
 import com.andrewnguyen.bowpress.core.data.sync.BackgroundSyncService
+import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionDao
+import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.network.BowPressApi
 import com.andrewnguyen.bowpress.core.network.EndSessionRequest
@@ -16,6 +18,8 @@ import javax.inject.Singleton
 @Singleton
 class SessionRepository @Inject constructor(
     private val dao: SessionDao,
+    private val arrowPlotDao: ArrowPlotDao,
+    private val sessionEndDao: SessionEndDao,
     private val api: BowPressApi,
     private val syncService: BackgroundSyncService,
 ) {
@@ -51,6 +55,8 @@ class SessionRepository @Inject constructor(
     }
 
     suspend fun deleteSession(id: String) {
+        arrowPlotDao.deleteBySession(id)
+        sessionEndDao.deleteBySession(id)
         dao.deleteById(id)
         runCatching { api.deleteSession(id) }
     }

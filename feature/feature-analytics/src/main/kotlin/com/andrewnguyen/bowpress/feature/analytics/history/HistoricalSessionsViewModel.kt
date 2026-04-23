@@ -86,6 +86,12 @@ class HistoricalSessionsViewModel @Inject constructor(
         }
     }
 
+    fun deleteSession(id: String) {
+        viewModelScope.launch {
+            sessionRepository.deleteSession(id)
+        }
+    }
+
     private fun groupByMonth(
         sessions: List<ShootingSession>,
         bows: List<Bow>,
