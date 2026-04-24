@@ -53,6 +53,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+// TODO(units): suggestion.currentValue / suggestedValue arrive from the server as
+// free-form imperial strings ("+3/16\"", "+0.5 turns"). They do not honor the
+// client unit toggle yet; revisit once the API emits structured {value, unit} payloads.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuggestionDetailScreen(

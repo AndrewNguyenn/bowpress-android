@@ -27,8 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.core.model.UnitFormatting
 
 /**
  * Modal bottom sheet for mid-session bow/arrow config changes. Mirrors iOS
@@ -55,11 +57,12 @@ fun SessionConfigSheet(
             Text("Change Config", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
 
+            val unitSystem = LocalUnitSystem.current
             Text("Bow configuration", style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(4.dp))
             bowConfigs.forEach { cfg ->
                 ConfigRow(
-                    title = cfg.label ?: "Config · %.1f\"".format(cfg.drawLength),
+                    title = cfg.label ?: "Config · ${UnitFormatting.length(cfg.drawLength, unitSystem, digits = 1)}",
                     isSelected = cfg.id == selectedBowConfigId,
                     onClick = { selectedBowConfigId = cfg.id },
                 )

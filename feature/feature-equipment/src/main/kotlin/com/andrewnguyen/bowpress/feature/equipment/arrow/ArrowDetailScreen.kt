@@ -31,6 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
+import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,12 +88,20 @@ fun ArrowDetailScreen(
             state.arrow == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text("Arrow not found", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            else -> Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
+            else -> {
+                val unitSystem = LocalUnitSystem.current
+                val setUnitSystem = LocalUnitSystemSetter.current
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .padding(horizontal = 16.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                UnitToggle(
+                    system = unitSystem,
+                    onSystemChange = setUnitSystem,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
                 ArrowFormBody(
                     label = state.label, onLabel = viewModel::updateLabel,
                     brand = state.brand, onBrand = viewModel::updateBrand,
@@ -104,6 +115,7 @@ fun ArrowDetailScreen(
                     totalWeightText = state.totalWeightText, onTotalWeight = viewModel::updateTotalWeight,
                     shaftDiameter = state.shaftDiameter, onShaftDiameter = viewModel::updateShaftDiameter,
                     notes = state.notes, onNotes = viewModel::updateNotes,
+                    unitSystem = unitSystem,
                 )
                 if (state.showSavedBanner) {
                     Text("Saved", color = BowPressColors.Accent, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
@@ -112,6 +124,7 @@ fun ArrowDetailScreen(
                     Text(msg, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
                 Spacer(Modifier.height(24.dp))
+                }
             }
         }
     }

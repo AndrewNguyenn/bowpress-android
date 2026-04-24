@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowConfigEditCallbacks
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowConfigEditFormBody
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowConfigEditViewModel
@@ -69,6 +70,8 @@ class BowConfigEditVisibilityTest {
                 bowType = BowType.COMPOUND,
                 isSetup = true,
                 callbacks = callbacks,
+                unitSystem = UnitSystem.IMPERIAL,
+                onUnitSystemChange = {},
             )
         }
         composeRule.onNodeWithText("Let-off").assertIsDisplayed()
@@ -83,6 +86,8 @@ class BowConfigEditVisibilityTest {
                 bowType = BowType.RECURVE,
                 isSetup = true,
                 callbacks = callbacks,
+                unitSystem = UnitSystem.IMPERIAL,
+                onUnitSystemChange = {},
             )
         }
         composeRule.onNodeWithText("Brace Height").assertIsDisplayed()
@@ -97,6 +102,8 @@ class BowConfigEditVisibilityTest {
                 bowType = BowType.BAREBOW,
                 isSetup = true,
                 callbacks = callbacks,
+                unitSystem = UnitSystem.IMPERIAL,
+                onUnitSystemChange = {},
             )
         }
         composeRule.onNodeWithText("Brace Height").assertIsDisplayed()

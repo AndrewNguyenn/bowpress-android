@@ -31,4 +31,14 @@ data class ArrowConfiguration(
     /** Enum resolution of [shaftDiameter]. Returns null if the raw value doesn't match a known entry. */
     val shaftDiameterEnum: ShaftDiameter?
         get() = ShaftDiameter.fromRaw(shaftDiameter)
+
+    /**
+     * One-line arrow spec used in Session and Log surfaces.
+     * e.g. `28.5" · 110 gr · vane` (imperial) or `72.4 cm · 7.1 g · vane` (metric).
+     */
+    fun specSummary(system: UnitSystem): String {
+        val len = UnitFormatting.length(inches = length, system = system)
+        val mass = UnitFormatting.arrowMass(grains = pointWeight, system = system)
+        return "$len · $mass · ${fletchingType.name.lowercase()}"
+    }
 }

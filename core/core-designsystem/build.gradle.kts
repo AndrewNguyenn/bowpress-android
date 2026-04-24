@@ -8,6 +8,8 @@ android {
 }
 
 dependencies {
+    api(project(":core:core-model"))
+
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.lottie.compose)
 }

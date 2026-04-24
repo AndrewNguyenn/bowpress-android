@@ -3,16 +3,20 @@ package com.andrewnguyen.bowpress
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
+import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.core.model.User
 import com.andrewnguyen.bowpress.push.PushInitializer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +29,7 @@ import javax.inject.Inject
 class AppStateViewModel @Inject constructor(
     private val userRepository: UserRepository,
     suggestionRepository: SuggestionRepository,
+    private val unitPreferencesRepository: UnitPreferencesRepository,
     private val pushInitializer: PushInitializer,
 ) : ViewModel() {
 
@@ -37,6 +42,17 @@ class AppStateViewModel @Inject constructor(
         ),
     )
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
+
+    /** Active unit system, collected once here and published via CompositionLocal. */
+    val unitSystem: StateFlow<UnitSystem> = unitPreferencesRepository.unitSystem.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = UnitSystem.DEFAULT,
+    )
+
+    fun setUnitSystem(system: UnitSystem) {
+        viewModelScope.launch { unitPreferencesRepository.setUnitSystem(system) }
+    }
 
     init {
         // Mirror signed-in user into ui state.

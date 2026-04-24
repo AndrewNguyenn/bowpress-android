@@ -37,8 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.Bow
+import com.andrewnguyen.bowpress.core.model.UnitFormatting
 
 /**
  * Top-level equipment screen — Bows / Arrows tabs, each with a FAB for `+` to add.
@@ -148,6 +150,7 @@ private fun ArrowList(
         EmptyState("No arrow setups yet")
         return
     }
+    val unitSystem = LocalUnitSystem.current
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(arrows, key = { it.id }) { arrow ->
             Row(
@@ -160,7 +163,7 @@ private fun ArrowList(
                 Column(Modifier.weight(1f)) {
                     Text(arrow.label, style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "${"%.2f".format(arrow.length)}\" · ${arrow.pointWeight}gr point",
+                        text = "${UnitFormatting.length(arrow.length, unitSystem)} · ${UnitFormatting.arrowMass(arrow.pointWeight, unitSystem)} point",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
