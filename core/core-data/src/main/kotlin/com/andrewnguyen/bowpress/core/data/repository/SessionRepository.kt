@@ -10,6 +10,7 @@ import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.network.BowPressApi
 import com.andrewnguyen.bowpress.core.network.EndSessionRequest
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import javax.inject.Inject
@@ -23,9 +24,22 @@ class SessionRepository @Inject constructor(
     private val api: BowPressApi,
     private val syncService: BackgroundSyncService,
 ) {
-    /** Only completed sessions — iOS filters `endedAt != nil` in `LocalStore.fetchSessions`. */
+    /**
+     * Only completed sessions — iOS filters `endedAt != nil` in `LocalStore.fetchSessions`.
+     * `arrowCount` is recomputed from the live plot table so it reflects reality even
+     * when `SessionEntity.arrowCount` was never updated after plotting (the source of
+     * truth is the plot table, same as iOS).
+     */
     fun observeCompleted(): Flow<List<ShootingSession>> =
-        dao.observeCompleted().map { rows -> rows.map { it.toDto() } }
+        combine(
+            dao.observeCompleted(),
+            arrowPlotDao.observeAll(),
+        ) { sessions, plots ->
+            val countBySession = plots.groupingBy { it.sessionId }.eachCount()
+            sessions.map { entity ->
+                entity.toDto().copy(arrowCount = countBySession[entity.id] ?: 0)
+            }
+        }
 
     fun observeActiveSession(): Flow<ShootingSession?> =
         dao.observeActiveSession().map { it?.toDto() }
