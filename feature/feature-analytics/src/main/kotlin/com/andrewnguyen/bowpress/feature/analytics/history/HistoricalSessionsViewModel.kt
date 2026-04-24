@@ -28,6 +28,7 @@ data class SessionRow(
     val arrowConfigLabel: String,
     val arrowCount: Int,
     val feelTags: List<String>,
+    val notes: String,
 )
 
 /** Monthly group header. */
@@ -92,6 +93,12 @@ class HistoricalSessionsViewModel @Inject constructor(
         }
     }
 
+    fun updateSession(id: String, notes: String, feelTags: List<String>) {
+        viewModelScope.launch {
+            sessionRepository.updateSession(id, notes, feelTags)
+        }
+    }
+
     private fun groupByMonth(
         sessions: List<ShootingSession>,
         bows: List<Bow>,
@@ -113,6 +120,7 @@ class HistoricalSessionsViewModel @Inject constructor(
                             arrowConfigLabel = session.arrowConfigId,
                             arrowCount = session.arrowCount,
                             feelTags = session.feelTags,
+                            notes = session.notes,
                         )
                     },
                 )

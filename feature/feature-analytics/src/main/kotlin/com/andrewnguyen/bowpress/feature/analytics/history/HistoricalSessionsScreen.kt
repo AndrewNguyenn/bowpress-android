@@ -16,7 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -61,6 +63,7 @@ fun HistoricalSessionsScreen(
         onBack = onBack,
         onBowFilter = viewModel::setBowFilter,
         onDeleteSession = viewModel::deleteSession,
+        onUpdateSession = viewModel::updateSession,
     )
 }
 
@@ -71,10 +74,15 @@ internal fun HistoricalSessionsContent(
     onBack: () -> Unit,
     onBowFilter: (String?) -> Unit,
     onDeleteSession: (String) -> Unit = {},
+    onUpdateSession: (String, String, List<String>) -> Unit = { _, _, _ -> },
 ) {
     var pendingDelete by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingEdit by rememberSaveable { mutableStateOf<String?>(null) }
     val pendingRow = remember(pendingDelete, state.groups) {
         pendingDelete?.let { id -> state.groups.flatMap { it.rows }.firstOrNull { it.id == id } }
+    }
+    val editingRow = remember(pendingEdit, state.groups) {
+        pendingEdit?.let { id -> state.groups.flatMap { it.rows }.firstOrNull { it.id == id } }
     }
     Scaffold(
         topBar = {
@@ -121,6 +129,7 @@ internal fun HistoricalSessionsContent(
                             SessionRowCard(
                                 row = row,
                                 onDelete = { pendingDelete = row.id },
+                                onEdit = { pendingEdit = row.id },
                             )
                         }
                     }
@@ -152,6 +161,65 @@ internal fun HistoricalSessionsContent(
             },
         )
     }
+
+    if (editingRow != null) {
+        EditSessionDialog(
+            row = editingRow,
+            onDismiss = { pendingEdit = null },
+            onSave = { notes, tags ->
+                onUpdateSession(editingRow.id, notes, tags)
+                pendingEdit = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun EditSessionDialog(
+    row: SessionRow,
+    onDismiss: () -> Unit,
+    onSave: (String, List<String>) -> Unit,
+) {
+    var notes by rememberSaveable(row.id) { mutableStateOf(row.notes) }
+    var tagsText by rememberSaveable(row.id) {
+        mutableStateOf(row.feelTags.joinToString(", "))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit session") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                )
+                OutlinedTextField(
+                    value = tagsText,
+                    onValueChange = { tagsText = it },
+                    label = { Text("Feel tags (comma-separated)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("e.g. locked-in, back-tension") },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val parsedTags = tagsText
+                    .split(',')
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                onSave(notes, parsedTags)
+            }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }
 
 @Composable
@@ -193,7 +261,11 @@ private fun FilterRow(
 }
 
 @Composable
-private fun SessionRowCard(row: SessionRow, onDelete: () -> Unit = {}) {
+private fun SessionRowCard(
+    row: SessionRow,
+    onDelete: () -> Unit = {},
+    onEdit: () -> Unit = {},
+) {
     AnalyticsCard {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -208,6 +280,13 @@ private fun SessionRowCard(row: SessionRow, onDelete: () -> Unit = {}) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
+                IconButton(onClick = onEdit) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Edit session",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,
@@ -316,6 +395,7 @@ private fun HistoricalSessionsPreview() {
                                 arrowConfigLabel = "Easton X10",
                                 arrowCount = 36,
                                 feelTags = listOf("locked-in", "focused"),
+                                notes = "",
                             ),
                         ),
                     ),
