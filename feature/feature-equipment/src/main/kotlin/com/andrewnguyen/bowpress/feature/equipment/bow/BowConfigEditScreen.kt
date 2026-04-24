@@ -319,6 +319,14 @@ internal fun BowConfigEditFormBody(
                 StabWeightStepperRow("Weight", state.rearStabWeight, callbacks::updateRearStabWeight,
                     UnitRange.REAR_STAB_WEIGHT, unitSystem)
             }
+            if (EquipmentFieldRules.isVisible(Field.REAR_STAB_LEFT_WEIGHT, bowType, isSetup, state.rearStabSide)) {
+                StabWeightStepperRow("Left Weight", state.rearStabLeftWeight, callbacks::updateRearStabLeftWeight,
+                    UnitRange.REAR_STAB_WEIGHT, unitSystem)
+            }
+            if (EquipmentFieldRules.isVisible(Field.REAR_STAB_RIGHT_WEIGHT, bowType, isSetup, state.rearStabSide)) {
+                StabWeightStepperRow("Right Weight", state.rearStabRightWeight, callbacks::updateRearStabRightWeight,
+                    UnitRange.REAR_STAB_WEIGHT, unitSystem)
+            }
             if (EquipmentFieldRules.isVisible(Field.REAR_STAB_VERT_ANGLE, bowType, isSetup, state.rearStabSide)) {
                 DoubleStepperRow(
                     "Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle,

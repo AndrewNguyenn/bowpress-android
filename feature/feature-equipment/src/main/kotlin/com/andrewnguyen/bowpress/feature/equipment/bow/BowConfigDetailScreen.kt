@@ -195,7 +195,12 @@ private fun ReadOnlyBody(
             SectionHeader("Rear Stabilizer")
             LabeledValueRow("Side", rearStabSide.label)
             if (rearStabSide != RearStabSide.NONE) {
-                LabeledValueRow("Weight", UnitFormatting.stabWeight(config.rearStabWeight ?: 0.0, unitSystem))
+                if (rearStabSide == RearStabSide.BOTH) {
+                    LabeledValueRow("Left Weight", UnitFormatting.stabWeight(config.rearStabLeftWeight ?: 0.0, unitSystem))
+                    LabeledValueRow("Right Weight", UnitFormatting.stabWeight(config.rearStabRightWeight ?: 0.0, unitSystem))
+                } else {
+                    LabeledValueRow("Weight", UnitFormatting.stabWeight(config.rearStabWeight ?: 0.0, unitSystem))
+                }
                 LabeledValueRow("Vertical Angle", UnitFormatting.degrees(config.rearStabVertAngle ?: 0.0, digits = 0))
                 LabeledValueRow("Horizontal Angle", UnitFormatting.degrees(config.rearStabHorizAngle ?: 0.0, digits = 0))
             }

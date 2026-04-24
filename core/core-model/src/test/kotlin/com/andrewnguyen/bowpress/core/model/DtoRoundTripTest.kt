@@ -83,6 +83,34 @@ class DtoRoundTripTest {
     }
 
     @Test
+    fun `BowConfiguration round-trips compound BOTH with left and right rear-stab weights`() {
+        val cfg = BowConfiguration(
+            id = "c2",
+            bowId = "b1",
+            createdAt = Instant.parse("2026-04-22T12:34:56Z"),
+            label = "Both rear stabs",
+            drawLength = 28.5,
+            restVertical = 0,
+            restHorizontal = 0,
+            restDepth = 0.0,
+            gripAngle = 0.0,
+            nockingHeight = 0,
+            rearStabSide = RearStabSide.BOTH,
+            rearStabWeight = null,
+            rearStabLeftWeight = 4.5,
+            rearStabRightWeight = 6.0,
+            rearStabVertAngle = -10.0,
+            rearStabHorizAngle = 20.0,
+        )
+        val encoded = json.encodeToString(BowConfiguration.serializer(), cfg)
+        val decoded = json.decodeFromString(BowConfiguration.serializer(), encoded)
+        assertThat(decoded).isEqualTo(cfg)
+        assertThat(decoded.rearStabWeight).isNull()
+        assertThat(decoded.rearStabLeftWeight).isEqualTo(4.5)
+        assertThat(decoded.rearStabRightWeight).isEqualTo(6.0)
+    }
+
+    @Test
     fun `ArrowPlot round-trips with zone enum`() {
         val plot = ArrowPlot(
             id = "p1",
