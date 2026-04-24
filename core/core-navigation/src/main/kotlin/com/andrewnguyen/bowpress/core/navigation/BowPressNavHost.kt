@@ -12,7 +12,7 @@ import androidx.navigation.compose.composable
 @Composable
 fun BowPressNavHost(
     navController: NavHostController,
-    startDestination: String = TopLevelDestination.Analytics.route,
+    startDestination: String = TopLevelDestination.Dashboard.route,
 ) {
     NavHost(
         navController = navController,

@@ -7,6 +7,7 @@ import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.PeriodSlice
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.TrendInsight
 import java.time.Clock
 import java.time.Instant
 import java.util.Locale

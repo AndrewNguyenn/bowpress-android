@@ -94,6 +94,7 @@ data class ApplyResult(
 @Serializable
 data class UpdateBowConfigRequest(
     val isReference: Boolean? = null,
+    val referenceManuallyPinned: Boolean? = null,
     val avgArrowScore: Double? = null,
     val xPercentage: Double? = null,
 )

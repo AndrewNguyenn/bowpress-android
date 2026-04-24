@@ -12,11 +12,17 @@ dependencies {
     api(project(":core:core-model"))
     api(project(":core:core-network"))
     api(project(":core:core-database"))
+    api(project(":core:core-analytics"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
+
+    // WorkManager + Hilt worker support for BackgroundSyncService
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

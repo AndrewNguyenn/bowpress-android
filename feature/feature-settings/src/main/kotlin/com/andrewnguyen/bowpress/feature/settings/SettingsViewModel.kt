@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.preferences.NotificationPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.User
@@ -18,11 +19,13 @@ data class SettingsUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val signedOut: Boolean = false,
+    val notificationsEnabled: Boolean = true,
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userRepository: UserRepository,
+    private val notificationPreferences: NotificationPreferencesRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -30,6 +33,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         refresh()
+        observeNotificationsPreference()
     }
 
     fun refresh() {
@@ -56,5 +60,20 @@ class SettingsViewModel @Inject constructor(
 
     fun clearError() {
         _state.value = _state.value.copy(error = null)
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        _state.value = _state.value.copy(notificationsEnabled = enabled)
+        viewModelScope.launch {
+            notificationPreferences.setEnabled(enabled)
+        }
+    }
+
+    private fun observeNotificationsPreference() {
+        viewModelScope.launch {
+            notificationPreferences.notificationsEnabled.collect { enabled ->
+                _state.value = _state.value.copy(notificationsEnabled = enabled)
+            }
+        }
     }
 }

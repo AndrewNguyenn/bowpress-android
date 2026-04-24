@@ -39,13 +39,58 @@ class BowConfigRepository @Inject constructor(
     }
 
     /**
-     * Toggle the "reference" pin. The server recomputes once the pipeline sees a new
-     * session, so we write the flag locally + push through the typed PATCH endpoint.
+     * Pin [configId] as the reference for [bowId]. Clears the flags on every other
+     * config for the same bow so the "only one pinned per bow" invariant holds
+     * locally before/after the server round-trip (matches iOS `updateReferencePin`).
      */
-    suspend fun setReference(id: String, isReference: Boolean): BowConfiguration {
-        val updated = api.updateBowConfiguration(id, UpdateBowConfigRequest(isReference = isReference))
-        dao.upsert(updated.toEntity(pendingSync = false))
-        return updated
+    suspend fun setReference(bowId: String, configId: String, manuallyPinned: Boolean) {
+        val siblings = dao.findByBow(bowId)
+        for (entity in siblings) {
+            val shouldBeRef = entity.id == configId
+            val nextIsRef = shouldBeRef
+            val nextPinned = shouldBeRef && manuallyPinned
+            if (entity.isReference != nextIsRef || entity.referenceManuallyPinned != nextPinned) {
+                dao.upsert(
+                    entity.copy(
+                        isReference = nextIsRef,
+                        referenceManuallyPinned = nextPinned,
+                        pendingSync = entity.id == configId || entity.pendingSync,
+                    ),
+                )
+            }
+        }
+        runCatching {
+            val updated = api.updateBowConfiguration(
+                configId,
+                UpdateBowConfigRequest(
+                    isReference = true,
+                    referenceManuallyPinned = manuallyPinned,
+                ),
+            )
+            dao.upsert(updated.toEntity(pendingSync = false))
+        }.onFailure { syncService.enqueueSync() }
+    }
+
+    /** Unpin [configId] as the reference for [bowId]. */
+    suspend fun clearReference(bowId: String, configId: String) {
+        val entity = dao.findById(configId) ?: return
+        dao.upsert(
+            entity.copy(
+                isReference = false,
+                referenceManuallyPinned = false,
+                pendingSync = true,
+            ),
+        )
+        runCatching {
+            val updated = api.updateBowConfiguration(
+                configId,
+                UpdateBowConfigRequest(
+                    isReference = false,
+                    referenceManuallyPinned = false,
+                ),
+            )
+            dao.upsert(updated.toEntity(pendingSync = false))
+        }.onFailure { syncService.enqueueSync() }
     }
 
     suspend fun deleteConfig(id: String) {

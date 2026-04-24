@@ -48,6 +48,9 @@ import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.PeriodSlice
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
+import com.andrewnguyen.bowpress.feature.analytics.sections.ChangeImpactCardsSection
+import com.andrewnguyen.bowpress.feature.analytics.sections.TagCorrelationsSection
+import com.andrewnguyen.bowpress.feature.analytics.sections.TrendInsightsSection
 import com.andrewnguyen.bowpress.feature.analytics.ui.AnalyticsCard
 import com.andrewnguyen.bowpress.feature.analytics.ui.ConfidenceBadge
 import com.andrewnguyen.bowpress.feature.analytics.ui.DeltaRow
@@ -60,8 +63,6 @@ import java.time.Instant
 /** Stable test tags the Compose UI test depends on. */
 object AnalyticsDashboardTestTags {
     const val DashboardRoot: String = "analytics_dashboard_root"
-    const val SuggestionsSection: String = "analytics_dashboard_suggestions"
-    const val SuggestionCard: String = "analytics_dashboard_suggestion_card"
 }
 
 /**
@@ -149,37 +150,38 @@ internal fun AnalyticsDashboardContent(
                 item { ComparisonCard(comparison = comparison) }
             }
 
-            item { HistoryEntryCard(onOpenHistory = onOpenHistory) }
-
-            item {
-                SectionHeader(
-                    title = "Suggestions",
-                    modifier = Modifier.testTag(AnalyticsDashboardTestTags.SuggestionsSection),
-                )
-            }
-
-            if (state.topSuggestions.isEmpty()) {
+            // Spec §Analysis Outputs #1 — Trend Analysis. Needs both comparison + overview.
+            val comparison = state.comparison
+            val overview = state.overview
+            if (comparison != null && overview != null) {
                 item {
-                    AnalyticsCard {
-                        Text(
-                            text = "No suggestions yet. Log more sessions to unlock tuning tips.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        )
-                    }
-                }
-            } else {
-                items(
-                    items = state.topSuggestions,
-                    key = { it.id },
-                ) { suggestion ->
-                    SuggestionRowCard(
-                        suggestion = suggestion,
-                        onClick = { onOpenSuggestion(suggestion.bowId, suggestion.id) },
-                        onOpenTimeline = { onOpenTimeline(suggestion.bowId) },
+                    TrendInsightsSection(
+                        comparison = comparison,
+                        overview = overview,
+                        extraInsights = state.trendInsights,
                     )
                 }
             }
+
+            // Spec §Analysis Outputs #3 — Change Impact Cards (per-bow).
+            item {
+                ChangeImpactCardsSection(
+                    changes = state.configurationChanges,
+                    isLoading = state.isLoadingChanges,
+                )
+            }
+
+            // Spec §Analysis Outputs #4 — Subjective-Objective Correlation (per-bow).
+            item {
+                TagCorrelationsSection(
+                    correlations = state.tagCorrelations,
+                    isLoading = state.isLoadingCorrelations,
+                )
+            }
+
+            // Suggestions live on the Dashboard tab (see SuggestionsDashboardScreen) per
+            // iOS parity. Session history remains reachable here via the card below.
+            item { HistoryEntryCard(onOpenHistory = onOpenHistory) }
         }
     }
 }
@@ -380,60 +382,6 @@ private fun HistoryEntryCard(onOpenHistory: () -> Unit) {
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             )
-        }
-    }
-}
-
-@Composable
-private fun SuggestionRowCard(
-    suggestion: AnalyticsSuggestion,
-    onClick: () -> Unit,
-    onOpenTimeline: () -> Unit,
-) {
-    AnalyticsCard(
-        modifier = Modifier
-            .clickable { onClick() }
-            .testTag(AnalyticsDashboardTestTags.SuggestionCard),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Lightbulb,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = suggestion.parameter,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                ConfidenceBadge(confidence = suggestion.confidence)
-            }
-            Text(
-                text = "${suggestion.currentValue}  →  ${suggestion.suggestedValue}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = suggestion.reasoning,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                maxLines = 3,
-            )
-            Row {
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = "View timeline",
-                    modifier = Modifier
-                        .clickable { onOpenTimeline() }
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
         }
     }
 }

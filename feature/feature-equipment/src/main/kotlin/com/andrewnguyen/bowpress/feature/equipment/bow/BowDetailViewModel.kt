@@ -81,7 +81,13 @@ class BowDetailViewModel @Inject constructor(
     /** Pin/unpin a configuration as the analytics reference. */
     fun setReference(configId: String, pinned: Boolean) {
         viewModelScope.launch {
-            runCatching { bowConfigRepository.setReference(configId, pinned) }
+            runCatching {
+                if (pinned) {
+                    bowConfigRepository.setReference(bowId, configId, manuallyPinned = true)
+                } else {
+                    bowConfigRepository.clearReference(bowId, configId)
+                }
+            }
         }
     }
 

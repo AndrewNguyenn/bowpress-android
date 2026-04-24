@@ -1,10 +1,12 @@
 package com.andrewnguyen.bowpress.feature.analytics.dashboard
 
 import app.cash.turbine.test
+import com.andrewnguyen.bowpress.core.data.analytics.LocalAnalyticsEngine
 import com.andrewnguyen.bowpress.core.data.repository.AnalyticsRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
+import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
@@ -18,6 +20,7 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -94,6 +97,8 @@ class AnalyticsDashboardViewModelTest {
             suggestionRepository = suggestionRepository,
             bowRepository = bowRepository,
             sessionRepository = sessionRepository,
+            localEngine = stubLocalEngine(),
+            analyticsRefreshBus = stubRefreshBus(),
         )
 
         vm.uiState.test {
@@ -142,7 +147,14 @@ class AnalyticsDashboardViewModelTest {
         val sessionRepository = mockk<SessionRepository>()
         every { sessionRepository.observeCompleted() } returns MutableStateFlow(emptyList<ShootingSession>())
 
-        val vm = AnalyticsDashboardViewModel(analyticsRepository, suggestionRepository, bowRepository, sessionRepository)
+        val vm = AnalyticsDashboardViewModel(
+            analyticsRepository = analyticsRepository,
+            suggestionRepository = suggestionRepository,
+            bowRepository = bowRepository,
+            sessionRepository = sessionRepository,
+            localEngine = stubLocalEngine(),
+            analyticsRefreshBus = stubRefreshBus(),
+        )
 
         vm.uiState.test {
             var state = awaitItem()
@@ -187,7 +199,14 @@ class AnalyticsDashboardViewModelTest {
             every { observeCompleted() } returns MutableStateFlow(emptyList<ShootingSession>())
         }
 
-        val vm = AnalyticsDashboardViewModel(analyticsRepository, suggestionRepository, bowRepository, sessionRepository)
+        val vm = AnalyticsDashboardViewModel(
+            analyticsRepository = analyticsRepository,
+            suggestionRepository = suggestionRepository,
+            bowRepository = bowRepository,
+            sessionRepository = sessionRepository,
+            localEngine = stubLocalEngine(),
+            analyticsRefreshBus = stubRefreshBus(),
+        )
 
         vm.uiState.test {
             // Wait for the initial unfiltered load.
@@ -209,6 +228,32 @@ class AnalyticsDashboardViewModelTest {
             assertThat(state.selectedBowType).isEqualTo(BowType.BAREBOW)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    /**
+     * Returns a [LocalAnalyticsEngine] that reports 0 sessions — this forces the view-model
+     * to fall through to the network repository, preserving the tests' pre-refactor
+     * assertion that overview/comparison come from [AnalyticsRepository] stubs.
+     */
+    private fun stubLocalEngine(): LocalAnalyticsEngine {
+        val engine = mockk<LocalAnalyticsEngine>()
+        coEvery { engine.overview(any(), any()) } returns AnalyticsOverview(
+            period = AnalyticsPeriod.WEEK,
+            sessionCount = 0,
+            avgArrowScore = 0.0,
+            xPercentage = 0.0,
+        )
+        coEvery { engine.comparison(any(), any()) } returns PeriodComparison(
+            period = AnalyticsPeriod.WEEK,
+            current = PeriodSlice(label = "a", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
+            previous = PeriodSlice(label = "b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
+        )
+        coEvery { engine.multiSessionInsights() } returns emptyList()
+        return engine
+    }
+
+    private fun stubRefreshBus(): AnalyticsRefreshBus = mockk {
+        every { events } returns MutableSharedFlow()
     }
 
     private fun sample(

@@ -1,10 +1,13 @@
 package com.andrewnguyen.bowpress.feature.subscription
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -69,6 +72,7 @@ fun PaywallScreen(
             )
         },
     ) { innerPadding ->
+        val context = LocalContext.current
         PaywallBody(
             padding = innerPadding,
             state = state,
@@ -77,9 +81,28 @@ fun PaywallScreen(
             },
             onRestore = { viewModel.restore() },
             onRetry = { viewModel.loadProducts() },
+            onRedeemCode = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PLAY_REDEEM_URL))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { context.startActivity(intent) }
+            },
+            onOpenTerms = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(TERMS_URL))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { context.startActivity(intent) }
+            },
+            onOpenPrivacy = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { context.startActivity(intent) }
+            },
         )
     }
 }
+
+private const val PLAY_REDEEM_URL = "https://play.google.com/redeem"
+private const val TERMS_URL = "https://andrewnguyenn.github.io/bowpress-web/terms.html"
+private const val PRIVACY_URL = "https://andrewnguyenn.github.io/bowpress-web/privacy.html"
 
 @Composable
 private fun PaywallBody(
@@ -88,6 +111,9 @@ private fun PaywallBody(
     onPurchase: (ProductDetails) -> Unit,
     onRestore: () -> Unit,
     onRetry: () -> Unit,
+    onRedeemCode: () -> Unit,
+    onOpenTerms: () -> Unit,
+    onOpenPrivacy: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -116,9 +142,16 @@ private fun PaywallBody(
             Text("Restore Purchases", color = BowPressColors.Accent)
         }
 
+        TextButton(
+            onClick = onRedeemCode,
+            modifier = Modifier.testTag("paywall_redeem_button"),
+        ) {
+            Text("Redeem Code", color = BowPressColors.Accent)
+        }
+
         Spacer(Modifier.height(24.dp))
 
-        LegalFooter()
+        LegalFooter(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
     }
 }
 
@@ -272,7 +305,10 @@ private fun ProductRow(
 }
 
 @Composable
-private fun LegalFooter() {
+private fun LegalFooter(
+    onOpenTerms: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(top = 8.dp),
@@ -282,6 +318,37 @@ private fun LegalFooter() {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
         )
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 4.dp),
+        ) {
+            TextButton(
+                onClick = onOpenTerms,
+                modifier = Modifier.testTag("paywall_terms_button"),
+            ) {
+                Text(
+                    "Terms of Use",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = BowPressColors.Accent,
+                )
+            }
+            Text(
+                "·",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+            )
+            TextButton(
+                onClick = onOpenPrivacy,
+                modifier = Modifier.testTag("paywall_privacy_button"),
+            ) {
+                Text(
+                    "Privacy Policy",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = BowPressColors.Accent,
+                )
+            }
+        }
     }
 }
 

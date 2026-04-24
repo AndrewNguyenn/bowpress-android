@@ -16,6 +16,7 @@ import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
 import com.andrewnguyen.bowpress.core.designsystem.splash.HydrationSplashScreen
 import com.andrewnguyen.bowpress.feature.auth.AuthRoutes
 import com.andrewnguyen.bowpress.feature.auth.authNavGraph
+import com.andrewnguyen.bowpress.feature.subscription.ReadOnlyGate
 
 private const val ROUTE_MAIN = "main"
 
@@ -30,6 +31,7 @@ fun BowPressApp(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val unitSystem by viewModel.unitSystem.collectAsStateWithLifecycle()
+    val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
     CompositionLocalProvider(
@@ -50,16 +52,18 @@ fun BowPressApp(
             }
 
             composable(ROUTE_MAIN) {
-                MainScaffold(
-                    uiState = uiState,
-                    onSignedOut = {
-                        viewModel.onSignedOut()
-                        navController.navigate(AuthRoutes.GRAPH) {
-                            popUpTo(ROUTE_MAIN) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    },
-                )
+                ReadOnlyGate(isReadOnly = !isSubscribed) {
+                    MainScaffold(
+                        uiState = uiState,
+                        onSignedOut = {
+                            viewModel.onSignedOut()
+                            navController.navigate(AuthRoutes.GRAPH) {
+                                popUpTo(ROUTE_MAIN) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
+                    )
+                }
             }
         }
 

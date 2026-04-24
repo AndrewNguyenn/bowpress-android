@@ -7,10 +7,16 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.andrewnguyen.bowpress.R
 import com.andrewnguyen.bowpress.core.data.push.DeviceTokenRegistrar
+import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,7 +31,9 @@ import javax.inject.Inject
  * arrival.
  *
  * Mirrors iOS `PushRegistrar` (token registration) and `NotificationRouter`
- * (tap → deep link into Analytics). Payload contract (from the backend worker):
+ * (tap → deep link into Analytics, plus foreground haptic + analytics
+ * refresh via `handleForegroundArrival(userInfo:)`). Payload contract (from
+ * the backend worker):
  * ```
  * { type: "suggestion", id: "<suggestionId>", bowId: "<bowId>" }
  * ```
@@ -38,6 +46,7 @@ import javax.inject.Inject
 class BowPressFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject lateinit var deviceTokenRegistrar: DeviceTokenRegistrar
+    @Inject lateinit var analyticsRefreshBus: AnalyticsRefreshBus
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -53,6 +62,31 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
         val manager = ContextCompat.getSystemService(this, NotificationManager::class.java) ?: return
         ensureChannel(manager)
         manager.notify(message.messageId?.hashCode() ?: 0, notification)
+
+        if (isAppInForeground()) {
+            triggerForegroundHaptic()
+            analyticsRefreshBus.bump()
+        }
+    }
+
+    /**
+     * Mirrors iOS `NotificationRouter.handleForegroundArrival(userInfo:)` —
+     * true when any `Activity` is at least `STARTED`, i.e. the app is visible.
+     */
+    private fun isAppInForeground(): Boolean =
+        ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+
+    private fun triggerForegroundHaptic() {
+        val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val mgr = ContextCompat.getSystemService(this, VibratorManager::class.java)
+            mgr?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            ContextCompat.getSystemService(this, Vibrator::class.java)
+        }
+        vibrator?.takeIf { it.hasVibrator() }?.vibrate(
+            VibrationEffect.createOneShot(50L, VibrationEffect.DEFAULT_AMPLITUDE),
+        )
     }
 
     private fun buildNotification(message: RemoteMessage, contentIntent: PendingIntent?): android.app.Notification {
