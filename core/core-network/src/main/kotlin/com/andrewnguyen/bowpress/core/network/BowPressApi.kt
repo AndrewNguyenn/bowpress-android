@@ -152,6 +152,12 @@ interface BowPressApi {
         @Body body: EndSessionRequest,
     ): ShootingSession
 
+    @PUT("sessions/{id}")
+    suspend fun updateSession(
+        @Path("id") id: String,
+        @Body body: UpdateSessionRequest,
+    ): ShootingSession
+
     @DELETE("sessions/{id}")
     suspend fun deleteSession(@Path("id") id: String)
 

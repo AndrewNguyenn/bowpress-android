@@ -61,6 +61,17 @@ data class EndSessionRequest(
     val notes: String,
 )
 
+/**
+ * Partial `PUT /sessions/:id` body used to edit an already-ended session.
+ * Only includes editable fields; endedAt is untouched so the server's
+ * analytics-queue guard (triggered only on null → set) won't re-fire.
+ */
+@Serializable
+data class UpdateSessionRequest(
+    val notes: String,
+    val feelTags: List<String>,
+)
+
 /** Body for `POST /subscription/verify`. */
 @Serializable
 data class VerifySubscriptionRequest(val jws: String)

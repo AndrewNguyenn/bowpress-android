@@ -9,6 +9,7 @@ import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.network.BowPressApi
 import com.andrewnguyen.bowpress.core.network.EndSessionRequest
+import com.andrewnguyen.bowpress.core.network.UpdateSessionRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -60,6 +61,22 @@ class SessionRepository @Inject constructor(
         val existing = dao.findById(sessionId) ?: return
         dao.upsert(existing.copy(endedAt = endedAt, notes = notes, pendingSync = true))
         runCatching { api.endSession(sessionId, EndSessionRequest(endedAt, notes)) }
+        syncService.enqueueSync()
+    }
+
+    /**
+     * Edit notes + feel tags on an already-completed session. Writes
+     * locally first, then syncs; pendingSync stays true until the server
+     * confirms so [flushPendingSync] can retry on the next connectivity
+     * event.
+     */
+    suspend fun updateSession(sessionId: String, notes: String, feelTags: List<String>) {
+        val existing = dao.findById(sessionId) ?: return
+        dao.upsert(existing.copy(notes = notes, feelTags = feelTags, pendingSync = true))
+        runCatching {
+            api.updateSession(sessionId, UpdateSessionRequest(notes, feelTags))
+            dao.markSynced(sessionId)
+        }
         syncService.enqueueSync()
     }
 
