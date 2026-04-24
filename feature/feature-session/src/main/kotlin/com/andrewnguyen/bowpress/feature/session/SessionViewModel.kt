@@ -234,6 +234,12 @@ class SessionViewModel @Inject constructor(
         plotRepo.savePlot(plot.copy(excluded = !plot.excluded))
     }
 
+    /** Undo — removes the last plotted arrow from Room and remote. */
+    suspend fun removeLastArrow() {
+        val last = _uiState.value.currentArrows.maxByOrNull { it.shotAt } ?: return
+        plotRepo.deletePlot(last)
+    }
+
     /** Apply a pending config change (commits on next plot or session-restart). */
     fun changeConfig(newBowConfigId: String? = null, newArrowConfigId: String? = null) {
         viewModelScope.launch {
