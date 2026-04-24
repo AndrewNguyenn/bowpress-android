@@ -35,21 +35,26 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
+import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
 import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.UnitFormatting
+import com.andrewnguyen.bowpress.core.model.UnitRange
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules.Field
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules.Section
 import com.andrewnguyen.bowpress.feature.equipment.components.DoubleStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.IntStepperRow
+import com.andrewnguyen.bowpress.feature.equipment.components.LengthStepperRow
+import com.andrewnguyen.bowpress.feature.equipment.components.MmLengthStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.SectionHeader
-import com.andrewnguyen.bowpress.feature.equipment.components.clickerLabel
-import com.andrewnguyen.bowpress.feature.equipment.components.formatG
+import com.andrewnguyen.bowpress.feature.equipment.components.StabWeightStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.halfTwistLabel
 import com.andrewnguyen.bowpress.feature.equipment.components.limbTurnsLabel
 import com.andrewnguyen.bowpress.feature.equipment.components.sightPositionLabel
-import com.andrewnguyen.bowpress.feature.equipment.components.sixteenthLabel
-import com.andrewnguyen.bowpress.feature.equipment.components.tillerLabel
 
 /**
  * Immutable bundle of update callbacks for [BowConfigEditFormBody]. Backing
@@ -154,6 +159,8 @@ fun BowConfigEditScreen(
                 bowType = state.bow!!.bowType,
                 isSetup = state.baseConfig?.label == "Initial Setup",
                 callbacks = viewModel.asCallbacks(),
+                unitSystem = LocalUnitSystem.current,
+                onUnitSystemChange = LocalUnitSystemSetter.current,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -172,6 +179,8 @@ internal fun BowConfigEditFormBody(
     bowType: BowType,
     isSetup: Boolean,
     callbacks: BowConfigEditCallbacks,
+    unitSystem: UnitSystem,
+    onUnitSystemChange: (UnitSystem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -180,6 +189,12 @@ internal fun BowConfigEditFormBody(
             .verticalScroll(rememberScrollState())
             .testTag("bow_config_edit_form_${bowType.name.lowercase()}"),
     ) {
+        UnitToggle(
+            system = unitSystem,
+            onSystemChange = onUnitSystemChange,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+
         if (EquipmentFieldRules.sectionVisible(Section.LABEL, bowType, isSetup)) {
             SectionHeader("Label")
             OutlinedTextField(
@@ -199,13 +214,7 @@ internal fun BowConfigEditFormBody(
         when {
             EquipmentFieldRules.sectionVisible(Section.BASE_SETUP, bowType, isSetup) -> {
                 // Compound non-setup: read-only summary row (matches iOS text block).
-                val base = state.baseConfig
-                val summary = base?.let {
-                    "Draw ${"%.1f".format(it.drawLength)}\" · " +
-                        "Let-off ${(it.letOffPct ?: 0.0).toInt()}% · " +
-                        "Peep ${"%.2f".format(it.peepHeight ?: 0.0)}\" · " +
-                        "D-loop ${"%.3f".format(it.dLoopLength ?: 0.0)}\""
-                }.orEmpty()
+                val summary = state.baseConfig?.compactSetupLine(unitSystem).orEmpty()
                 Text(
                     summary,
                     style = MaterialTheme.typography.bodySmall,
@@ -214,39 +223,27 @@ internal fun BowConfigEditFormBody(
             }
             else -> {
                 if (EquipmentFieldRules.isVisible(Field.DRAW_LENGTH, bowType, isSetup, state.rearStabSide)) {
-                    DoubleStepperRow(
-                        "Draw Length", state.drawLength, callbacks::updateDrawLength,
-                        "${formatG(state.drawLength)}\"",
-                        min = 17.0, max = 37.0, step = 0.25,
-                    )
+                    LengthStepperRow("Draw Length", state.drawLength, callbacks::updateDrawLength,
+                        UnitRange.DRAW_LENGTH, unitSystem, digits = 1)
                 }
                 if (EquipmentFieldRules.isVisible(Field.LET_OFF_PCT, bowType, isSetup, state.rearStabSide)) {
                     DoubleStepperRow(
                         "Let-off", state.letOffPct, callbacks::updateLetOff,
-                        "${state.letOffPct.toInt()}%",
+                        UnitFormatting.percent(state.letOffPct),
                         min = 40.0, max = 99.0, step = 1.0,
                     )
                 }
                 if (EquipmentFieldRules.isVisible(Field.PEEP_HEIGHT, bowType, isSetup, state.rearStabSide)) {
-                    DoubleStepperRow(
-                        "Peep Height", state.peepHeight, callbacks::updatePeepHeight,
-                        "${formatG(state.peepHeight)}\"",
-                        min = 3.0, max = 17.0, step = 0.1,
-                    )
+                    LengthStepperRow("Peep Height", state.peepHeight, callbacks::updatePeepHeight,
+                        UnitRange.PEEP_HEIGHT, unitSystem)
                 }
                 if (EquipmentFieldRules.isVisible(Field.D_LOOP_LENGTH, bowType, isSetup, state.rearStabSide)) {
-                    DoubleStepperRow(
-                        "D-Loop Length", state.dLoopLength, callbacks::updateDLoop,
-                        "${formatG(state.dLoopLength)}\"",
-                        min = 0.1, max = 5.0, step = 1.0 / 16.0,
-                    )
+                    LengthStepperRow("D-Loop Length", state.dLoopLength, callbacks::updateDLoop,
+                        UnitRange.D_LOOP_LENGTH, unitSystem, digits = 3)
                 }
                 if (EquipmentFieldRules.isVisible(Field.BRACE_HEIGHT, bowType, isSetup, state.rearStabSide)) {
-                    DoubleStepperRow(
-                        "Brace Height", state.braceHeight, callbacks::updateBraceHeight,
-                        "${formatG(state.braceHeight)}\"",
-                        min = 5.0, max = 12.0, step = 1.0 / 16.0,
-                    )
+                    LengthStepperRow("Brace Height", state.braceHeight, callbacks::updateBraceHeight,
+                        UnitRange.BRACE_HEIGHT, unitSystem, digits = 3)
                 }
             }
         }
@@ -265,21 +262,28 @@ internal fun BowConfigEditFormBody(
         }
         if (EquipmentFieldRules.sectionVisible(Section.REST, bowType, isSetup)) {
             SectionHeader("Rest")
-            IntStepperRow("Vertical", state.restVertical, callbacks::updateRestVertical, sixteenthLabel(state.restVertical), -16, 16)
-            IntStepperRow("Horizontal", state.restHorizontal, callbacks::updateRestHorizontal, sixteenthLabel(state.restHorizontal), -16, 16)
-            DoubleStepperRow("Depth", state.restDepth, callbacks::updateRestDepth, "${"%.2f".format(state.restDepth)}\"", -5.0, 5.0, 0.25)
+            IntStepperRow("Vertical", state.restVertical, callbacks::updateRestVertical,
+                UnitFormatting.sixteenths(state.restVertical, unitSystem), -16, 16)
+            IntStepperRow("Horizontal", state.restHorizontal, callbacks::updateRestHorizontal,
+                UnitFormatting.sixteenths(state.restHorizontal, unitSystem), -16, 16)
+            LengthStepperRow("Depth", state.restDepth, callbacks::updateRestDepth,
+                UnitRange.REST_DEPTH, unitSystem)
         }
         if (EquipmentFieldRules.sectionVisible(Section.SIGHT_GRIP_NOCK, bowType, isSetup)) {
             SectionHeader("Sight, Grip & Nock")
             IntStepperRow("Sight Position", state.sightPosition, callbacks::updateSightPosition, sightPositionLabel(state.sightPosition), -15, 15)
-            DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle, "${"%.1f".format(state.gripAngle)}°", 0.0, 90.0, 0.5)
-            IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight, sixteenthLabel(state.nockingHeight), -80, 80)
+            DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
+                UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
+            IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
+                UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.TILLER, bowType, isSetup)) {
             SectionHeader("Tiller")
-            DoubleStepperRow("Top Tiller", state.tillerTop, callbacks::updateTillerTop, tillerLabel(state.tillerTop), -10.0, 10.0, 0.5)
-            DoubleStepperRow("Bottom Tiller", state.tillerBottom, callbacks::updateTillerBottom, tillerLabel(state.tillerBottom), -10.0, 10.0, 0.5)
+            MmLengthStepperRow("Top Tiller", state.tillerTop, callbacks::updateTillerTop,
+                UnitRange.TILLER, unitSystem)
+            MmLengthStepperRow("Bottom Tiller", state.tillerBottom, callbacks::updateTillerBottom,
+                UnitRange.TILLER, unitSystem)
         }
         if (EquipmentFieldRules.sectionVisible(Section.PLUNGER, bowType, isSetup)) {
             SectionHeader("Plunger")
@@ -287,55 +291,58 @@ internal fun BowConfigEditFormBody(
         }
         if (EquipmentFieldRules.sectionVisible(Section.CLICKER, bowType, isSetup)) {
             SectionHeader("Clicker")
-            DoubleStepperRow("Position", state.clickerPosition, callbacks::updateClickerPosition, clickerLabel(state.clickerPosition), -50.0, 50.0, 1.0)
+            MmLengthStepperRow("Position", state.clickerPosition, callbacks::updateClickerPosition,
+                UnitRange.CLICKER, unitSystem, digits = 0)
         }
         if (EquipmentFieldRules.sectionVisible(Section.GRIP_AND_NOCK, bowType, isSetup)) {
             SectionHeader("Grip & Nock")
-            DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle, "${"%.1f".format(state.gripAngle)}°", 0.0, 90.0, 0.5)
-            IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight, sixteenthLabel(state.nockingHeight), -80, 80)
+            DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
+                UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
+            IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
+                UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.FRONT_STAB, bowType, isSetup)) {
             SectionHeader("Front Stabilizer")
-            val maxWeight = if (bowType == BowType.COMPOUND) 60.0 else 30.0
-            val weightLabel = if (state.frontStabWeight == 0.0 && bowType == BowType.COMPOUND) {
-                "None"
-            } else {
-                "${formatG(state.frontStabWeight)} oz"
-            }
-            DoubleStepperRow("Weight", state.frontStabWeight, callbacks::updateFrontStabWeight, weightLabel, 0.0, maxWeight, 0.5)
-            DoubleStepperRow("Angle", state.frontStabAngle, callbacks::updateFrontStabAngle, "${state.frontStabAngle.toInt()}°", 0.0, 10.0, 1.0)
+            val weightRange = if (bowType == BowType.COMPOUND) UnitRange.FRONT_STAB_WEIGHT else UnitRange.VBAR_WEIGHT
+            val weightOverride = if (state.frontStabWeight == 0.0 && bowType == BowType.COMPOUND) "None" else null
+            StabWeightStepperRow("Weight", state.frontStabWeight, callbacks::updateFrontStabWeight,
+                weightRange, unitSystem, valueLabelOverride = weightOverride)
+            DoubleStepperRow("Angle", state.frontStabAngle, callbacks::updateFrontStabAngle,
+                UnitFormatting.degrees(state.frontStabAngle, digits = 0), 0.0, 10.0, 1.0)
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.REAR_STAB, bowType, isSetup)) {
             SectionHeader("Rear Stabilizer")
             RearStabSidePicker(selected = state.rearStabSide, onSelect = callbacks::updateRearStabSide)
             if (EquipmentFieldRules.isVisible(Field.REAR_STAB_WEIGHT, bowType, isSetup, state.rearStabSide)) {
-                DoubleStepperRow(
-                    "Weight", state.rearStabWeight, callbacks::updateRearStabWeight,
-                    "${formatG(state.rearStabWeight)} oz", 0.0, 60.0, 0.5,
-                )
+                StabWeightStepperRow("Weight", state.rearStabWeight, callbacks::updateRearStabWeight,
+                    UnitRange.REAR_STAB_WEIGHT, unitSystem)
             }
             if (EquipmentFieldRules.isVisible(Field.REAR_STAB_VERT_ANGLE, bowType, isSetup, state.rearStabSide)) {
                 DoubleStepperRow(
                     "Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle,
-                    "${state.rearStabVertAngle.toInt()}°", -90.0, 90.0, 5.0,
+                    UnitFormatting.degrees(state.rearStabVertAngle, digits = 0), -90.0, 90.0, 5.0,
                 )
             }
             if (EquipmentFieldRules.isVisible(Field.REAR_STAB_HORIZ_ANGLE, bowType, isSetup, state.rearStabSide)) {
                 DoubleStepperRow(
                     "Horizontal Angle", state.rearStabHorizAngle, callbacks::updateRearStabHorizAngle,
-                    "${state.rearStabHorizAngle.toInt()}°", 0.0, 90.0, 5.0,
+                    UnitFormatting.degrees(state.rearStabHorizAngle, digits = 0), 0.0, 90.0, 5.0,
                 )
             }
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.V_BAR, bowType, isSetup)) {
             SectionHeader("V-Bar (Rear Stabilizer)")
-            DoubleStepperRow("Left Weight", state.rearStabLeftWeight, callbacks::updateRearStabLeftWeight, "${formatG(state.rearStabLeftWeight)} oz", 0.0, 30.0, 0.5)
-            DoubleStepperRow("Right Weight", state.rearStabRightWeight, callbacks::updateRearStabRightWeight, "${formatG(state.rearStabRightWeight)} oz", 0.0, 30.0, 0.5)
-            DoubleStepperRow("Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle, "${state.rearStabVertAngle.toInt()}°", -90.0, 90.0, 5.0)
-            DoubleStepperRow("Horizontal Angle", state.rearStabHorizAngle, callbacks::updateRearStabHorizAngle, "${state.rearStabHorizAngle.toInt()}°", 0.0, 90.0, 5.0)
+            StabWeightStepperRow("Left Weight", state.rearStabLeftWeight, callbacks::updateRearStabLeftWeight,
+                UnitRange.VBAR_WEIGHT, unitSystem)
+            StabWeightStepperRow("Right Weight", state.rearStabRightWeight, callbacks::updateRearStabRightWeight,
+                UnitRange.VBAR_WEIGHT, unitSystem)
+            DoubleStepperRow("Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle,
+                UnitFormatting.degrees(state.rearStabVertAngle, digits = 0), -90.0, 90.0, 5.0)
+            DoubleStepperRow("Horizontal Angle", state.rearStabHorizAngle, callbacks::updateRearStabHorizAngle,
+                UnitFormatting.degrees(state.rearStabHorizAngle, digits = 0), 0.0, 90.0, 5.0)
         }
 
         Spacer(Modifier.height(24.dp))

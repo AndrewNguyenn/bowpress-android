@@ -2,10 +2,12 @@ package com.andrewnguyen.bowpress
 
 import app.cash.turbine.test
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
+import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.AuthProvider
 import com.andrewnguyen.bowpress.core.model.DeliveryType
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.core.model.User
 import com.andrewnguyen.bowpress.push.PushInitializer
 import com.google.common.truth.Truth.assertThat
@@ -49,7 +51,10 @@ class AppStateViewModelTest {
         }
         val push = mockk<PushInitializer>(relaxed = true)
 
-        val vm = AppStateViewModel(userRepo, suggestionRepo, push)
+        val unitRepo = mockk<UnitPreferencesRepository>(relaxed = true) {
+            every { unitSystem } returns flowOf(UnitSystem.IMPERIAL)
+        }
+        val vm = AppStateViewModel(userRepo, suggestionRepo, unitRepo, push)
         vm.uiState.test {
             val s = awaitItem()
             assertThat(s.isAuthenticated).isFalse()
@@ -74,7 +79,10 @@ class AppStateViewModelTest {
             every { observeAll() } returns flowOf(suggestions)
         }
 
-        val vm = AppStateViewModel(userRepo, suggestionRepo, mockk(relaxed = true))
+        val unitRepo2 = mockk<UnitPreferencesRepository>(relaxed = true) {
+            every { unitSystem } returns flowOf(UnitSystem.IMPERIAL)
+        }
+        val vm = AppStateViewModel(userRepo, suggestionRepo, unitRepo2, mockk(relaxed = true))
         vm.uiState.test {
             val s = awaitItem()
             assertThat(s.unreadSuggestionCount).isEqualTo(2)
@@ -102,7 +110,10 @@ class AppStateViewModelTest {
         }
         val push = mockk<PushInitializer>(relaxed = true)
 
-        val vm = AppStateViewModel(userRepo, suggestionRepo, push)
+        val unitRepo = mockk<UnitPreferencesRepository>(relaxed = true) {
+            every { unitSystem } returns flowOf(UnitSystem.IMPERIAL)
+        }
+        val vm = AppStateViewModel(userRepo, suggestionRepo, unitRepo, push)
         vm.uiState.test {
             val s = awaitItem()
             assertThat(s.isAuthenticated).isTrue()

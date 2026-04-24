@@ -36,10 +36,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
+import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
 import com.andrewnguyen.bowpress.core.model.FletchingType
 import com.andrewnguyen.bowpress.core.model.ShaftDiameter
+import com.andrewnguyen.bowpress.core.model.UnitFormatting
+import com.andrewnguyen.bowpress.core.model.UnitRange
+import com.andrewnguyen.bowpress.core.model.UnitSystem
+import com.andrewnguyen.bowpress.feature.equipment.components.ArrowMassStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.DoubleStepperRow
-import com.andrewnguyen.bowpress.feature.equipment.components.IntStepperRow
+import com.andrewnguyen.bowpress.feature.equipment.components.LengthStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.SectionHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,12 +85,19 @@ fun AddArrowScreen(
             )
         },
     ) { padding ->
+        val unitSystem = LocalUnitSystem.current
+        val setUnitSystem = LocalUnitSystemSetter.current
         Column(
             modifier = Modifier
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
+            UnitToggle(
+                system = unitSystem,
+                onSystemChange = setUnitSystem,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
             ArrowFormBody(
                 label = state.label, onLabel = viewModel::updateLabel,
                 brand = state.brand, onBrand = viewModel::updateBrand,
@@ -97,6 +111,7 @@ fun AddArrowScreen(
                 totalWeightText = state.totalWeightText, onTotalWeight = viewModel::updateTotalWeight,
                 shaftDiameter = state.shaftDiameter, onShaftDiameter = viewModel::updateShaftDiameter,
                 notes = state.notes, onNotes = viewModel::updateNotes,
+                unitSystem = unitSystem,
             )
             state.errorMessage?.let { msg ->
                 Text(msg, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -121,6 +136,7 @@ internal fun ArrowFormBody(
     totalWeightText: String, onTotalWeight: (String) -> Unit,
     shaftDiameter: ShaftDiameter?, onShaftDiameter: (ShaftDiameter?) -> Unit,
     notes: String, onNotes: (String) -> Unit,
+    unitSystem: UnitSystem,
 ) {
     SectionHeader("Identity")
     OutlinedTextField(
@@ -143,16 +159,17 @@ internal fun ArrowFormBody(
     )
 
     SectionHeader("Shaft")
-    DoubleStepperRow(
-        "Length", length, onLength,
-        "${"%.2f".format(length)}\"",
-        min = 18.0, max = 36.0, step = 0.25,
+    LengthStepperRow(
+        label = "Length",
+        inches = length, onInchesChange = onLength,
+        range = UnitRange.ARROW_LENGTH, unitSystem = unitSystem,
     )
-    IntStepperRow(
-        "Point Weight", pointWeight, onPointWeight,
-        "$pointWeight gr", min = 50, max = 300, step = 5,
+    ArrowMassStepperRow(
+        label = "Point Weight",
+        grains = pointWeight, onGrainsChange = onPointWeight,
+        range = UnitRange.POINT_WEIGHT, unitSystem = unitSystem,
     )
-    ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter)
+    ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
 
     SectionHeader("Fletching")
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -164,14 +181,14 @@ internal fun ArrowFormBody(
             ) { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) }
         }
     }
-    DoubleStepperRow(
-        "Fletching Length", fletchingLength, onFletchingLength,
-        "${"%.2f".format(fletchingLength)}\"",
-        min = 1.0, max = 5.0, step = 0.25,
+    LengthStepperRow(
+        label = "Fletching Length",
+        inches = fletchingLength, onInchesChange = onFletchingLength,
+        range = UnitRange.FLETCHING_LENGTH, unitSystem = unitSystem,
     )
     DoubleStepperRow(
         "Fletching Offset", fletchingOffset, onFletchingOffset,
-        "${"%.1f".format(fletchingOffset)}°",
+        UnitFormatting.degrees(fletchingOffset),
         min = 0.0, max = 10.0, step = 0.5,
     )
 
@@ -184,7 +201,7 @@ internal fun ArrowFormBody(
     )
     OutlinedTextField(
         value = totalWeightText, onValueChange = onTotalWeight,
-        label = { Text("Total Weight (gr)") },
+        label = { Text("Total Weight (${UnitFormatting.massSuffix(unitSystem)})") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
@@ -199,11 +216,15 @@ internal fun ArrowFormBody(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ShaftDiameterPicker(selected: ShaftDiameter?, onSelect: (ShaftDiameter?) -> Unit) {
+private fun ShaftDiameterPicker(
+    selected: ShaftDiameter?,
+    onSelect: (ShaftDiameter?) -> Unit,
+    unitSystem: UnitSystem,
+) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
-            value = selected?.displayName ?: "Not set",
+            value = selected?.displayName(unitSystem) ?: "Not set",
             onValueChange = {},
             readOnly = true,
             label = { Text("Diameter") },
@@ -213,7 +234,7 @@ private fun ShaftDiameterPicker(selected: ShaftDiameter?, onSelect: (ShaftDiamet
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(text = { Text("Not set") }, onClick = { onSelect(null); expanded = false })
             ShaftDiameter.entries.forEach { d ->
-                DropdownMenuItem(text = { Text(d.displayName) }, onClick = { onSelect(d); expanded = false })
+                DropdownMenuItem(text = { Text(d.displayName(unitSystem)) }, onClick = { onSelect(d); expanded = false })
             }
         }
     }

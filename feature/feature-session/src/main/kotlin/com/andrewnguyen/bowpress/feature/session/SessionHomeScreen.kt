@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.Bow
 import kotlinx.coroutines.launch
@@ -139,13 +140,7 @@ private fun BowRow(bow: Bow, isSelected: Boolean, onClick: () -> Unit) {
 private fun ArrowRow(arrow: ArrowConfiguration, isSelected: Boolean, onClick: () -> Unit) {
     val bg = if (isSelected) BowPressColors.Accent else Color.Transparent
     val fg = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-    val subtitle = buildString {
-        append("%.2f\"".format(arrow.length))
-        append(" · ")
-        append("${arrow.pointWeight}gr")
-        append(" · ")
-        append(arrow.fletchingType.name.lowercase())
-    }
+    val subtitle = arrow.specSummary(LocalUnitSystem.current)
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = bg),

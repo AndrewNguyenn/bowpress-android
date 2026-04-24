@@ -90,4 +90,20 @@ data class BowConfiguration(
             tillerTop == other.tillerTop && tillerBottom == other.tillerBottom &&
             plungerTension == other.plungerTension && clickerPosition == other.clickerPosition &&
             rearStabLeftWeight == other.rearStabLeftWeight && rearStabRightWeight == other.rearStabRightWeight
+
+    /**
+     * Compact one-line summary for the "Base Setup" recap on edit screens.
+     * Shape depends on which optional fields the config actually has.
+     * e.g. `Draw 28.5" · Let-off 80% · Peep 9.25" · D-loop 2.125"` (compound imperial).
+     */
+    fun compactSetupLine(system: UnitSystem): String {
+        val parts = mutableListOf(
+            "Draw ${UnitFormatting.length(drawLength, system)}",
+        )
+        letOffPct?.let { parts += "Let-off ${UnitFormatting.percent(it)}" }
+        peepHeight?.let { parts += "Peep ${UnitFormatting.length(it, system)}" }
+        dLoopLength?.let { parts += "D-loop ${UnitFormatting.length(it, system, digits = 3)}" }
+        braceHeight?.let { parts += "Brace ${UnitFormatting.length(it, system, digits = 3)}" }
+        return parts.joinToString(" · ")
+    }
 }

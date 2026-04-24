@@ -26,21 +26,22 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
+import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.UnitFormatting
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules.Field
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules.Section
 import com.andrewnguyen.bowpress.feature.equipment.components.LabeledValueRow
 import com.andrewnguyen.bowpress.feature.equipment.components.SectionHeader
-import com.andrewnguyen.bowpress.feature.equipment.components.clickerLabel
-import com.andrewnguyen.bowpress.feature.equipment.components.formatG
 import com.andrewnguyen.bowpress.feature.equipment.components.halfTwistLabel
 import com.andrewnguyen.bowpress.feature.equipment.components.limbTurnsLabel
 import com.andrewnguyen.bowpress.feature.equipment.components.sightPositionLabel
-import com.andrewnguyen.bowpress.feature.equipment.components.sixteenthLabel
-import com.andrewnguyen.bowpress.feature.equipment.components.tillerLabel
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -90,6 +91,8 @@ fun BowConfigDetailScreen(
             else -> ReadOnlyBody(
                 bow = state.bow!!,
                 config = state.config!!,
+                unitSystem = LocalUnitSystem.current,
+                onUnitSystemChange = LocalUnitSystemSetter.current,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -100,6 +103,8 @@ fun BowConfigDetailScreen(
 private fun ReadOnlyBody(
     bow: com.andrewnguyen.bowpress.core.model.Bow,
     config: BowConfiguration,
+    unitSystem: UnitSystem,
+    onUnitSystemChange: (UnitSystem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bowType = bow.bowType
@@ -114,6 +119,12 @@ private fun ReadOnlyBody(
             .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState()),
     ) {
+        UnitToggle(
+            system = unitSystem,
+            onSystemChange = onUnitSystemChange,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+
         SectionHeader("Snapshot")
         LabeledValueRow("Label", config.label ?: if (isSetup) "Initial Setup" else "—")
         LabeledValueRow("Recorded", formatter.format(config.createdAt))
@@ -122,20 +133,15 @@ private fun ReadOnlyBody(
         // Bow Setup / Base Setup
         SectionHeader("Bow Setup")
         if (EquipmentFieldRules.isVisible(Field.DRAW_LENGTH, bowType, isSetup, rearStabSide)) {
-            LabeledValueRow("Draw Length", "${"%.1f".format(config.drawLength)}\"")
-        }
-        if (EquipmentFieldRules.isVisible(Field.LET_OFF_PCT, bowType, isSetup = true, rearStabSide)) {
-            // On detail we render let-off unconditionally on compound — the value is persisted either way.
-            config.letOffPct?.let { LabeledValueRow("Let-off", "${it.toInt()}%") }
-        } else if (bowType == BowType.COMPOUND) {
-            config.letOffPct?.let { LabeledValueRow("Let-off", "${it.toInt()}%") }
+            LabeledValueRow("Draw Length", UnitFormatting.length(config.drawLength, unitSystem, digits = 1))
         }
         if (bowType == BowType.COMPOUND) {
-            config.peepHeight?.let { LabeledValueRow("Peep Height", "${"%.2f".format(it)}\"") }
-            config.dLoopLength?.let { LabeledValueRow("D-Loop Length", "${"%.3f".format(it)}\"") }
+            config.letOffPct?.let { LabeledValueRow("Let-off", UnitFormatting.percent(it)) }
+            config.peepHeight?.let { LabeledValueRow("Peep Height", UnitFormatting.length(it, unitSystem)) }
+            config.dLoopLength?.let { LabeledValueRow("D-Loop Length", UnitFormatting.length(it, unitSystem, digits = 3)) }
         }
         if (EquipmentFieldRules.isVisible(Field.BRACE_HEIGHT, bowType, isSetup, rearStabSide)) {
-            config.braceHeight?.let { LabeledValueRow("Brace Height", "${"%.3f".format(it)}\"") }
+            config.braceHeight?.let { LabeledValueRow("Brace Height", UnitFormatting.length(it, unitSystem, digits = 3)) }
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.STRING_AND_CABLE, bowType, isSetup)) {
@@ -152,20 +158,20 @@ private fun ReadOnlyBody(
         }
         if (EquipmentFieldRules.sectionVisible(Section.REST, bowType, isSetup)) {
             SectionHeader("Rest")
-            LabeledValueRow("Vertical", sixteenthLabel(config.restVertical))
-            LabeledValueRow("Horizontal", sixteenthLabel(config.restHorizontal))
-            LabeledValueRow("Depth", "${"%.2f".format(config.restDepth)}\"")
+            LabeledValueRow("Vertical", UnitFormatting.sixteenths(config.restVertical, unitSystem))
+            LabeledValueRow("Horizontal", UnitFormatting.sixteenths(config.restHorizontal, unitSystem))
+            LabeledValueRow("Depth", UnitFormatting.length(config.restDepth, unitSystem))
         }
         if (EquipmentFieldRules.sectionVisible(Section.SIGHT_GRIP_NOCK, bowType, isSetup)) {
             SectionHeader("Sight, Grip & Nock")
             LabeledValueRow("Sight Position", sightPositionLabel(config.sightPosition ?: 0))
-            LabeledValueRow("Grip Angle", "${"%.1f".format(config.gripAngle)}°")
-            LabeledValueRow("Nocking Height", sixteenthLabel(config.nockingHeight))
+            LabeledValueRow("Grip Angle", UnitFormatting.degrees(config.gripAngle))
+            LabeledValueRow("Nocking Height", UnitFormatting.sixteenths(config.nockingHeight, unitSystem))
         }
         if (EquipmentFieldRules.sectionVisible(Section.TILLER, bowType, isSetup)) {
             SectionHeader("Tiller")
-            LabeledValueRow("Top", tillerLabel(config.tillerTop ?: 0.0))
-            LabeledValueRow("Bottom", tillerLabel(config.tillerBottom ?: 0.0))
+            LabeledValueRow("Top", UnitFormatting.mmLength(config.tillerTop ?: 0.0, unitSystem))
+            LabeledValueRow("Bottom", UnitFormatting.mmLength(config.tillerBottom ?: 0.0, unitSystem))
         }
         if (EquipmentFieldRules.sectionVisible(Section.PLUNGER, bowType, isSetup)) {
             SectionHeader("Plunger")
@@ -173,33 +179,33 @@ private fun ReadOnlyBody(
         }
         if (EquipmentFieldRules.sectionVisible(Section.CLICKER, bowType, isSetup)) {
             SectionHeader("Clicker")
-            LabeledValueRow("Position", clickerLabel(config.clickerPosition ?: 0.0))
+            LabeledValueRow("Position", UnitFormatting.mmLength(config.clickerPosition ?: 0.0, unitSystem, digits = 0))
         }
         if (EquipmentFieldRules.sectionVisible(Section.GRIP_AND_NOCK, bowType, isSetup)) {
             SectionHeader("Grip & Nock")
-            LabeledValueRow("Grip Angle", "${"%.1f".format(config.gripAngle)}°")
-            LabeledValueRow("Nocking Height", sixteenthLabel(config.nockingHeight))
+            LabeledValueRow("Grip Angle", UnitFormatting.degrees(config.gripAngle))
+            LabeledValueRow("Nocking Height", UnitFormatting.sixteenths(config.nockingHeight, unitSystem))
         }
         if (EquipmentFieldRules.sectionVisible(Section.FRONT_STAB, bowType, isSetup)) {
             SectionHeader("Front Stabilizer")
-            LabeledValueRow("Weight", "${formatG(config.frontStabWeight ?: 0.0)} oz")
-            LabeledValueRow("Angle", "${(config.frontStabAngle ?: 0.0).toInt()}°")
+            LabeledValueRow("Weight", UnitFormatting.stabWeight(config.frontStabWeight ?: 0.0, unitSystem))
+            LabeledValueRow("Angle", UnitFormatting.degrees(config.frontStabAngle ?: 0.0, digits = 0))
         }
         if (EquipmentFieldRules.sectionVisible(Section.REAR_STAB, bowType, isSetup)) {
             SectionHeader("Rear Stabilizer")
             LabeledValueRow("Side", rearStabSide.label)
             if (rearStabSide != RearStabSide.NONE) {
-                LabeledValueRow("Weight", "${formatG(config.rearStabWeight ?: 0.0)} oz")
-                LabeledValueRow("Vertical Angle", "${(config.rearStabVertAngle ?: 0.0).toInt()}°")
-                LabeledValueRow("Horizontal Angle", "${(config.rearStabHorizAngle ?: 0.0).toInt()}°")
+                LabeledValueRow("Weight", UnitFormatting.stabWeight(config.rearStabWeight ?: 0.0, unitSystem))
+                LabeledValueRow("Vertical Angle", UnitFormatting.degrees(config.rearStabVertAngle ?: 0.0, digits = 0))
+                LabeledValueRow("Horizontal Angle", UnitFormatting.degrees(config.rearStabHorizAngle ?: 0.0, digits = 0))
             }
         }
         if (EquipmentFieldRules.sectionVisible(Section.V_BAR, bowType, isSetup)) {
             SectionHeader("V-Bar (Rear Stabilizer)")
-            LabeledValueRow("Left Weight", "${formatG(config.rearStabLeftWeight ?: 0.0)} oz")
-            LabeledValueRow("Right Weight", "${formatG(config.rearStabRightWeight ?: 0.0)} oz")
-            LabeledValueRow("Vertical Angle", "${(config.rearStabVertAngle ?: 0.0).toInt()}°")
-            LabeledValueRow("Horizontal Angle", "${(config.rearStabHorizAngle ?: 0.0).toInt()}°")
+            LabeledValueRow("Left Weight", UnitFormatting.stabWeight(config.rearStabLeftWeight ?: 0.0, unitSystem))
+            LabeledValueRow("Right Weight", UnitFormatting.stabWeight(config.rearStabRightWeight ?: 0.0, unitSystem))
+            LabeledValueRow("Vertical Angle", UnitFormatting.degrees(config.rearStabVertAngle ?: 0.0, digits = 0))
+            LabeledValueRow("Horizontal Angle", UnitFormatting.degrees(config.rearStabHorizAngle ?: 0.0, digits = 0))
         }
     }
 }
