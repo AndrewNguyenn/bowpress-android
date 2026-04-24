@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.data.repository
 
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
+import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
 import com.andrewnguyen.bowpress.core.network.BowPressApi
@@ -17,12 +18,15 @@ import javax.inject.Singleton
 class AnalyticsRepository @Inject constructor(
     private val api: BowPressApi,
 ) {
-    suspend fun overview(period: AnalyticsPeriod): AnalyticsOverview =
-        api.fetchAnalyticsOverview(period.wire)
+    suspend fun overview(period: AnalyticsPeriod, bowType: BowType? = null): AnalyticsOverview =
+        api.fetchAnalyticsOverview(period.wire, bowType?.wire)
 
-    suspend fun comparison(period: AnalyticsPeriod): PeriodComparison =
-        api.fetchAnalyticsComparison(period.wire)
+    suspend fun comparison(period: AnalyticsPeriod, bowType: BowType? = null): PeriodComparison =
+        api.fetchAnalyticsComparison(period.wire, bowType?.wire)
 
     suspend fun tagCorrelations(bowId: String): List<TagCorrelation> =
         api.fetchTagCorrelations(bowId)
 }
+
+/** Server-side spelling: lowercase enum name matches `@SerialName` on [BowType]. */
+private val BowType.wire: String get() = name.lowercase()

@@ -2,10 +2,13 @@ package com.andrewnguyen.bowpress.feature.analytics.dashboard
 
 import app.cash.turbine.test
 import com.andrewnguyen.bowpress.core.data.repository.AnalyticsRepository
+import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
+import com.andrewnguyen.bowpress.core.model.Bow
+import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.PeriodSlice
@@ -53,8 +56,8 @@ class AnalyticsDashboardViewModelTest {
             previous = PeriodSlice("Previous 1 Week", avgArrowScore = 9.0, xPercentage = 20.0, sessionCount = 6),
         )
         val analyticsRepository = mockk<AnalyticsRepository>()
-        coEvery { analyticsRepository.overview(AnalyticsPeriod.WEEK) } returns overview
-        coEvery { analyticsRepository.comparison(AnalyticsPeriod.WEEK) } returns comparison
+        coEvery { analyticsRepository.overview(AnalyticsPeriod.WEEK, null) } returns overview
+        coEvery { analyticsRepository.comparison(AnalyticsPeriod.WEEK, null) } returns comparison
 
         // Five suggestions — ViewModel should surface the top 3 (undismissed, unread first).
         val suggestions = (1..5).map { idx ->
@@ -78,9 +81,13 @@ class AnalyticsDashboardViewModelTest {
         val suggestionRepository = mockk<SuggestionRepository>()
         every { suggestionRepository.observeAll() } returns MutableStateFlow(suggestions)
 
+        val bowRepository = mockk<BowRepository>()
+        every { bowRepository.observeBows() } returns MutableStateFlow(emptyList<Bow>())
+
         val vm = AnalyticsDashboardViewModel(
             analyticsRepository = analyticsRepository,
             suggestionRepository = suggestionRepository,
+            bowRepository = bowRepository,
         )
 
         vm.uiState.test {
@@ -103,13 +110,13 @@ class AnalyticsDashboardViewModelTest {
     @Test
     fun `dismissed suggestions are filtered out before the top-3 take`() = runTest {
         val analyticsRepository = mockk<AnalyticsRepository>()
-        coEvery { analyticsRepository.overview(any()) } returns AnalyticsOverview(
+        coEvery { analyticsRepository.overview(any(), any()) } returns AnalyticsOverview(
             period = AnalyticsPeriod.WEEK,
             sessionCount = 1,
             avgArrowScore = 9.0,
             xPercentage = 10.0,
         )
-        coEvery { analyticsRepository.comparison(any()) } returns PeriodComparison(
+        coEvery { analyticsRepository.comparison(any(), any()) } returns PeriodComparison(
             period = AnalyticsPeriod.WEEK,
             current = PeriodSlice("a", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
             previous = PeriodSlice("b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
@@ -123,7 +130,10 @@ class AnalyticsDashboardViewModelTest {
         val suggestionRepository = mockk<SuggestionRepository>()
         every { suggestionRepository.observeAll() } returns MutableStateFlow(suggestions)
 
-        val vm = AnalyticsDashboardViewModel(analyticsRepository, suggestionRepository)
+        val bowRepository = mockk<BowRepository>()
+        every { bowRepository.observeBows() } returns MutableStateFlow(emptyList<Bow>())
+
+        val vm = AnalyticsDashboardViewModel(analyticsRepository, suggestionRepository, bowRepository)
 
         vm.uiState.test {
             var state = awaitItem()
@@ -133,6 +143,58 @@ class AnalyticsDashboardViewModelTest {
             }
             assertThat(state.topSuggestions.map { it.id })
                 .containsExactly("kept2", "kept1").inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `selectBowType triggers a re-fetch with the chosen style`() = runTest {
+        val analyticsRepository = mockk<AnalyticsRepository>()
+        // Two stubs — one for the initial null call, one for the BAREBOW call.
+        coEvery { analyticsRepository.overview(AnalyticsPeriod.WEEK, null) } returns AnalyticsOverview(
+            period = AnalyticsPeriod.WEEK, sessionCount = 9, avgArrowScore = 9.0, xPercentage = 0.0,
+        )
+        coEvery { analyticsRepository.comparison(AnalyticsPeriod.WEEK, null) } returns PeriodComparison(
+            period = AnalyticsPeriod.WEEK,
+            current = PeriodSlice(label = "a", avgArrowScore = 9.0, xPercentage = 0.0, sessionCount = 9),
+            previous = PeriodSlice(label = "b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
+        )
+        coEvery { analyticsRepository.overview(AnalyticsPeriod.WEEK, BowType.BAREBOW) } returns AnalyticsOverview(
+            period = AnalyticsPeriod.WEEK, sessionCount = 3, avgArrowScore = 7.5, xPercentage = 5.0,
+        )
+        coEvery { analyticsRepository.comparison(AnalyticsPeriod.WEEK, BowType.BAREBOW) } returns PeriodComparison(
+            period = AnalyticsPeriod.WEEK,
+            current = PeriodSlice(label = "a", avgArrowScore = 7.5, xPercentage = 5.0, sessionCount = 3),
+            previous = PeriodSlice(label = "b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
+        )
+
+        val suggestionRepository = mockk<SuggestionRepository> {
+            every { observeAll() } returns MutableStateFlow(emptyList())
+        }
+        val bowRepository = mockk<BowRepository> {
+            every { observeBows() } returns MutableStateFlow(emptyList<Bow>())
+        }
+
+        val vm = AnalyticsDashboardViewModel(analyticsRepository, suggestionRepository, bowRepository)
+
+        vm.uiState.test {
+            // Wait for the initial unfiltered load.
+            var state = awaitItem()
+            while (state.isLoading || state.overview?.sessionCount != 9) {
+                advanceUntilIdle()
+                state = awaitItem()
+            }
+            assertThat(state.selectedBowType).isNull()
+
+            // Switch to barebow → the VM should re-fetch and report sessionCount=3.
+            vm.selectBowType(BowType.BAREBOW)
+            advanceUntilIdle()
+            state = awaitItem()
+            while (state.isLoading || state.overview?.sessionCount != 3) {
+                advanceUntilIdle()
+                state = awaitItem()
+            }
+            assertThat(state.selectedBowType).isEqualTo(BowType.BAREBOW)
             cancelAndIgnoreRemainingEvents()
         }
     }

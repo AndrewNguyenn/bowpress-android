@@ -43,6 +43,7 @@ import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
+import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.PeriodSlice
@@ -77,6 +78,7 @@ fun AnalyticsDashboardScreen(
     AnalyticsDashboardContent(
         state = state,
         onPeriodChange = viewModel::selectPeriod,
+        onBowTypeChange = viewModel::selectBowType,
         onRetry = viewModel::refresh,
         onOpenSuggestion = onOpenSuggestion,
         onOpenHistory = onOpenHistory,
@@ -88,6 +90,7 @@ fun AnalyticsDashboardScreen(
 internal fun AnalyticsDashboardContent(
     state: DashboardUiState,
     onPeriodChange: (AnalyticsPeriod) -> Unit,
+    onBowTypeChange: (BowType?) -> Unit,
     onRetry: () -> Unit,
     onOpenSuggestion: (bowId: String, suggestionId: String) -> Unit,
     onOpenHistory: () -> Unit,
@@ -104,6 +107,17 @@ internal fun AnalyticsDashboardContent(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // Only render when the user actually owns 2+ bow styles — otherwise the row is
+            // a no-op control that wastes vertical space on the dashboard.
+            if (state.availableBowTypes.size >= 2) {
+                item {
+                    BowStylePickerRow(
+                        selected = state.selectedBowType,
+                        available = state.availableBowTypes,
+                        onSelect = onBowTypeChange,
+                    )
+                }
+            }
             item { PeriodPickerRow(selected = state.period, onSelect = onPeriodChange) }
 
             if (state.isLoading && state.overview == null) {
@@ -158,6 +172,44 @@ internal fun AnalyticsDashboardContent(
 }
 
 // ---------- Sub-components ----------
+
+@Composable
+private fun BowStylePickerRow(
+    selected: BowType?,
+    available: Set<BowType>,
+    onSelect: (BowType?) -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelect(null) },
+            label = { Text("All") },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        )
+        BowType.entries.forEach { type ->
+            if (type in available) {
+                FilterChip(
+                    selected = selected == type,
+                    onClick = { onSelect(type) },
+                    label = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun PeriodPickerRow(
@@ -390,6 +442,7 @@ private fun DashboardPreview_Loaded() {
         AnalyticsDashboardContent(
             state = previewLoadedState,
             onPeriodChange = {},
+            onBowTypeChange = {},
             onRetry = {},
             onOpenSuggestion = { _, _ -> },
             onOpenHistory = {},
@@ -405,6 +458,7 @@ private fun DashboardPreview_Empty() {
         AnalyticsDashboardContent(
             state = DashboardUiState(isLoading = false),
             onPeriodChange = {},
+            onBowTypeChange = {},
             onRetry = {},
             onOpenSuggestion = { _, _ -> },
             onOpenHistory = {},
