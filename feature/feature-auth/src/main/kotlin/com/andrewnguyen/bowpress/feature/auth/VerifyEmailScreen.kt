@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,19 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,15 +37,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk3
+import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
+import com.andrewnguyen.bowpress.core.designsystem.AppPond
+import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
+import com.andrewnguyen.bowpress.core.designsystem.BPFonts
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPHairlineButton
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPPrimaryButton
+import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
+import com.andrewnguyen.bowpress.core.designsystem.interUI
 
 /**
- * 6-digit verification screen. We use a single `OutlinedTextField` constrained
- * to digits — simpler and more robust than 6 focus-hopping fields, matches
- * what Material guidelines suggest for OTP on Android.
- *
- * Resend has a 30s cooldown enforced by the ViewModel (mirrors iOS 60s — we
- * shorter since Android users expect tighter loops).
+ * 6-digit OTP verification screen. Kenrokuen restyle: paper background, Fraunces
+ * italic title, BP-branded text field, BPPrimaryButton + BPHairlineButton actions.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,13 +93,22 @@ internal fun VerifyEmailScreenContent(
     val canSubmit = code.length == 6 && !state.isLoading
     val canResend = state.resendCooldownSeconds == 0 && !state.isLoading
 
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        unfocusedBorderColor = AppLine,
+        focusedBorderColor = AppPondDk,
+        unfocusedLabelColor = AppInk3,
+        focusedLabelColor = AppPondDk,
+    )
+
     Scaffold(
+        containerColor = AppPaper,
         topBar = {
             TopAppBar(
-                title = { Text("Verify email") },
+                title = {},
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppPaper),
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Close, contentDescription = "Cancel")
+                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = AppInk)
                     }
                 },
             )
@@ -107,18 +122,22 @@ internal fun VerifyEmailScreenContent(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = 24.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // Kenrokuen title block
+                BPEyebrow(text = "BOWPRESS", tone = AppInk3, size = 10.sp)
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    "Check your email",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    text = "Verify email.",
+                    style = frauncesDisplay(28.sp, italic = true).copy(color = AppInk),
                 )
+
+                Spacer(Modifier.height(4.dp))
+
                 Text(
                     "We sent a 6-digit code to $email. The code expires in 10 minutes.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    style = interUI(14.sp).copy(color = AppInk3),
                 )
 
                 Spacer(Modifier.height(8.dp))
@@ -126,15 +145,17 @@ internal fun VerifyEmailScreenContent(
                 OutlinedTextField(
                     value = code,
                     onValueChange = { next -> code = next.filter(Char::isDigit).take(6) },
-                    label = { Text("6-digit code") },
+                    label = { Text("6-digit code", style = interUI(15.sp)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     textStyle = TextStyle(
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = BPFonts.Mono,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 24.sp,
                         letterSpacing = 8.sp,
+                        color = AppInk,
                     ),
+                    colors = fieldColors,
                     isError = state.error is AuthError.InvalidVerificationCode ||
                         state.error is AuthError.VerificationCodeExpired,
                     modifier = Modifier
@@ -144,39 +165,30 @@ internal fun VerifyEmailScreenContent(
 
                 ErrorMessage(state.error)
 
-                Button(
+                BPPrimaryButton(
+                    title = "Verify",
                     onClick = { onSubmit(code) },
                     enabled = canSubmit,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
                         .testTag(TAG_VERIFY_SUBMIT),
-                ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.height(22.dp),
-                        )
-                    } else {
-                        Text("Verify")
-                    }
-                }
+                )
 
-                TextButton(
-                    onClick = onResend,
-                    enabled = canResend,
+                // Resend — secondary hairline action
+                val resendLabel = if (state.resendCooldownSeconds > 0) {
+                    "Resend code in ${state.resendCooldownSeconds}s"
+                } else {
+                    "Resend code"
+                }
+                BPHairlineButton(
+                    label = resendLabel,
+                    onClick = { if (canResend) onResend() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag(TAG_RESEND_BUTTON),
-                ) {
-                    val label = if (state.resendCooldownSeconds > 0) {
-                        "Resend code in ${state.resendCooldownSeconds}s"
-                    } else {
-                        "Resend code"
-                    }
-                    Text(label)
-                }
+                    borderTone = if (canResend) AppLine else AppLine,
+                    labelTone = if (canResend) AppInk else AppInk3,
+                )
             }
         }
     }
@@ -198,8 +210,7 @@ private fun ErrorMessage(error: AuthError?) {
     }
     Text(
         text = text,
-        color = MaterialTheme.colorScheme.error,
-        style = MaterialTheme.typography.bodyLarge,
+        style = interUI(14.sp).copy(color = AppPond),
         modifier = Modifier
             .fillMaxWidth()
             .testTag(TAG_VERIFY_ERROR),

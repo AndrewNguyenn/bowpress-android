@@ -12,28 +12,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -41,14 +39,28 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk3
+import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
+import com.andrewnguyen.bowpress.core.designsystem.AppPond
+import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPPrimaryButton
+import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
+import com.andrewnguyen.bowpress.core.designsystem.interUI
 
 /**
  * Sign-in / sign-up form. Defaults to sign-in; the user toggles with the segmented
  * control. On success the ViewModel emits [AuthUiEvent.NavigateToVerify]
  * (sign-up) or [AuthUiEvent.SignedIn] (sign-in) — the nav layer handles routing.
+ *
+ * Kenrokuen restyle: paper background, Fraunces italic title, BP-branded text
+ * fields (AppLine / AppPondDk borders), BPPrimaryButton CTA.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,13 +118,23 @@ internal fun EmailAuthScreenContent(
     val canSubmit = emailValid && passwordValid &&
         (!isCreate || (nameValid && passwordsMatch)) && !state.isLoading
 
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        unfocusedBorderColor = AppLine,
+        focusedBorderColor = AppPondDk,
+        unfocusedLabelColor = AppInk3,
+        focusedLabelColor = AppPondDk,
+    )
+
     Scaffold(
+        containerColor = AppPaper,
         topBar = {
+            // Navigation icon only — title lives in the content as a Fraunces heading
             TopAppBar(
-                title = { Text(if (isCreate) "Create Account" else "Sign In") },
+                title = {},
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppPaper),
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Close, contentDescription = "Cancel")
+                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = AppInk)
                     }
                 },
             )
@@ -127,28 +149,41 @@ internal fun EmailAuthScreenContent(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = 24.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // Kenrokuen title block
+                BPEyebrow(text = "BOWPRESS", tone = AppInk3, size = 10.sp)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = if (isCreate) "Create account." else "Sign in.",
+                    style = frauncesDisplay(28.sp, italic = true).copy(color = AppInk),
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                // Sign in / Create account toggle
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = !isCreate,
                         onClick = { onModeChange(AuthUiState.Mode.SIGN_IN) },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    ) { Text("Sign In") }
+                    ) { Text("Sign In", style = interUI(13.sp)) }
                     SegmentedButton(
                         selected = isCreate,
                         onClick = { onModeChange(AuthUiState.Mode.CREATE_ACCOUNT) },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    ) { Text("Create Account") }
+                    ) { Text("Create Account", style = interUI(13.sp)) }
                 }
 
                 if (isCreate) {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it; if (state.error != null) onErrorDismiss() },
-                        label = { Text("Full name") },
+                        label = { Text("Full name", style = interUI(15.sp)) },
+                        textStyle = interUI(15.sp).copy(color = AppInk),
                         singleLine = true,
+                        colors = fieldColors,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag(TAG_NAME_FIELD),
@@ -158,9 +193,11 @@ internal fun EmailAuthScreenContent(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it; if (state.error != null) onErrorDismiss() },
-                    label = { Text("Email") },
+                    label = { Text("Email", style = interUI(15.sp)) },
+                    textStyle = interUI(15.sp).copy(color = AppInk),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    colors = fieldColors,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag(TAG_EMAIL_FIELD),
@@ -169,15 +206,17 @@ internal fun EmailAuthScreenContent(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; if (state.error != null) onErrorDismiss() },
-                    label = { Text("Password") },
+                    label = { Text("Password", style = interUI(15.sp)) },
+                    textStyle = interUI(15.sp).copy(color = AppInk),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    colors = fieldColors,
                     supportingText = {
                         if (password.isNotEmpty() && !passwordValid) {
                             Text(
                                 "Password must be at least 8 characters.",
-                                color = MaterialTheme.colorScheme.error,
+                                style = interUI(12.sp).copy(color = AppPond),
                             )
                         }
                     },
@@ -191,15 +230,17 @@ internal fun EmailAuthScreenContent(
                     OutlinedTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = { Text("Confirm password") },
+                        label = { Text("Confirm password", style = interUI(15.sp)) },
+                        textStyle = interUI(15.sp).copy(color = AppInk),
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        colors = fieldColors,
                         supportingText = {
                             if (confirmPassword.isNotEmpty() && !passwordsMatch) {
                                 Text(
                                     "Passwords do not match.",
-                                    color = MaterialTheme.colorScheme.error,
+                                    style = interUI(12.sp).copy(color = AppPond),
                                 )
                             }
                         },
@@ -214,26 +255,17 @@ internal fun EmailAuthScreenContent(
 
                 Spacer(Modifier.height(4.dp))
 
-                Button(
+                BPPrimaryButton(
+                    title = if (isCreate) "Create Account" else "Sign In",
                     onClick = { onSubmit(name, email, password) },
                     enabled = canSubmit,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
                         .testTag(TAG_SUBMIT_BUTTON),
-                ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.height(22.dp),
-                        )
-                    } else {
-                        Text(if (isCreate) "Create Account" else "Sign In")
-                    }
-                }
+                )
             }
 
+            // Full-screen dim while request is in-flight
             if (state.isLoading) {
                 Box(
                     Modifier
@@ -261,8 +293,7 @@ private fun ErrorBanner(error: AuthError?) {
     }
     Text(
         text = text,
-        color = MaterialTheme.colorScheme.error,
-        style = MaterialTheme.typography.bodyLarge,
+        style = interUI(14.sp).copy(color = AppPond),
         modifier = Modifier
             .fillMaxWidth()
             .testTag(TAG_ERROR_BANNER),
