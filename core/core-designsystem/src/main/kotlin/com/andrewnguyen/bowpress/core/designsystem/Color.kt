@@ -2,21 +2,62 @@ package com.andrewnguyen.bowpress.core.designsystem
 
 import androidx.compose.ui.graphics.Color
 
-// Placeholder palette. Real palette to be derived from the iOS app — the warm
-// accent below stands in for whatever the iOS design team lands on.
+// Kenrokuen palette — light-mode-only per spec. Mirrors iOS AppTheme tokens.
+// All values are fixed hex: no dark-mode variants.
+
+// Paper / surface
+val AppPaper  = Color(0xFFEEF2EC)
+val AppPaper2 = Color(0xFFE4EBE3)
+val AppCream  = Color(0xFFF6F8F3)
+
+// Ink / text
+val AppInk  = Color(0xFF1F2A26)
+val AppInk2 = Color(0xFF4A5752)
+val AppInk3 = Color(0xFF8A9690)
+
+// Hairline / divider
+val AppLine  = Color(0xFFC7D2C9)
+val AppLine2 = Color(0xFFD9E1D8)
+
+// Pond (primary accent)
+val AppPond   = Color(0xFF4A7989)
+val AppPondDk = Color(0xFF2D5A6B)
+val AppPondLt = Color(0xFF8FB3BF)
+val AppDeep   = Color(0xFF1E3E4A)
+
+// Moss / pine / maple / stone
+val AppMoss  = Color(0xFF6D8551)
+val AppPine  = Color(0xFF4A5F3A)
+val AppMaple = Color(0xFFB5614A)
+val AppStone = Color(0xFF9AA3A0)
+
+// Target face (real WA colors — never reskinned)
+val AppTgtWhite  = Color(0xFFF6F8F3)
+val AppTgtBlack  = Color(0xFF1F2A26)
+val AppTgtBlue   = Color(0xFF4EA8C9)
+val AppTgtRed    = Color(0xFFD94B3B)
+val AppTgtYellow = Color(0xFFF0D04A)
+
+// Semantic
+val AppSuccess = AppPine
+val AppWarning = AppMaple
+val AppDanger  = Color(0xFFA0392A)
+val AppInfo    = AppPond
+
+// Legacy wrapper — kept for Wave 2 feature modules still referencing
+// BowPressColors.*. Fields are aliases of the new Kenrokuen tokens so the
+// feature modules continue to compile while Wave 2 rewrites them.
 object BowPressColors {
-    // Warm accent (terracotta). TBD — matches iOS accent once confirmed.
-    val Accent = Color(0xFFD14B2E)
-    val AccentDark = Color(0xFFB23A20)
-    val AccentContainer = Color(0xFFFFDAD2)
-    val OnAccentContainer = Color(0xFF3B0A00)
+    val Accent = AppPondDk
+    val AccentDark = AppDeep
+    val AccentContainer = AppPondLt
+    val OnAccentContainer = AppPaper
 
-    // Neutrals
-    val Surface = Color(0xFFFFFBF8)
-    val SurfaceDark = Color(0xFF1B110E)
-    val OnSurface = Color(0xFF201A18)
-    val OnSurfaceDark = Color(0xFFEDE0DB)
+    val Surface = AppPaper
+    val SurfaceDark = AppInk
+    val OnSurface = AppInk
+    val OnSurfaceDark = AppPaper
 
-    val Outline = Color(0xFF85736E)
-    val Error = Color(0xFFBA1A1A)
+    val Outline = AppLine
+    val Error = AppDanger
 }
