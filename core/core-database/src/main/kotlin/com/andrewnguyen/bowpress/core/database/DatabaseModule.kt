@@ -25,6 +25,9 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): BowPressDatabase =
         Room.databaseBuilder(context, BowPressDatabase::class.java, BowPressDatabase.NAME)
+            .addMigrations(*Migrations.ALL)
+            // Keep the destructive fallback as a last-resort escape hatch for development
+            // builds where a schema was mutated without a matching migration.
             .fallbackToDestructiveMigration()
             .build()
 

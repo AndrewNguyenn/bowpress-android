@@ -16,6 +16,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -24,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,6 +35,7 @@ import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.Bow
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +83,15 @@ fun SessionHomeScreen(
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp))
+            Text("Target Face", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            TargetFacePicker(
+                selected = state.selectedFaceType,
+                onSelected = { viewModel.selectFaceType(it) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             Spacer(Modifier.height(16.dp))
             Text("Arrows", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
@@ -132,6 +146,30 @@ private fun BowRow(bow: Bow, isSelected: Boolean, onClick: () -> Unit) {
         Column(Modifier.padding(12.dp)) {
             Text(bow.name, style = MaterialTheme.typography.titleSmall, color = fg)
             Text(bow.bowType.label, style = MaterialTheme.typography.bodySmall, color = fg)
+        }
+    }
+}
+
+/** Test tag for the target-face segmented control, used in UI tests. */
+const val TARGET_FACE_PICKER_TEST_TAG = "target_face_picker"
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TargetFacePicker(
+    selected: TargetFaceType,
+    onSelected: (TargetFaceType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val options = TargetFaceType.entries
+    SingleChoiceSegmentedButtonRow(modifier = modifier.testTag(TARGET_FACE_PICKER_TEST_TAG)) {
+        options.forEachIndexed { index, face ->
+            SegmentedButton(
+                selected = face == selected,
+                onClick = { onSelected(face) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+            ) {
+                Text(face.label)
+            }
         }
     }
 }

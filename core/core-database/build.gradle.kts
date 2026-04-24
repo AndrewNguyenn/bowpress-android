@@ -6,6 +6,11 @@ plugins {
 
 android {
     namespace = "com.andrewnguyen.bowpress.core.database"
+    // Expose the Room schema JSONs to instrumented tests so MigrationTestHelper can find them.
+    sourceSets["androidTest"].assets.srcDirs("$projectDir/schemas")
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 }
 
 // Room schema export — writes `core-database/schemas/<db-version>.json` on each build.
@@ -26,4 +31,9 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.truth)
+    androidTestImplementation(libs.room.testing)
 }

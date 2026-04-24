@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.session
 
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -17,45 +18,45 @@ class TargetGeometryTest {
 
     @Test fun `ring is X when inside xRadius`() {
         // Anywhere well inside the inner-yellow disc is X (11).
-        val classification = TargetGeometry.classify(plotX = 0.00, plotY = 0.00)
+        val classification = TargetGeometry.SixRing.classify(plotX = 0.00, plotY = 0.00)
         assertThat(classification.ring).isEqualTo(11)
         assertThat(classification.zone).isEqualTo(Zone.CENTER)
     }
 
     @Test fun `ring 10 just outside xRadius`() {
         // Just past 60/735 ≈ 0.0816 → ring 10.
-        val r = TargetGeometry.X_RADIUS + 0.001
-        val c = TargetGeometry.classify(plotX = r, plotY = 0.0)
+        val r = TargetGeometry.SixRing.X_RADIUS + 0.001
+        val c = TargetGeometry.SixRing.classify(plotX = r, plotY = 0.0)
         assertThat(c.ring).isEqualTo(10)
     }
 
     @Test fun `ring 9 just outside r10Radius`() {
-        val r = TargetGeometry.R10_RADIUS + 0.001
-        val c = TargetGeometry.classify(plotX = r, plotY = 0.0)
+        val r = TargetGeometry.SixRing.R10_RADIUS + 0.001
+        val c = TargetGeometry.SixRing.classify(plotX = r, plotY = 0.0)
         assertThat(c.ring).isEqualTo(9)
     }
 
     @Test fun `ring 8 just outside r9Radius`() {
-        val r = TargetGeometry.R9_RADIUS + 0.001
-        val c = TargetGeometry.classify(plotX = r, plotY = 0.0)
+        val r = TargetGeometry.SixRing.R9_RADIUS + 0.001
+        val c = TargetGeometry.SixRing.classify(plotX = r, plotY = 0.0)
         assertThat(c.ring).isEqualTo(8)
     }
 
     @Test fun `ring 7 just outside r8Radius`() {
-        val r = TargetGeometry.R8_RADIUS + 0.001
-        val c = TargetGeometry.classify(plotX = r, plotY = 0.0)
+        val r = TargetGeometry.SixRing.R8_RADIUS + 0.001
+        val c = TargetGeometry.SixRing.classify(plotX = r, plotY = 0.0)
         assertThat(c.ring).isEqualTo(7)
     }
 
     @Test fun `ring 6 just outside r7Radius`() {
-        val r = TargetGeometry.R7_RADIUS + 0.001
-        val c = TargetGeometry.classify(plotX = r, plotY = 0.0)
+        val r = TargetGeometry.SixRing.R7_RADIUS + 0.001
+        val c = TargetGeometry.SixRing.classify(plotX = r, plotY = 0.0)
         assertThat(c.ring).isEqualTo(6)
     }
 
     @Test fun `null ring outside r6Radius`() {
-        val r = TargetGeometry.R6_RADIUS + 0.001
-        val c = TargetGeometry.classify(plotX = r, plotY = 0.0)
+        val r = TargetGeometry.SixRing.R6_RADIUS + 0.001
+        val c = TargetGeometry.SixRing.classify(plotX = r, plotY = 0.0)
         assertThat(c.ring).isNull()
     }
 
@@ -75,42 +76,42 @@ class TargetGeometryTest {
 
     @Test fun `zone N at compass bearing 0`() {
         val (x, y) = atBearing(0.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.N)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.N)
     }
 
     @Test fun `zone NE at compass bearing 45`() {
         val (x, y) = atBearing(45.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.NE)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.NE)
     }
 
     @Test fun `zone E at compass bearing 90`() {
         val (x, y) = atBearing(90.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.E)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.E)
     }
 
     @Test fun `zone SE at compass bearing 135`() {
         val (x, y) = atBearing(135.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.SE)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.SE)
     }
 
     @Test fun `zone S at compass bearing 180`() {
         val (x, y) = atBearing(180.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.S)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.S)
     }
 
     @Test fun `zone SW at compass bearing 225`() {
         val (x, y) = atBearing(225.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.SW)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.SW)
     }
 
     @Test fun `zone W at compass bearing 270`() {
         val (x, y) = atBearing(270.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.W)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.W)
     }
 
     @Test fun `zone NW at compass bearing 315`() {
         val (x, y) = atBearing(315.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.NW)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.NW)
     }
 
     // ---- CENTER ----
@@ -118,7 +119,7 @@ class TargetGeometryTest {
     @Test fun `center zone inside centerZoneRadius regardless of angle`() {
         val r = TargetGeometry.CENTER_ZONE_RADIUS - 0.001
         // Arbitrary non-axis-aligned direction
-        val c = TargetGeometry.classify(plotX = r * 0.7, plotY = r * 0.3)
+        val c = TargetGeometry.SixRing.classify(plotX = r * 0.7, plotY = r * 0.3)
         assertThat(c.zone).isEqualTo(Zone.CENTER)
     }
 
@@ -127,8 +128,8 @@ class TargetGeometryTest {
     @Test fun `arrow dot touching higher ring scores the higher ring`() {
         // Place plot just inside ring 9; a dot radius that reaches back into ring 10
         // should upgrade the score.
-        val radius = TargetGeometry.R10_RADIUS + 0.01
-        val c = TargetGeometry.classifyWithDotRadius(
+        val radius = TargetGeometry.SixRing.R10_RADIUS + 0.01
+        val c = TargetGeometry.SixRing.classifyWithDotRadius(
             plotX = radius,
             plotY = 0.0,
             dotNormRadius = 0.02,
@@ -147,23 +148,23 @@ class TargetGeometryTest {
     @Test fun `just past 22_5 boundary belongs to NE`() {
         // iOS switch: `case 22.5..<67.5: .ne`.
         val (x, y) = atBearing(23.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.NE)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.NE)
     }
 
     @Test fun `just before 22_5 boundary belongs to N`() {
         val (x, y) = atBearing(22.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.N)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.N)
     }
 
     @Test fun `just past 337_5 boundary belongs to N`() {
         // iOS: `case 337.5..<360, 0..<22.5: .n`.
         val (x, y) = atBearing(338.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.N)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.N)
     }
 
     @Test fun `just before 337_5 boundary belongs to NW`() {
         val (x, y) = atBearing(337.0, 0.4)
-        assertThat(TargetGeometry.classify(x, y).zone).isEqualTo(Zone.NW)
+        assertThat(TargetGeometry.SixRing.classify(x, y).zone).isEqualTo(Zone.NW)
     }
 
     // ---- iOS fixture parity ----
@@ -174,7 +175,7 @@ class TargetGeometryTest {
 
     @Test fun `iOS fixture 0_015 0_095 classifies as ring 10 zone S`() {
         // Low and just right of centre → outer 10, shots low on the face → south.
-        val c = TargetGeometry.classify(plotX = 0.015, plotY = 0.095)
+        val c = TargetGeometry.SixRing.classify(plotX = 0.015, plotY = 0.095)
         assertThat(c.ring).isEqualTo(10)
         assertThat(c.zone).isEqualTo(Zone.S)
     }
@@ -182,8 +183,119 @@ class TargetGeometryTest {
     @Test fun `iOS fixture negative plotY classifies in northern zones`() {
         // Flip the above — a shot high on the face → north. iOS sets plotY negative
         // for shots above centre (TargetPlotView.swift:165).
-        val c = TargetGeometry.classify(plotX = 0.015, plotY = -0.095)
+        val c = TargetGeometry.SixRing.classify(plotX = 0.015, plotY = -0.095)
         assertThat(c.ring).isEqualTo(10)
         assertThat(c.zone).isEqualTo(Zone.N)
+    }
+
+    // ---- forFace() dispatch ------------------------------------------------
+
+    @Test fun `forFace returns the correct preset`() {
+        assertThat(TargetGeometry.forFace(TargetFaceType.SIX_RING))
+            .isSameInstanceAs(TargetGeometry.SixRing)
+        assertThat(TargetGeometry.forFace(TargetFaceType.TEN_RING))
+            .isSameInstanceAs(TargetGeometry.TenRing)
+    }
+
+    @Test fun `defaultFor maps compound to 6-ring and others to 10-ring`() {
+        assertThat(TargetFaceType.defaultFor(com.andrewnguyen.bowpress.core.model.BowType.COMPOUND))
+            .isEqualTo(TargetFaceType.SIX_RING)
+        assertThat(TargetFaceType.defaultFor(com.andrewnguyen.bowpress.core.model.BowType.RECURVE))
+            .isEqualTo(TargetFaceType.TEN_RING)
+        assertThat(TargetFaceType.defaultFor(com.andrewnguyen.bowpress.core.model.BowType.BAREBOW))
+            .isEqualTo(TargetFaceType.TEN_RING)
+    }
+
+    // ---- TenRing face: ring boundaries ------------------------------------
+    //
+    // TenRing thresholds (plan): X=0.05, then every 0.10 out to 1.00.
+    // ring() returns 11 (X) inside 0.05; 10 inside 0.10; 9 inside 0.20; ...; 1 inside 1.00;
+    // null beyond.
+
+    @Test fun `tenRing X at centre`() {
+        val c = TargetGeometry.TenRing.classify(plotX = 0.0, plotY = 0.0)
+        assertThat(c.ring).isEqualTo(11)
+    }
+
+    @Test fun `tenRing ring 10 just past X`() {
+        val c = TargetGeometry.TenRing.classify(plotX = 0.06, plotY = 0.0)
+        assertThat(c.ring).isEqualTo(10)
+    }
+
+    @Test fun `tenRing ring 9 just past r10`() {
+        val c = TargetGeometry.TenRing.classify(plotX = 0.11, plotY = 0.0)
+        assertThat(c.ring).isEqualTo(9)
+    }
+
+    @Test fun `tenRing ring 5 mid-face`() {
+        // Inside 0.60 (ring 5), outside 0.50.
+        val c = TargetGeometry.TenRing.classify(plotX = 0.55, plotY = 0.0)
+        assertThat(c.ring).isEqualTo(5)
+    }
+
+    @Test fun `tenRing ring 1 near outer edge`() {
+        // plan requirement: ring(0.95) == 1
+        val c = TargetGeometry.TenRing.classify(plotX = 0.95, plotY = 0.0)
+        assertThat(c.ring).isEqualTo(1)
+    }
+
+    @Test fun `tenRing ring X inside xRadius`() {
+        // plan requirement: ring(0.04) == 11
+        val c = TargetGeometry.TenRing.classify(plotX = 0.04, plotY = 0.0)
+        assertThat(c.ring).isEqualTo(11)
+    }
+
+    @Test fun `tenRing miss outside r1`() {
+        // plan requirement: ring(1.01) == null
+        val r = TargetGeometry.TenRing.ring(1.01)
+        assertThat(r).isNull()
+    }
+
+    @Test fun `tenRing all rings sweep`() {
+        // Spot-check every ring by walking outward from centre in 0.001 steps past each
+        // threshold so we assert ring = 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 in order.
+        val ring = TargetGeometry.TenRing
+        val expectedAtRadius = listOf(
+            0.06 to 10,
+            0.11 to 9,
+            0.21 to 8,
+            0.31 to 7,
+            0.41 to 6,
+            0.51 to 5,
+            0.61 to 4,
+            0.71 to 3,
+            0.81 to 2,
+            0.91 to 1,
+        )
+        for ((r, expected) in expectedAtRadius) {
+            assertThat(ring.ring(r)).isEqualTo(expected)
+        }
+    }
+
+    @Test fun `tenRing zone is independent of face type`() {
+        // Same bearing, same zone, regardless of which face we're on.
+        val (x, y) = atBearing(45.0, 0.8)
+        assertThat(TargetGeometry.TenRing.classify(x, y).zone).isEqualTo(Zone.NE)
+    }
+
+    @Test fun `sixRing on TenRing preset behaves identically for the shared rings`() {
+        // A point that scores ring 10 on sixRing should also score ring 10 on tenRing,
+        // because both thresholds cross the same physical boundary. X on sixRing (0.08)
+        // differs from X on tenRing (0.05), so we pick a point well inside both X rings.
+        val plotX = 0.02
+        val six = TargetGeometry.SixRing.classify(plotX, 0.0)
+        val ten = TargetGeometry.TenRing.classify(plotX, 0.0)
+        assertThat(six.ring).isEqualTo(11)
+        assertThat(ten.ring).isEqualTo(11)
+    }
+
+    @Test fun `tenRing arrow dot touching higher ring scores the higher ring`() {
+        // Plot just past r8 (0.30), with a dot radius that reaches back into ring 8.
+        val c = TargetGeometry.TenRing.classifyWithDotRadius(
+            plotX = 0.305,
+            plotY = 0.0,
+            dotNormRadius = 0.02,
+        )
+        assertThat(c.ring).isEqualTo(8)
     }
 }

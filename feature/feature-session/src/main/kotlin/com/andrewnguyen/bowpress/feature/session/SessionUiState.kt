@@ -5,6 +5,7 @@ import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
 
 /**
  * Consolidated UI state for the entire session flow. `SessionHomeScreen` reads
@@ -26,6 +27,10 @@ data class SessionUiState(
     // Start-screen selection
     val selectedBow: Bow? = null,
     val selectedArrow: ArrowConfiguration? = null,
+    /** Target face the user will shoot at for the session they are about to start. */
+    val selectedFaceType: TargetFaceType = TargetFaceType.SIX_RING,
+    /** True once the user has manually picked a face — stops the bow-default from overriding. */
+    val userOverrodeFace: Boolean = false,
 
     // Active session
     val activeSession: ShootingSession? = null,
@@ -42,6 +47,14 @@ data class SessionUiState(
     val isSessionActive: Boolean get() = activeSession != null
     val hasPendingConfigChange: Boolean
         get() = pendingBowConfig != null || pendingArrowConfig != null
+
+    /**
+     * Face type for the currently-active session (falls back to [selectedFaceType] during
+     * setup before a session is active). Screens rendering the target face should prefer
+     * this over reading [ShootingSession.targetFaceType] directly.
+     */
+    val targetFaceType: TargetFaceType
+        get() = activeSession?.targetFaceType ?: selectedFaceType
 
     /** The latest bow config for a bow, or null if the bow has none. */
     fun latestConfigFor(bowId: String): BowConfiguration? =
