@@ -47,6 +47,7 @@ import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.PeriodSlice
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.feature.analytics.ui.AnalyticsCard
 import com.andrewnguyen.bowpress.feature.analytics.ui.ConfidenceBadge
 import com.andrewnguyen.bowpress.feature.analytics.ui.DeltaRow
@@ -79,6 +80,7 @@ fun AnalyticsDashboardScreen(
         state = state,
         onPeriodChange = viewModel::selectPeriod,
         onBowTypeChange = viewModel::selectBowType,
+        onDistanceChange = viewModel::selectDistance,
         onRetry = viewModel::refresh,
         onOpenSuggestion = onOpenSuggestion,
         onOpenHistory = onOpenHistory,
@@ -91,6 +93,7 @@ internal fun AnalyticsDashboardContent(
     state: DashboardUiState,
     onPeriodChange: (AnalyticsPeriod) -> Unit,
     onBowTypeChange: (BowType?) -> Unit,
+    onDistanceChange: (ShootingDistance?) -> Unit,
     onRetry: () -> Unit,
     onOpenSuggestion: (bowId: String, suggestionId: String) -> Unit,
     onOpenHistory: () -> Unit,
@@ -115,6 +118,16 @@ internal fun AnalyticsDashboardContent(
                         selected = state.selectedBowType,
                         available = state.availableBowTypes,
                         onSelect = onBowTypeChange,
+                    )
+                }
+            }
+            // Same gating for distance — hide if the user has logged ≤1 distinct distance.
+            if (state.availableDistances.size >= 2) {
+                item {
+                    DistancePickerRow(
+                        selected = state.selectedDistance,
+                        available = state.availableDistances,
+                        onSelect = onDistanceChange,
                     )
                 }
             }
@@ -201,6 +214,44 @@ private fun BowStylePickerRow(
                     selected = selected == type,
                     onClick = { onSelect(type) },
                     label = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DistancePickerRow(
+    selected: ShootingDistance?,
+    available: Set<ShootingDistance>,
+    onSelect: (ShootingDistance?) -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelect(null) },
+            label = { Text("All") },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        )
+        ShootingDistance.entries.forEach { distance ->
+            if (distance in available) {
+                FilterChip(
+                    selected = selected == distance,
+                    onClick = { onSelect(distance) },
+                    label = { Text(distance.label) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -443,6 +494,7 @@ private fun DashboardPreview_Loaded() {
             state = previewLoadedState,
             onPeriodChange = {},
             onBowTypeChange = {},
+            onDistanceChange = {},
             onRetry = {},
             onOpenSuggestion = { _, _ -> },
             onOpenHistory = {},
@@ -459,6 +511,7 @@ private fun DashboardPreview_Empty() {
             state = DashboardUiState(isLoading = false),
             onPeriodChange = {},
             onBowTypeChange = {},
+            onDistanceChange = {},
             onRetry = {},
             onOpenSuggestion = { _, _ -> },
             onOpenHistory = {},

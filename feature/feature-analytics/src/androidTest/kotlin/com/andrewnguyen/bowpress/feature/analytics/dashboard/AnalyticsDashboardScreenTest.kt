@@ -68,6 +68,7 @@ class AnalyticsDashboardScreenTest {
                     state = state,
                     onPeriodChange = {},
                     onBowTypeChange = {},
+                    onDistanceChange = {},
                     onRetry = {},
                     onOpenSuggestion = { _, _ -> },
                     onOpenHistory = {},

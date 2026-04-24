@@ -35,7 +35,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         SessionEndEntity::class,
         SuggestionEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

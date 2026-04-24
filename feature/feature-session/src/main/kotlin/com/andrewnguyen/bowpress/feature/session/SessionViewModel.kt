@@ -13,6 +13,7 @@ import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.SessionEnd
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
@@ -128,6 +129,11 @@ class SessionViewModel @Inject constructor(
         }
     }
 
+    /** Pick (or clear with `null`) the shooting distance for the next session. */
+    fun selectDistance(distance: ShootingDistance?) {
+        _uiState.update { it.copy(selectedDistance = distance) }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
@@ -150,6 +156,7 @@ class SessionViewModel @Inject constructor(
             return
         }
         val faceType = _uiState.value.selectedFaceType
+        val distance = _uiState.value.selectedDistance
         val session = ShootingSession(
             id = UUID.randomUUID().toString(),
             bowId = bow.id,
@@ -157,6 +164,7 @@ class SessionViewModel @Inject constructor(
             arrowConfigId = arrow.id,
             startedAt = Instant.now(),
             targetFaceType = faceType,
+            distance = distance,
         )
         sessionRepo.saveSession(session)
         _uiState.update {

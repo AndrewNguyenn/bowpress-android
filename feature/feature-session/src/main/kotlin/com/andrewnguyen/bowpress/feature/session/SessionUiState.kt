@@ -4,6 +4,7 @@ import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 
@@ -31,6 +32,8 @@ data class SessionUiState(
     val selectedFaceType: TargetFaceType = TargetFaceType.SIX_RING,
     /** True once the user has manually picked a face — stops the bow-default from overriding. */
     val userOverrodeFace: Boolean = false,
+    /** Distance the user will shoot at; null = "not set" (won't appear under any specific-distance analytics filter). */
+    val selectedDistance: ShootingDistance? = null,
 
     // Active session
     val activeSession: ShootingSession? = null,

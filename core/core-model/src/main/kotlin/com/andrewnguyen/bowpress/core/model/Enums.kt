@@ -39,6 +39,28 @@ enum class TargetFaceType {
     }
 }
 
+/**
+ * Mirrors iOS `ShootingDistance`. Distance from the shooter to the target. Optional
+ * on `ShootingSession` — sessions without a chosen distance stay null and the
+ * analytics filter only includes a session in a specific-distance view when the
+ * value matches exactly. Wire values: `20yd` / `50m` / `70m`.
+ */
+@Serializable
+enum class ShootingDistance {
+    @SerialName("20yd") YARDS_20,
+    @SerialName("50m")  METERS_50,
+    @SerialName("70m")  METERS_70;
+
+    val label: String get() = when (this) {
+        YARDS_20 -> "20yd"
+        METERS_50 -> "50m"
+        METERS_70 -> "70m"
+    }
+
+    /** Server-side spelling — what the API expects in the `?distance=` query param. */
+    val wire: String get() = label
+}
+
 /** Mirrors iOS `RearStabSide` — lower-case strings on the wire. */
 @Serializable
 enum class RearStabSide {
