@@ -67,6 +67,7 @@ class AnalyticsDashboardScreenTest {
                 AnalyticsDashboardContent(
                     state = state,
                     onPeriodChange = {},
+                    onBowTypeChange = {},
                     onRetry = {},
                     onOpenSuggestion = { _, _ -> },
                     onOpenHistory = {},

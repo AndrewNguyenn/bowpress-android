@@ -199,10 +199,16 @@ interface BowPressApi {
     // ---- Analytics ------------------------------------------------------------
 
     @GET("analytics/overview")
-    suspend fun fetchAnalyticsOverview(@Query("period") period: String): AnalyticsOverview
+    suspend fun fetchAnalyticsOverview(
+        @Query("period") period: String,
+        @Query("bowType") bowType: String? = null,
+    ): AnalyticsOverview
 
     @GET("analytics/comparison")
-    suspend fun fetchAnalyticsComparison(@Query("period") period: String): PeriodComparison
+    suspend fun fetchAnalyticsComparison(
+        @Query("period") period: String,
+        @Query("bowType") bowType: String? = null,
+    ): PeriodComparison
 
     @GET("bows/{bowId}/suggestions")
     suspend fun fetchSuggestions(
