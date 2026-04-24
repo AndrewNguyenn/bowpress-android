@@ -14,6 +14,7 @@ import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -105,12 +106,26 @@ class SessionViewModel @Inject constructor(
                     }
                 }
             }
-            state.copy(selectedBow = bow)
+            // Smart default for the target face whenever the selected bow changes,
+            // unless the user has already manually picked a face for this setup.
+            val nextFace = if (state.userOverrodeFace) {
+                state.selectedFaceType
+            } else {
+                TargetFaceType.defaultFor(bow.bowType)
+            }
+            state.copy(selectedBow = bow, selectedFaceType = nextFace)
         }
     }
 
     fun selectArrow(arrow: ArrowConfiguration) {
         _uiState.update { it.copy(selectedArrow = arrow) }
+    }
+
+    /** User manually picked a target face — lock out the smart default until next session start. */
+    fun selectFaceType(faceType: TargetFaceType) {
+        _uiState.update {
+            it.copy(selectedFaceType = faceType, userOverrodeFace = true)
+        }
     }
 
     fun clearError() {
@@ -134,12 +149,14 @@ class SessionViewModel @Inject constructor(
             }
             return
         }
+        val faceType = _uiState.value.selectedFaceType
         val session = ShootingSession(
             id = UUID.randomUUID().toString(),
             bowId = bow.id,
             bowConfigId = bowConfig.id,
             arrowConfigId = arrow.id,
             startedAt = Instant.now(),
+            targetFaceType = faceType,
         )
         sessionRepo.saveSession(session)
         _uiState.update {
@@ -154,6 +171,8 @@ class SessionViewModel @Inject constructor(
                 pendingBowConfig = null,
                 pendingArrowConfig = null,
                 currentArrows = emptyList(),
+                // Clear the manual-override flag so the next setup gets a fresh smart default.
+                userOverrodeFace = false,
             )
         }
     }
@@ -280,6 +299,7 @@ class SessionViewModel @Inject constructor(
                 pendingBowConfig = null,
                 pendingArrowConfig = null,
                 currentArrows = emptyList(),
+                userOverrodeFace = false,
             )
         }
     }

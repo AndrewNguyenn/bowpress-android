@@ -30,6 +30,7 @@ data class ShootingSession(
     val feelTags: List<String> = emptyList(),
     val conditions: SessionConditions? = null,
     val arrowCount: Int = 0,
+    val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
     val ends: List<SessionEnd>? = null,
     val arrows: List<ArrowPlot>? = null,
 )

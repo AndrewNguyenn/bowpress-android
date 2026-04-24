@@ -13,6 +13,32 @@ enum class BowType {
     val label: String get() = name.lowercase().replaceFirstChar { it.uppercase() }
 }
 
+/**
+ * Mirrors iOS `TargetFaceType`. The target face the archer is shooting at.
+ *  - [SIX_RING]: inner-6 indoor face (compound default). Scored 6..X.
+ *  - [TEN_RING]: full WA 10-ring face (recurve / barebow default). Scored 1..X.
+ *
+ * Wire values: `six_ring` / `ten_ring`.
+ */
+@Serializable
+enum class TargetFaceType {
+    @SerialName("six_ring") SIX_RING,
+    @SerialName("ten_ring") TEN_RING;
+
+    val label: String get() = when (this) {
+        SIX_RING -> "6-Ring"
+        TEN_RING -> "10-Ring"
+    }
+
+    companion object {
+        /** Smart default for a bow style: compound -> 6-ring; everything else -> 10-ring. */
+        fun defaultFor(bowType: BowType): TargetFaceType = when (bowType) {
+            BowType.COMPOUND -> SIX_RING
+            BowType.RECURVE, BowType.BAREBOW -> TEN_RING
+        }
+    }
+}
+
 /** Mirrors iOS `RearStabSide` — lower-case strings on the wire. */
 @Serializable
 enum class RearStabSide {

@@ -5,6 +5,7 @@ import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.FletchingType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -62,6 +63,13 @@ class Converters {
     @TypeConverter
     fun stringToDeliveryType(value: String?): DeliveryType? =
         value?.let { runCatching { DeliveryType.valueOf(it) }.getOrNull() }
+
+    @TypeConverter
+    fun targetFaceTypeToString(value: TargetFaceType?): String? = value?.name
+
+    @TypeConverter
+    fun stringToTargetFaceType(value: String?): TargetFaceType? =
+        value?.let { runCatching { TargetFaceType.valueOf(it) }.getOrNull() }
 
     // ---- List<String> -------------------------------------------------------
 

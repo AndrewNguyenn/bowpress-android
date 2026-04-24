@@ -117,6 +117,7 @@ fun ActiveSessionScreen(
                         scope.launch { viewModel.plotArrow(plotX, plotY, ring, zone) }
                     },
                     arrowDiameterMm = state.activeArrowConfig?.shaftDiameterEnum?.rawValue ?: 5.0,
+                    faceType = state.targetFaceType,
                 )
             }
 

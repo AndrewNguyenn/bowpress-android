@@ -1,7 +1,9 @@
 package com.andrewnguyen.bowpress.core.database.entities
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import java.time.Instant
 
 /**
@@ -23,5 +25,11 @@ data class SessionEntity(
     val windSpeed: Double? = null,
     val tempF: Double? = null,
     val lighting: String? = null,
+    // Target face (WA 6-ring vs 10-ring). Added in schema v2; legacy rows default to SIX_RING
+    // which matches the renderer behaviour prior to the migration. The SQL DEFAULT clause is
+    // required so the migration and any future raw INSERTs satisfy the NOT NULL constraint;
+    // it also makes the Room schema validator happy when diffing against the migration.
+    @ColumnInfo(defaultValue = "SIX_RING")
+    val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
     val pendingSync: Boolean = false,
 )
