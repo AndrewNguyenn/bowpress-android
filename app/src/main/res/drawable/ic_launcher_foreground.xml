@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive-icon foreground layer. Kenrokuen mark built from pure VectorDrawable
+  paths so we can version it alongside the theme tokens.
+
+  Design authored in a 72×72 coordinate frame offset (18, 18) inside the
+  108×108 adaptive canvas — mark center lands at (54, 54), max radius 36
+  (edges at 18/90). That puts the inner-most 20dp of the mark squarely
+  inside Android's 66×66 safe zone across all mask shapes; the outer rings
+  may get clipped into circles / squircles but the centre geometry reads
+  the same.
+
+  Layers (bottom → top):
+    • 4 concentric pond-gradient rings (r = 36, 28, 20, 12)
+    • 5 AppInk hairline scoring rings (r = 36, 28, 20, 12, 4) at 0.5px
+    • Arrow-nock diagonal — AppInk 1.6px round-cap, (38,38) → (54,54)
+    • Maple centroid dot — r=1.8 filled AppMaple at (58, 58)
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Pond-gradient rings. Largest first so inner ones paint over. -->
+    <path
+        android:pathData="M54,18 a36,36 0 1,0 0,72 a36,36 0 1,0 0,-72 Z"
+        android:fillColor="#D9E1D8" />
+    <path
+        android:pathData="M54,26 a28,28 0 1,0 0,56 a28,28 0 1,0 0,-56 Z"
+        android:fillColor="#8FB3BF" />
+    <path
+        android:pathData="M54,34 a20,20 0 1,0 0,40 a20,20 0 1,0 0,-40 Z"
+        android:fillColor="#4A7989" />
+    <path
+        android:pathData="M54,42 a12,12 0 1,0 0,24 a12,12 0 1,0 0,-24 Z"
+        android:fillColor="#2D5A6B" />
+
+    <!-- Hairline scoring rings, drawn as stroked circles in AppInk. -->
+    <path
+        android:pathData="M54,18 a36,36 0 1,0 0,72 a36,36 0 1,0 0,-72 Z"
+        android:strokeColor="#1F2A26"
+        android:strokeWidth="0.5"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,26 a28,28 0 1,0 0,56 a28,28 0 1,0 0,-56 Z"
+        android:strokeColor="#1F2A26"
+        android:strokeWidth="0.5"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,34 a20,20 0 1,0 0,40 a20,20 0 1,0 0,-40 Z"
+        android:strokeColor="#1F2A26"
+        android:strokeWidth="0.5"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,42 a12,12 0 1,0 0,24 a12,12 0 1,0 0,-24 Z"
+        android:strokeColor="#1F2A26"
+        android:strokeWidth="0.5"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,50 a4,4 0 1,0 0,8 a4,4 0 1,0 0,-8 Z"
+        android:strokeColor="#1F2A26"
+        android:strokeWidth="0.5"
+        android:fillColor="#00000000" />
+
+    <!-- Lacquer arrow-nock diagonal — NW→center, AppInk, round-cap. -->
+    <path
+        android:pathData="M38,38 L54,54"
+        android:strokeColor="#1F2A26"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+
+    <!-- Maple centroid dot — plotted arrow impact, slightly SE of center. -->
+    <path
+        android:pathData="M58,58 m-1.8,0 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0 Z"
+        android:fillColor="#B5614A" />
+</vector>
