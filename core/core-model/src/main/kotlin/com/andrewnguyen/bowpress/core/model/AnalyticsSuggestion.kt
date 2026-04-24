@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.core.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
@@ -48,4 +49,21 @@ data class AnalyticsSuggestion(
     @Serializable(with = InstantSerializer::class)
     val appliedAt: Instant? = null,
     val appliedConfigId: String? = null,
+    // Wave 2 — optional ledger fields. Pre-Wave-2 servers omit these; the UI
+    // falls back to the existing reasoning / qualifier columns when absent.
+    val inlineSummary: String? = null,
+    val statusStamp: SuggestionStatusStamp? = null,
 )
+
+/**
+ * Closed enum for the ledger-UI status pill. Wire: capitalized strings
+ * (`New` / `Proposed` / `Good` / `Review`) to match migration 0018 on the
+ * server.
+ */
+@Serializable
+enum class SuggestionStatusStamp {
+    @SerialName("New") NEW,
+    @SerialName("Proposed") PROPOSED,
+    @SerialName("Good") GOOD,
+    @SerialName("Review") REVIEW,
+}
