@@ -186,7 +186,10 @@ class BowConfigEditViewModel @Inject constructor(
                 frontStabWeight = s.frontStabWeight,
                 frontStabAngle = s.frontStabAngle,
                 rearStabSide = s.rearStabSide,
-                rearStabWeight = s.rearStabWeight,
+                // BOTH splits the weight into L/R; LEFT/RIGHT keep the single weight; NONE clears all.
+                rearStabWeight = if (s.rearStabSide == RearStabSide.LEFT || s.rearStabSide == RearStabSide.RIGHT) s.rearStabWeight else null,
+                rearStabLeftWeight = if (s.rearStabSide == RearStabSide.BOTH) s.rearStabLeftWeight else null,
+                rearStabRightWeight = if (s.rearStabSide == RearStabSide.BOTH) s.rearStabRightWeight else null,
                 rearStabVertAngle = s.rearStabVertAngle,
                 rearStabHorizAngle = s.rearStabHorizAngle,
             )
@@ -238,6 +241,8 @@ class BowConfigEditViewModel @Inject constructor(
                 frontStabAngle = base.frontStabAngle ?: 0.0,
                 rearStabSide = base.rearStabSide ?: RearStabSide.NONE,
                 rearStabWeight = base.rearStabWeight ?: 0.0,
+                rearStabLeftWeight = base.rearStabLeftWeight ?: 0.0,
+                rearStabRightWeight = base.rearStabRightWeight ?: 0.0,
                 rearStabVertAngle = base.rearStabVertAngle ?: 0.0,
                 rearStabHorizAngle = base.rearStabHorizAngle ?: 0.0,
             )

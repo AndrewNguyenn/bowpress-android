@@ -69,10 +69,34 @@ class EquipmentFieldRulesTest {
     @Test
     fun `compound rear-stab sub-fields appear once a side is chosen`() {
         for (side in listOf(RearStabSide.LEFT, RearStabSide.RIGHT, RearStabSide.BOTH)) {
-            assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_WEIGHT, BowType.COMPOUND, rearStabSide = side)).isTrue()
             assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_VERT_ANGLE, BowType.COMPOUND, rearStabSide = side)).isTrue()
             assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_HORIZ_ANGLE, BowType.COMPOUND, rearStabSide = side)).isTrue()
         }
+    }
+
+    @Test
+    fun `compound LEFT or RIGHT shows single weight row and hides V-bar weights`() {
+        for (side in listOf(RearStabSide.LEFT, RearStabSide.RIGHT)) {
+            assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_WEIGHT, BowType.COMPOUND, rearStabSide = side)).isTrue()
+            assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_LEFT_WEIGHT, BowType.COMPOUND, rearStabSide = side)).isFalse()
+            assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_RIGHT_WEIGHT, BowType.COMPOUND, rearStabSide = side)).isFalse()
+        }
+    }
+
+    @Test
+    fun `compound BOTH shows left and right weight rows and hides single weight`() {
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_WEIGHT, BowType.COMPOUND, rearStabSide = RearStabSide.BOTH)).isFalse()
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_LEFT_WEIGHT, BowType.COMPOUND, rearStabSide = RearStabSide.BOTH)).isTrue()
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_RIGHT_WEIGHT, BowType.COMPOUND, rearStabSide = RearStabSide.BOTH)).isTrue()
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_VERT_ANGLE, BowType.COMPOUND, rearStabSide = RearStabSide.BOTH)).isTrue()
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_HORIZ_ANGLE, BowType.COMPOUND, rearStabSide = RearStabSide.BOTH)).isTrue()
+    }
+
+    @Test
+    fun `compound NONE hides all rear-stab weight rows`() {
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_WEIGHT, BowType.COMPOUND, rearStabSide = RearStabSide.NONE)).isFalse()
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_LEFT_WEIGHT, BowType.COMPOUND, rearStabSide = RearStabSide.NONE)).isFalse()
+        assertThat(EquipmentFieldRules.isVisible(Field.REAR_STAB_RIGHT_WEIGHT, BowType.COMPOUND, rearStabSide = RearStabSide.NONE)).isFalse()
     }
 
     // ---------- Recurve ----------

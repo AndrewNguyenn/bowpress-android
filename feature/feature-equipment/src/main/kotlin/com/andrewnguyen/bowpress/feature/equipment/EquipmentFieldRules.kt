@@ -146,8 +146,13 @@ object EquipmentFieldRules {
 
         // Compound single rear-stab — side is always shown on compound; weight/angle
         // rows hide when side == NONE, matching iOS `if rearStabSide != .none`.
+        // When side == BOTH, the single weight row is replaced by left/right pair.
         Field.REAR_STAB_SIDE -> bowType == BowType.COMPOUND
-        Field.REAR_STAB_WEIGHT,
+        Field.REAR_STAB_WEIGHT -> when (bowType) {
+            BowType.COMPOUND -> rearStabSide == RearStabSide.LEFT || rearStabSide == RearStabSide.RIGHT
+            BowType.RECURVE -> false
+            BowType.BAREBOW -> false
+        }
         Field.REAR_STAB_VERT_ANGLE,
         Field.REAR_STAB_HORIZ_ANGLE -> when (bowType) {
             BowType.COMPOUND -> rearStabSide != RearStabSide.NONE
@@ -157,9 +162,13 @@ object EquipmentFieldRules {
             BowType.BAREBOW -> false
         }
 
-        // Recurve V-bar weights
+        // V-bar weights: recurve always; compound only when side == BOTH.
         Field.REAR_STAB_LEFT_WEIGHT,
-        Field.REAR_STAB_RIGHT_WEIGHT -> bowType == BowType.RECURVE
+        Field.REAR_STAB_RIGHT_WEIGHT -> when (bowType) {
+            BowType.RECURVE -> true
+            BowType.COMPOUND -> rearStabSide == RearStabSide.BOTH
+            BowType.BAREBOW -> false
+        }
 
         // Tiller + plunger: recurve + barebow
         Field.TILLER_TOP,
