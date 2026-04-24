@@ -13,10 +13,13 @@ import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.ConfigurationChange
+import com.andrewnguyen.bowpress.core.model.DriftResponse
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
+import com.andrewnguyen.bowpress.core.model.TimelineResponse
 import com.andrewnguyen.bowpress.core.model.TrendInsight
+import com.andrewnguyen.bowpress.core.model.TrendsResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,9 +59,15 @@ data class DashboardUiState(
     val overview: AnalyticsOverview? = null,
     val comparison: PeriodComparison? = null,
     val topSuggestions: List<AnalyticsSuggestion> = emptyList(),
+    /** All non-dismissed suggestions for the primary bow — feeds the full ledger section. */
+    val allSuggestions: List<AnalyticsSuggestion> = emptyList(),
     val trendInsights: List<TrendInsight> = emptyList(),
     val configurationChanges: List<ConfigurationChange> = emptyList(),
     val tagCorrelations: List<TagCorrelation> = emptyList(),
+    /** Wave 2 B — network-sourced sections. Nullable when a pre-Wave-2 server 404s. */
+    val timeline: TimelineResponse? = null,
+    val drift: DriftResponse? = null,
+    val trends: TrendsResponse? = null,
     val isLoadingChanges: Boolean = false,
     val isLoadingCorrelations: Boolean = false,
     val error: String? = null,
@@ -69,6 +78,11 @@ data class DashboardUiState(
  * [LocalAnalyticsEngine], falling back to the network [AnalyticsRepository] when
  * the local datastore is empty (first-run, signed-in but not yet hydrated).
  * Per-bow change-impact and tag-correlation data still come from the server.
+ *
+ * Wave 2 B also fetches the three new Kenrokuen analytics endpoints — timeline,
+ * trends, drift — on every refresh. Each fetch is wrapped in `runCatching` so a
+ * 404 on an older backend degrades gracefully (the view hides that section when
+ * the value is null).
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -134,6 +148,16 @@ class AnalyticsDashboardViewModel @Inject constructor(
         refreshTrigger.value = refreshTrigger.value + 1
     }
 
+    /** Called from the Kenrokuen ledger — optimistic mark-read when a row appears. */
+    fun markSuggestionRead(id: String) {
+        viewModelScope.launch { runCatching { suggestionRepository.markRead(id) } }
+    }
+
+    /** Called when the user swipes a suggestion off the ledger. */
+    fun dismissSuggestion(id: String) {
+        viewModelScope.launch { runCatching { suggestionRepository.dismiss(id) } }
+    }
+
     private fun observeDashboard() {
         val analyticsFlow = combine(
             selectedPeriod,
@@ -158,7 +182,26 @@ class AnalyticsDashboardViewModel @Inject constructor(
                             analyticsRepository.comparison(period, bowType, distance)
                         }
                         val insights = runCatching { localEngine.multiSessionInsights() }.getOrDefault(emptyList())
-                        emit(AnalyticsFetch.Success(period, bowType, distance, overview, comparison, insights))
+                        // Wave 2 B endpoints — degrade gracefully when the server
+                        // hasn't been rolled out yet.
+                        val timeline = runCatching {
+                            analyticsRepository.fetchTimeline(period, bowType, distance)
+                        }.getOrNull()
+                        val trends = runCatching {
+                            analyticsRepository.fetchTrends(period, bowType, distance)
+                        }.getOrNull()
+                        emit(
+                            AnalyticsFetch.Success(
+                                period = period,
+                                bowType = bowType,
+                                distance = distance,
+                                overview = overview,
+                                comparison = comparison,
+                                trendInsights = insights,
+                                timeline = timeline,
+                                trends = trends,
+                            ),
+                        )
                     } catch (t: Throwable) {
                         emit(AnalyticsFetch.Failure(period, bowType, distance, t.message ?: "Failed to load analytics"))
                     }
@@ -173,15 +216,20 @@ class AnalyticsDashboardViewModel @Inject constructor(
             availableBowTypes,
             availableDistances,
         ) { fetch, suggestions, availBows, availDistances ->
-            val top = suggestions
+            val undismissed = suggestions.filter { !it.wasDismissed }
+            val top = undismissed
                 .asSequence()
-                .filter { !it.wasDismissed }
                 .sortedWith(
                     compareBy<AnalyticsSuggestion> { it.wasRead }
                         .thenByDescending { it.createdAt },
                 )
                 .take(DASHBOARD_SUGGESTION_LIMIT)
                 .toList()
+            val allRanked = undismissed
+                .sortedWith(
+                    compareBy<AnalyticsSuggestion> { it.wasApplied }
+                        .thenByDescending { it.confidence },
+                )
             when (fetch) {
                 is AnalyticsFetch.Loading -> _uiState.value.copy(
                     period = fetch.period,
@@ -191,6 +239,7 @@ class AnalyticsDashboardViewModel @Inject constructor(
                     availableDistances = availDistances,
                     isLoading = true,
                     topSuggestions = top,
+                    allSuggestions = allRanked,
                     error = null,
                 )
                 is AnalyticsFetch.Success -> _uiState.value.copy(
@@ -204,6 +253,9 @@ class AnalyticsDashboardViewModel @Inject constructor(
                     comparison = fetch.comparison,
                     trendInsights = fetch.trendInsights,
                     topSuggestions = top,
+                    allSuggestions = allRanked,
+                    timeline = fetch.timeline,
+                    trends = fetch.trends,
                     error = null,
                 )
                 is AnalyticsFetch.Failure -> _uiState.value.copy(
@@ -214,6 +266,7 @@ class AnalyticsDashboardViewModel @Inject constructor(
                     availableDistances = availDistances,
                     isLoading = false,
                     topSuggestions = top,
+                    allSuggestions = allRanked,
                     error = fetch.message,
                 )
             }
@@ -252,14 +305,16 @@ class AnalyticsDashboardViewModel @Inject constructor(
     }
 
     /**
-     * Kick off per-bow fetches (change impact, tag correlations) for the user's first bow.
-     * Matches iOS behavior in `AnalyticsView` — if the user owns multiple bows the primary
-     * (first) bow's data is surfaced; users pick per-bow views elsewhere.
+     * Kick off per-bow fetches (change impact, tag correlations, drift) for the
+     * user's first bow. Matches iOS behavior in `AnalyticsView` — if the user
+     * owns multiple bows the primary (first) bow's data is surfaced; users pick
+     * per-bow views elsewhere.
      */
     private fun loadPerBowSections() {
         viewModelScope.launch {
             val firstBowId = runCatching { bowRepository.getBows().firstOrNull()?.id }.getOrNull()
                 ?: return@launch
+            val period = selectedPeriod.value
             _uiState.value = _uiState.value.copy(
                 isLoadingChanges = true,
                 isLoadingCorrelations = true,
@@ -268,9 +323,12 @@ class AnalyticsDashboardViewModel @Inject constructor(
                 .getOrDefault(emptyList())
             val correlations = runCatching { analyticsRepository.fetchTagCorrelations(firstBowId) }
                 .getOrDefault(emptyList())
+            val drift = runCatching { analyticsRepository.fetchDrift(firstBowId, period) }
+                .getOrNull()
             _uiState.value = _uiState.value.copy(
                 configurationChanges = changes,
                 tagCorrelations = correlations,
+                drift = drift,
                 isLoadingChanges = false,
                 isLoadingCorrelations = false,
             )
@@ -294,6 +352,8 @@ class AnalyticsDashboardViewModel @Inject constructor(
             val overview: AnalyticsOverview,
             val comparison: PeriodComparison,
             val trendInsights: List<TrendInsight>,
+            val timeline: TimelineResponse?,
+            val trends: TrendsResponse?,
         ) : AnalyticsFetch
         data class Failure(
             override val period: AnalyticsPeriod,
