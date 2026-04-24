@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
+import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
+import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.core.model.User
+import com.andrewnguyen.bowpress.feature.subscription.PlayBillingManager
 import com.andrewnguyen.bowpress.push.PushInitializer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +35,8 @@ class AppStateViewModel @Inject constructor(
     suggestionRepository: SuggestionRepository,
     private val unitPreferencesRepository: UnitPreferencesRepository,
     private val pushInitializer: PushInitializer,
+    billingManager: PlayBillingManager,
+    analyticsRefreshBus: AnalyticsRefreshBus,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -49,6 +55,35 @@ class AppStateViewModel @Inject constructor(
         started = SharingStarted.Eagerly,
         initialValue = UnitSystem.DEFAULT,
     )
+
+    /** Current [Entitlement] observed from Play Billing. */
+    val entitlement: StateFlow<Entitlement> = billingManager.entitlement
+
+    /**
+     * Mirrors iOS `SubscriptionManager.isSubscribed` — active purchase *or*
+     * any in-trial status counts as subscribed for gating purposes.
+     */
+    val isSubscribed: StateFlow<Boolean> = billingManager.entitlement
+        .map { it.isActive || it.inTrial }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false,
+        )
+
+    /**
+     * Incrementing nonce that analytics VMs observe to force a re-fetch.
+     * Bumped by [bumpAnalyticsRefresh] (explicit UI action) and by the
+     * [AnalyticsRefreshBus] (FCM foreground arrival, completed sync, etc.).
+     * Mirrors the iOS `AppState` refresh-observable pattern used by
+     * `NotificationRouter.handleForegroundArrival(userInfo:)`.
+     */
+    private val _analyticsRefreshNonce = MutableStateFlow(0)
+    val analyticsRefreshNonce: StateFlow<Int> = _analyticsRefreshNonce.asStateFlow()
+
+    fun bumpAnalyticsRefresh() {
+        _analyticsRefreshNonce.update { it + 1 }
+    }
 
     fun setUnitSystem(system: UnitSystem) {
         viewModelScope.launch { unitPreferencesRepository.setUnitSystem(system) }
@@ -71,6 +106,13 @@ class AppStateViewModel @Inject constructor(
             .onEach { count ->
                 _uiState.value = _uiState.value.copy(unreadSuggestionCount = count)
             }
+            .launchIn(viewModelScope)
+
+        // Any process-wide refresh ping (FCM foreground arrival, completed
+        // sync, etc.) bumps the analytics nonce — feature VMs collect the
+        // nonce to trigger re-fetch.
+        analyticsRefreshBus.events
+            .onEach { bumpAnalyticsRefresh() }
             .launchIn(viewModelScope)
 
         if (userRepository.isSignedIn) hydrate()

@@ -2,8 +2,8 @@ package com.andrewnguyen.bowpress.core.data.sync
 
 /**
  * Contract for the background sync worker. Repositories hand off `pendingSync` writes
- * by calling `enqueueSync()`; the concrete implementation (WorkManager) lives in `app/`
- * or a later `core-sync` module — out of scope for this task.
+ * by calling `enqueueSync()`; the production implementation is
+ * [WorkManagerBackgroundSyncService].
  *
  * Mirrors iOS `BackgroundSyncService`.
  */
@@ -19,8 +19,8 @@ interface BackgroundSyncService {
 }
 
 /**
- * No-op default used during bring-up and unit tests. Swapped out for a real
- * `WorkManagerBackgroundSyncService` once task #7 lands.
+ * No-op implementation retained for unit tests that don't want a real WorkManager.
+ * Production wiring uses [WorkManagerBackgroundSyncService].
  */
 class NoopBackgroundSyncService : BackgroundSyncService {
     override fun enqueueSync() = Unit

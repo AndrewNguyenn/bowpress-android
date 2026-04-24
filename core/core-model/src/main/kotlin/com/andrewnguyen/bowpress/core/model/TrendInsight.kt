@@ -1,4 +1,4 @@
-package com.andrewnguyen.bowpress.core.analytics
+package com.andrewnguyen.bowpress.core.model
 
 /**
  * Mirrors iOS `TrendInsight` (declared inline in `AnalyticsTrendInsightsSection.swift`).

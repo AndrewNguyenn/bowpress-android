@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -73,6 +75,17 @@ fun BowConfigDetailScreen(
                     }
                 },
                 actions = {
+                    val isReference = state.config?.isReference == true
+                    IconButton(
+                        onClick = { viewModel.toggleReference() },
+                        enabled = state.config != null,
+                    ) {
+                        Icon(
+                            imageVector = if (isReference) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                            contentDescription = if (isReference) "Unpin reference" else "Pin as reference",
+                            tint = if (isReference) BowPressColors.Accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     TextButton(onClick = onLogNewTuning, enabled = state.config != null) {
                         Text("Log from this")
                     }

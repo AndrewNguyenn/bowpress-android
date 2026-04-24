@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.core.analytics
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.TrendInsight
 import com.andrewnguyen.bowpress.core.model.Zone
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test

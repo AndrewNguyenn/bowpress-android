@@ -1,9 +1,9 @@
 package com.andrewnguyen.bowpress.core.data
 
 import com.andrewnguyen.bowpress.core.data.sync.BackgroundSyncService
-import com.andrewnguyen.bowpress.core.data.sync.NoopBackgroundSyncService
+import com.andrewnguyen.bowpress.core.data.sync.WorkManagerBackgroundSyncService
+import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -12,14 +12,17 @@ import javax.inject.Singleton
  * Hilt wiring for repositories. Each `*Repository` already uses `@Inject constructor`,
  * so we only need to bind the one interface — [BackgroundSyncService] — here.
  *
- * Feature modules that want a real WorkManager-backed implementation should replace
- * this binding in their own module (Hilt's `@TestInstallIn` / `@UninstallModules`).
+ * The production binding is [WorkManagerBackgroundSyncService], which drains
+ * every repository's `pendingSync` queue via a Hilt-assisted `CoroutineWorker`.
+ * Tests that want a stub can swap this out with Hilt's `@TestInstallIn`.
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object RepositoryModule {
+abstract class RepositoryModule {
 
-    @Provides
+    @Binds
     @Singleton
-    fun provideBackgroundSyncService(): BackgroundSyncService = NoopBackgroundSyncService()
+    abstract fun bindBackgroundSyncService(
+        impl: WorkManagerBackgroundSyncService,
+    ): BackgroundSyncService
 }

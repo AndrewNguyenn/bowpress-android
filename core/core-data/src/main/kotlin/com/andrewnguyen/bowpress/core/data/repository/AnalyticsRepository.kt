@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.core.data.repository
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.BowType
+import com.andrewnguyen.bowpress.core.model.ConfigurationChange
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
 import com.andrewnguyen.bowpress.core.network.BowPressApi
@@ -26,6 +27,17 @@ class AnalyticsRepository @Inject constructor(
 
     suspend fun tagCorrelations(bowId: String): List<TagCorrelation> =
         api.fetchTagCorrelations(bowId)
+
+    /**
+     * Returns the full history of bow-config changes, most recent first. Mirrors iOS
+     * `APIClient.fetchConfigurationChanges(bowId:)`.
+     */
+    suspend fun fetchConfigurationChanges(bowId: String): List<ConfigurationChange> =
+        api.fetchConfigChanges(bowId).sortedByDescending { it.createdAt }
+
+    /** Alias provided so feature-layer code reads symmetrically with [fetchConfigurationChanges]. */
+    suspend fun fetchTagCorrelations(bowId: String): List<TagCorrelation> =
+        tagCorrelations(bowId)
 }
 
 /** Server-side spelling: lowercase enum name matches `@SerialName` on [BowType]. */

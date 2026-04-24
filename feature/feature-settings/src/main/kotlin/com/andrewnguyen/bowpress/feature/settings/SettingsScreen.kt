@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
@@ -25,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -67,11 +69,13 @@ fun SettingsScreen(
             padding = padding,
             user = state.user,
             entitlementActive = state.entitlement.isActive,
+            notificationsEnabled = state.notificationsEnabled,
             onEditProfile = onEditProfile,
             onChangePassword = onChangePassword,
             onDeleteAccount = onDeleteAccount,
             onManageSubscription = onManageSubscription,
             onSignOut = viewModel::signOut,
+            onNotificationsToggle = viewModel::setNotificationsEnabled,
         )
     }
 }
@@ -81,11 +85,13 @@ private fun SettingsBody(
     padding: PaddingValues,
     user: User?,
     entitlementActive: Boolean,
+    notificationsEnabled: Boolean,
     onEditProfile: () -> Unit,
     onChangePassword: () -> Unit,
     onDeleteAccount: () -> Unit,
     onManageSubscription: () -> Unit,
     onSignOut: () -> Unit,
+    onNotificationsToggle: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -109,6 +115,12 @@ private fun SettingsBody(
             title = if (entitlementActive) "Manage Subscription" else "Upgrade to Pro",
             subtitle = if (entitlementActive) "View plan details" else "Unlock the full tuning engine",
             onClick = onManageSubscription,
+        )
+
+        SectionHeader("Preferences")
+        NotificationsToggleRow(
+            enabled = notificationsEnabled,
+            onToggle = onNotificationsToggle,
         )
 
         SectionHeader("Security")
@@ -193,6 +205,39 @@ private fun ProfileRow(user: User?, onClick: () -> Unit) {
             if (user != null) {
                 Icon(Icons.Default.ChevronRight, contentDescription = null)
             }
+        }
+    }
+}
+
+@Composable
+private fun NotificationsToggleRow(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("settings_notifications_toggle"),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                Icons.Default.Notifications,
+                contentDescription = null,
+                tint = BowPressColors.Accent,
+                modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = "Notifications",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(checked = enabled, onCheckedChange = onToggle)
         }
     }
 }

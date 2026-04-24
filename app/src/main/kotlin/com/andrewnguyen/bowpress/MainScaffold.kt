@@ -3,8 +3,8 @@ package com.andrewnguyen.bowpress
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Badge
@@ -25,9 +25,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navigation
-import com.andrewnguyen.bowpress.feature.analytics.history.HistoricalSessionsScreen
 import com.andrewnguyen.bowpress.feature.analytics.navigation.AnalyticsRoutes
 import com.andrewnguyen.bowpress.feature.analytics.navigation.analyticsNavGraph
+import com.andrewnguyen.bowpress.feature.analytics.suggestions.SuggestionsDashboardScreen
 import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentRoutes
 import com.andrewnguyen.bowpress.feature.equipment.nav.equipmentNavGraph
 import com.andrewnguyen.bowpress.feature.session.SessionRoutes
@@ -38,7 +38,7 @@ import com.andrewnguyen.bowpress.feature.subscription.subscriptionNavGraph
 
 /**
  * Root scaffold shown once the user is authenticated. Bottom bar mirrors the
- * iOS `MainTabView` order: Analytics → Log → Session → Equipment → Settings.
+ * iOS `MainTabView` order: Dashboard → Analytics → Session → Equipment → Settings.
  * Each tab is a nested sub-graph so its back-stack is preserved across tab
  * switches (iOS `NavigationStack`-per-tab parity).
  */
@@ -56,7 +56,7 @@ fun MainScaffold(
             NavigationBar {
                 TopTab.entries.forEach { tab ->
                     val selected = currentRoute?.startsWith(tab.graphRoute) == true
-                    val badge = if (tab == TopTab.Analytics && uiState.unreadSuggestionCount > 0) {
+                    val badge = if (tab == TopTab.Dashboard && uiState.unreadSuggestionCount > 0) {
                         uiState.unreadSuggestionCount
                     } else null
 
@@ -88,23 +88,29 @@ fun MainScaffold(
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = TopTab.Analytics.graphRoute,
+            startDestination = TopTab.Dashboard.graphRoute,
             modifier = Modifier.padding(padding),
         ) {
+            navigation(
+                route = TopTab.Dashboard.graphRoute,
+                startDestination = "tab/dashboard/home",
+            ) {
+                composable("tab/dashboard/home") {
+                    SuggestionsDashboardScreen(
+                        onOpenSuggestion = { bowId, suggestionId ->
+                            navController.navigate(
+                                AnalyticsRoutes.suggestionDetail(bowId = bowId, suggestionId = suggestionId),
+                            )
+                        },
+                    )
+                }
+            }
+
             navigation(
                 route = TopTab.Analytics.graphRoute,
                 startDestination = AnalyticsRoutes.Graph,
             ) {
                 analyticsNavGraph(navController)
-            }
-
-            navigation(
-                route = TopTab.Log.graphRoute,
-                startDestination = "tab/log/home",
-            ) {
-                composable("tab/log/home") {
-                    HistoricalSessionsScreen(onBack = { /* top-level tab: no back */ })
-                }
             }
 
             navigation(
@@ -144,8 +150,8 @@ private enum class TopTab(
     val label: String,
     val icon: ImageVector,
 ) {
+    Dashboard("tab/dashboard", "Home", Icons.Filled.Home),
     Analytics("tab/analytics", "Analytics", Icons.Filled.BarChart),
-    Log("tab/log", "Log", Icons.Filled.Book),
     Session("tab/session", "Session", Icons.Filled.Whatshot),
     Equipment("tab/equipment", "Equipment", Icons.Filled.Build),
     Settings("tab/settings", "Settings", Icons.Filled.Settings),

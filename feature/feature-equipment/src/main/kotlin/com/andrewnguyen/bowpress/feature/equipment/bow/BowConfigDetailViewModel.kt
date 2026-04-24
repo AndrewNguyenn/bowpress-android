@@ -39,10 +39,30 @@ class BowConfigDetailViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
+        load()
+    }
+
+    private fun load() {
         viewModelScope.launch {
             val bow = bowRepository.getBow(bowId)
             val config = bowConfigRepository.getById(configId)
             _state.update { it.copy(bow = bow, config = config, isLoading = false) }
+        }
+    }
+
+    /** Pin this config as the reference (manual) or unpin it if already referenced. */
+    fun toggleReference() {
+        val current = _state.value.config ?: return
+        viewModelScope.launch {
+            runCatching {
+                if (current.isReference == true) {
+                    bowConfigRepository.clearReference(bowId, current.id)
+                } else {
+                    bowConfigRepository.setReference(bowId, current.id, manuallyPinned = true)
+                }
+            }
+            val refreshed = bowConfigRepository.getById(configId)
+            _state.update { it.copy(config = refreshed) }
         }
     }
 }

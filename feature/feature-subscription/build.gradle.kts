@@ -19,7 +19,10 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.play.billing)
+    // Exposed on the public API surface of PlayBillingManager (which implements
+    // PurchasesUpdatedListener), so consumers of this module need it on their
+    // compile classpath. Using `api(...)` makes that transitive.
+    api(libs.play.billing)
     implementation(libs.lottie.compose)
 
     testImplementation(libs.junit)
