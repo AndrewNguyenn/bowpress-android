@@ -35,6 +35,7 @@ import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.Bow
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import kotlinx.coroutines.launch
 
@@ -89,6 +90,15 @@ fun SessionHomeScreen(
             TargetFacePicker(
                 selected = state.selectedFaceType,
                 onSelected = { viewModel.selectFaceType(it) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(16.dp))
+            Text("Distance", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            DistancePicker(
+                selected = state.selectedDistance,
+                onSelected = { viewModel.selectDistance(it) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -153,6 +163,9 @@ private fun BowRow(bow: Bow, isSelected: Boolean, onClick: () -> Unit) {
 /** Test tag for the target-face segmented control, used in UI tests. */
 const val TARGET_FACE_PICKER_TEST_TAG = "target_face_picker"
 
+/** Test tag for the shooting-distance segmented control, used in UI tests. */
+const val DISTANCE_PICKER_TEST_TAG = "distance_picker"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TargetFacePicker(
@@ -169,6 +182,31 @@ private fun TargetFacePicker(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
             ) {
                 Text(face.label)
+            }
+        }
+    }
+}
+
+/**
+ * Four-segment picker — `Not set / 20yd / 50m / 70m`. "Not set" maps to `null`,
+ * which the analytics filter naturally drops out of any specific-distance view.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DistancePicker(
+    selected: ShootingDistance?,
+    onSelected: (ShootingDistance?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val options: List<ShootingDistance?> = listOf<ShootingDistance?>(null) + ShootingDistance.entries
+    SingleChoiceSegmentedButtonRow(modifier = modifier.testTag(DISTANCE_PICKER_TEST_TAG)) {
+        options.forEachIndexed { index, distance ->
+            SegmentedButton(
+                selected = distance == selected,
+                onClick = { onSelected(distance) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+            ) {
+                Text(distance?.label ?: "Not set")
             }
         }
     }

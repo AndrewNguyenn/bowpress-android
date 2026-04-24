@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.core.database.entities
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import java.time.Instant
 
@@ -31,5 +32,8 @@ data class SessionEntity(
     // it also makes the Room schema validator happy when diffing against the migration.
     @ColumnInfo(defaultValue = "SIX_RING")
     val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
+    // Optional shooting distance (e.g. 20yd / 50m / 70m). Added in schema v3 — nullable
+    // by design so legacy rows stay null and the analytics filter only matches when set.
+    val distance: ShootingDistance? = null,
     val pendingSync: Boolean = false,
 )

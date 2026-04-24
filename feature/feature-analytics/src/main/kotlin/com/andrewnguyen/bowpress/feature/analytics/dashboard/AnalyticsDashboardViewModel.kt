@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.AnalyticsRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
+import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +42,10 @@ data class DashboardUiState(
     val selectedBowType: BowType? = null,
     /** Bow styles the user actually owns; drives which filter chips are rendered. */
     val availableBowTypes: Set<BowType> = emptySet(),
+    /** `null` = "All distances". */
+    val selectedDistance: ShootingDistance? = null,
+    /** Distances that appear in the user's session history; hides the chip row otherwise. */
+    val availableDistances: Set<ShootingDistance> = emptySet(),
     val isLoading: Boolean = true,
     val overview: AnalyticsOverview? = null,
     val comparison: PeriodComparison? = null,
@@ -58,6 +64,7 @@ class AnalyticsDashboardViewModel @Inject constructor(
     private val analyticsRepository: AnalyticsRepository,
     private val suggestionRepository: SuggestionRepository,
     private val bowRepository: BowRepository,
+    private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private val selectedPeriod = MutableStateFlow(AnalyticsPeriod.WEEK)
@@ -65,12 +72,20 @@ class AnalyticsDashboardViewModel @Inject constructor(
     /** `null` = "All bows" — no `bowType` query param sent. */
     private val selectedBowType = MutableStateFlow<BowType?>(null)
 
+    /** `null` = "All distances" — no `distance` query param sent. */
+    private val selectedDistance = MutableStateFlow<ShootingDistance?>(null)
+
     /** Raising this counter triggers a re-fetch of overview + comparison. */
     private val refreshTrigger = MutableStateFlow(0)
 
     private val availableBowTypes: StateFlow<Set<BowType>> =
         bowRepository.observeBows()
             .map { bows -> bows.map { it.bowType }.toSet() }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    private val availableDistances: StateFlow<Set<ShootingDistance>> =
+        sessionRepository.observeCompleted()
+            .map { sessions -> sessions.mapNotNull { it.distance }.toSet() }
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -90,30 +105,45 @@ class AnalyticsDashboardViewModel @Inject constructor(
         selectedBowType.value = type
     }
 
+    fun selectDistance(distance: ShootingDistance?) {
+        if (selectedDistance.value == distance) return
+        selectedDistance.value = distance
+    }
+
     fun refresh() {
         refreshTrigger.value = refreshTrigger.value + 1
     }
 
     private fun observeDashboard() {
-        val analyticsFlow = combine(selectedPeriod, selectedBowType, refreshTrigger) { period, bowType, _ ->
-            period to bowType
+        val analyticsFlow = combine(
+            selectedPeriod,
+            selectedBowType,
+            selectedDistance,
+            refreshTrigger,
+        ) { period, bowType, distance, _ ->
+            Triple(period, bowType, distance)
         }
-            .flatMapLatest { (period, bowType) ->
+            .flatMapLatest { (period, bowType, distance) ->
                 flow {
-                    emit(AnalyticsFetch.Loading(period, bowType))
+                    emit(AnalyticsFetch.Loading(period, bowType, distance))
                     try {
-                        val overview = analyticsRepository.overview(period, bowType)
-                        val comparison = analyticsRepository.comparison(period, bowType)
-                        emit(AnalyticsFetch.Success(period, bowType, overview, comparison))
+                        val overview = analyticsRepository.overview(period, bowType, distance)
+                        val comparison = analyticsRepository.comparison(period, bowType, distance)
+                        emit(AnalyticsFetch.Success(period, bowType, distance, overview, comparison))
                     } catch (t: Throwable) {
-                        emit(AnalyticsFetch.Failure(period, bowType, t.message ?: "Failed to load analytics"))
+                        emit(AnalyticsFetch.Failure(period, bowType, distance, t.message ?: "Failed to load analytics"))
                     }
                 }.flowOn(Dispatchers.IO)
             }
 
         val suggestionsFlow = suggestionRepository.observeAll()
 
-        combine(analyticsFlow, suggestionsFlow, availableBowTypes) { fetch, suggestions, available ->
+        combine(
+            analyticsFlow,
+            suggestionsFlow,
+            availableBowTypes,
+            availableDistances,
+        ) { fetch, suggestions, availBows, availDistances ->
             val top = suggestions
                 .asSequence()
                 .filter { !it.wasDismissed }
@@ -127,7 +157,9 @@ class AnalyticsDashboardViewModel @Inject constructor(
                 is AnalyticsFetch.Loading -> DashboardUiState(
                     period = fetch.period,
                     selectedBowType = fetch.bowType,
-                    availableBowTypes = available,
+                    availableBowTypes = availBows,
+                    selectedDistance = fetch.distance,
+                    availableDistances = availDistances,
                     isLoading = true,
                     overview = _uiState.value.overview,
                     comparison = _uiState.value.comparison,
@@ -137,7 +169,9 @@ class AnalyticsDashboardViewModel @Inject constructor(
                 is AnalyticsFetch.Success -> DashboardUiState(
                     period = fetch.period,
                     selectedBowType = fetch.bowType,
-                    availableBowTypes = available,
+                    availableBowTypes = availBows,
+                    selectedDistance = fetch.distance,
+                    availableDistances = availDistances,
                     isLoading = false,
                     overview = fetch.overview,
                     comparison = fetch.comparison,
@@ -147,7 +181,9 @@ class AnalyticsDashboardViewModel @Inject constructor(
                 is AnalyticsFetch.Failure -> DashboardUiState(
                     period = fetch.period,
                     selectedBowType = fetch.bowType,
-                    availableBowTypes = available,
+                    availableBowTypes = availBows,
+                    selectedDistance = fetch.distance,
+                    availableDistances = availDistances,
                     isLoading = false,
                     overview = _uiState.value.overview,
                     comparison = _uiState.value.comparison,
@@ -164,17 +200,24 @@ class AnalyticsDashboardViewModel @Inject constructor(
     private sealed interface AnalyticsFetch {
         val period: AnalyticsPeriod
         val bowType: BowType?
+        val distance: ShootingDistance?
 
-        data class Loading(override val period: AnalyticsPeriod, override val bowType: BowType?) : AnalyticsFetch
+        data class Loading(
+            override val period: AnalyticsPeriod,
+            override val bowType: BowType?,
+            override val distance: ShootingDistance?,
+        ) : AnalyticsFetch
         data class Success(
             override val period: AnalyticsPeriod,
             override val bowType: BowType?,
+            override val distance: ShootingDistance?,
             val overview: AnalyticsOverview,
             val comparison: PeriodComparison,
         ) : AnalyticsFetch
         data class Failure(
             override val period: AnalyticsPeriod,
             override val bowType: BowType?,
+            override val distance: ShootingDistance?,
             val message: String,
         ) : AnalyticsFetch
     }

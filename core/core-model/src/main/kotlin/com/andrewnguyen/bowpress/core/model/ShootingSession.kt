@@ -31,6 +31,8 @@ data class ShootingSession(
     val conditions: SessionConditions? = null,
     val arrowCount: Int = 0,
     val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
+    /** Optional shooting distance — null for sessions that predate the field. */
+    val distance: ShootingDistance? = null,
     val ends: List<SessionEnd>? = null,
     val arrows: List<ArrowPlot>? = null,
 )
