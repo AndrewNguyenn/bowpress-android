@@ -92,6 +92,17 @@ class SessionRepository @Inject constructor(
         runCatching { api.deleteSession(id) }
     }
 
+    /**
+     * Delete a single end (and its arrows) from an in-progress session.
+     * Local + remote cleanup; mirrors iOS [APIClient.deleteEnd] + [LocalStore.deleteEnd].
+     */
+    suspend fun deleteEnd(sessionId: String, endId: String) {
+        sessionEndDao.deleteById(endId)
+        arrowPlotDao.deleteByEndId(endId)
+        runCatching { api.deleteEnd(sessionId, endId) }
+        syncService.enqueueSync()
+    }
+
     suspend fun flushPendingSync() {
         val pending = dao.findPendingSync()
         for (entity in pending) {

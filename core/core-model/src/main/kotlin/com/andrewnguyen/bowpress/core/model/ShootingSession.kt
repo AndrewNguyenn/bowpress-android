@@ -33,6 +33,8 @@ data class ShootingSession(
     val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
     /** Optional shooting distance — null for sessions that predate the field. */
     val distance: ShootingDistance? = null,
+    /** Optional human-supplied title (e.g. "Long-distance work"). Null for legacy rows. */
+    val title: String? = null,
     val ends: List<SessionEnd>? = null,
     val arrows: List<ArrowPlot>? = null,
 )

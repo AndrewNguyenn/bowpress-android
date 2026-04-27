@@ -19,6 +19,7 @@ fun SessionEntity.toDto(): ShootingSession = ShootingSession(
     arrowCount = arrowCount,
     targetFaceType = targetFaceType,
     distance = distance,
+    title = title,
 )
 
 fun ShootingSession.toEntity(pendingSync: Boolean = false): SessionEntity = SessionEntity(
@@ -36,6 +37,7 @@ fun ShootingSession.toEntity(pendingSync: Boolean = false): SessionEntity = Sess
     lighting = conditions?.lighting,
     targetFaceType = targetFaceType,
     distance = distance,
+    title = title,
     pendingSync = pendingSync,
 )
 

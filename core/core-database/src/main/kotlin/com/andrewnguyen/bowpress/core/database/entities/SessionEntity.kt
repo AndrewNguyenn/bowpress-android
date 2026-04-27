@@ -35,5 +35,8 @@ data class SessionEntity(
     // Optional shooting distance (e.g. 20yd / 50m / 70m). Added in schema v3 — nullable
     // by design so legacy rows stay null and the analytics filter only matches when set.
     val distance: ShootingDistance? = null,
+    // Optional human-supplied session title. Added in schema v4 — nullable so legacy
+    // rows stay null and the renderer falls back to "Range · {distance}"-style defaults.
+    val title: String? = null,
     val pendingSync: Boolean = false,
 )

@@ -267,6 +267,34 @@ class SessionViewModel @Inject constructor(
         plotRepo.deletePlot(last)
     }
 
+    /**
+     * Re-plot an existing arrow at a new (x, y) on the target. Mirrors iOS
+     * `APIClient.plotArrow` upsert path used by the session-detail re-plot sheet —
+     * the plot id is preserved so end membership and analytics keep their identity.
+     */
+    suspend fun replotArrow(plotId: String, plotX: Double, plotY: Double, ring: Int, zone: Zone) {
+        val plot = _uiState.value.currentArrows.firstOrNull { it.id == plotId } ?: return
+        plotRepo.savePlot(
+            plot.copy(
+                ring = ring,
+                zone = zone,
+                plotX = plotX,
+                plotY = plotY,
+            ),
+        )
+    }
+
+    /**
+     * Delete a single completed end (and its arrows) from the active session.
+     * Local-first; remote DELETE attempted opportunistically inside the repo.
+     */
+    fun deleteEnd(endId: String) {
+        val sessionId = _uiState.value.activeSession?.id ?: return
+        viewModelScope.launch {
+            sessionRepo.deleteEnd(sessionId = sessionId, endId = endId)
+        }
+    }
+
     /** Apply a pending config change (commits on next plot or session-restart). */
     fun changeConfig(newBowConfigId: String? = null, newArrowConfigId: String? = null) {
         viewModelScope.launch {

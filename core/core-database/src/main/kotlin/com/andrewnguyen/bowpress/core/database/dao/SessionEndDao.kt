@@ -31,6 +31,9 @@ interface SessionEndDao {
     @Query("DELETE FROM session_ends WHERE sessionId = :sessionId")
     suspend fun deleteBySession(sessionId: String)
 
+    @Query("DELETE FROM session_ends WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM session_ends")
     suspend fun clear()
 }

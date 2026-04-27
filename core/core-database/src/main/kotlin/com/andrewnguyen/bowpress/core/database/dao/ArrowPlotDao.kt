@@ -48,6 +48,9 @@ interface ArrowPlotDao {
     @Query("DELETE FROM arrow_plots WHERE sessionId = :sessionId")
     suspend fun deleteBySession(sessionId: String)
 
+    @Query("DELETE FROM arrow_plots WHERE endId = :endId")
+    suspend fun deleteByEndId(endId: String)
+
     @Query("DELETE FROM arrow_plots")
     suspend fun clear()
 }

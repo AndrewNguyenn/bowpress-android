@@ -197,6 +197,12 @@ interface BowPressApi {
         @Body body: SessionEnd,
     ): SessionEnd
 
+    @DELETE("sessions/{sessionId}/ends/{id}")
+    suspend fun deleteEnd(
+        @Path("sessionId") sessionId: String,
+        @Path("id") id: String,
+    )
+
     // ---- Config changes -------------------------------------------------------
 
     @GET("config-changes")
