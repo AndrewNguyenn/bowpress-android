@@ -15,9 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,14 +35,24 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
+import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk3
+import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
+import com.andrewnguyen.bowpress.core.designsystem.AppPond
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPHairlineButton
+import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
+import com.andrewnguyen.bowpress.core.designsystem.interUI
 
 /**
- * Landing screen: hero animation + three entry points (Google, Email, continue
- * anonymously is out of scope). Mirrors iOS `AuthView`.
+ * Landing / hero screen — Lottie animation + brand title + Google + email entry
+ * points. Mirrors iOS `AuthView`.
  *
- * The ViewModel is resolved via Hilt — callers just need [onNavigateToEmail] and
- * [onSignedIn] wired. The enclosing nav graph collects signed-in events.
+ * The Google button keeps its brand-mandated white card styling. The email CTA
+ * becomes a BPHairlineButton. Background and typography move to the Kenrokuen
+ * palette.
  */
 @Composable
 fun AuthScreen(
@@ -80,7 +87,7 @@ internal fun AuthScreenContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+            .background(AppPaper),
     ) {
         Column(
             modifier = Modifier
@@ -90,25 +97,34 @@ internal fun AuthScreenContent(
             verticalArrangement = Arrangement.Center,
         ) {
             HeroAnimation()
+
             Spacer(Modifier.height(16.dp))
-            Text(
-                text = "BowPress",
-                fontSize = 38.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
+
+            // Brand eyebrow + Fraunces italic display title
+            BPEyebrow(
+                text = "BOWPRESS",
+                tone = AppInk3,
+                size = 10.sp,
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = "Tune smarter. Shoot better.",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                text = "Tune smarter.",
+                style = frauncesDisplay(28.sp, italic = true).copy(color = AppInk),
                 textAlign = TextAlign.Center,
             )
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Shoot better.",
+                style = interUI(16.sp).copy(color = AppInk3),
+                textAlign = TextAlign.Center,
+            )
+
             Spacer(Modifier.height(56.dp))
 
+            // Google Sign-In — brand styling preserved per Google guidelines
             Button(
-                onClick = onContinueWithGoogle,
-                enabled = !isLoading,
+                onClick = { if (!isLoading) onContinueWithGoogle() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
@@ -118,34 +134,30 @@ internal fun AuthScreenContent(
                     containerColor = Color.White,
                     contentColor = Color(0xFF202124),
                 ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
             ) {
                 Text("Continue with Google", fontWeight = FontWeight.Medium)
             }
 
             Spacer(Modifier.height(14.dp))
 
-            OutlinedButton(
-                onClick = onContinueWithEmail,
-                enabled = !isLoading,
+            // Email CTA — BPHairlineButton (no rounded corners)
+            BPHairlineButton(
+                label = "Continue with Email",
+                onClick = { if (!isLoading) onContinueWithEmail() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
                     .testTag(TAG_CONTINUE_EMAIL),
-                shape = RoundedCornerShape(8.dp),
-            ) {
-                Text(
-                    "Continue with Email",
-                    color = LocalContentColor.current,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+                borderTone = AppLine,
+                labelTone = AppInk,
+            )
 
             if (errorMessage != null) {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = interUI(14.sp).copy(color = AppPond),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -153,8 +165,7 @@ internal fun AuthScreenContent(
 
         Text(
             text = "By continuing you agree to our Terms of Service and Privacy Policy.",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            style = interUI(11.sp).copy(color = AppInk3),
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -165,10 +176,10 @@ internal fun AuthScreenContent(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.15f)),
+                    .background(Color.Black.copy(alpha = 0.10f)),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = AppPond)
             }
         }
     }

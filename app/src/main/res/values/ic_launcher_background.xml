@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kenrokuen paper ground for the adaptive launcher icon. Pulled out into its
+  own color resource so the foreground vector can refer to it symbolically
+  (Android Studio's Asset Studio also expects this file name).
+-->
+<resources>
+    <color name="ic_launcher_background">#EEF2EC</color>
+</resources>

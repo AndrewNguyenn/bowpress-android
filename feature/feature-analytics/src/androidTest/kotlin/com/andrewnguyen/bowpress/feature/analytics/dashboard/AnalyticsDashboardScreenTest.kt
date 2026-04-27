@@ -35,8 +35,18 @@ class AnalyticsDashboardScreenTest {
             ),
             comparison = PeriodComparison(
                 period = AnalyticsPeriod.WEEK,
-                current = PeriodSlice("Last 1 Week", 9.2, 18.0, 3),
-                previous = PeriodSlice("Previous 1 Week", 9.0, 16.0, 2),
+                current = PeriodSlice(
+                    label = "Last 1 Week",
+                    avgArrowScore = 9.2,
+                    xPercentage = 18.0,
+                    sessionCount = 3,
+                ),
+                previous = PeriodSlice(
+                    label = "Previous 1 Week",
+                    avgArrowScore = 9.0,
+                    xPercentage = 16.0,
+                    sessionCount = 2,
+                ),
             ),
         )
 

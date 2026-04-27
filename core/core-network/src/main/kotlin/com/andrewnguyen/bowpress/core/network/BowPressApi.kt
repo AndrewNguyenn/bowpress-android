@@ -8,11 +8,14 @@ import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.ConfigurationChange
 import com.andrewnguyen.bowpress.core.model.DeviceToken
+import com.andrewnguyen.bowpress.core.model.DriftResponse
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
+import com.andrewnguyen.bowpress.core.model.TimelineResponse
+import com.andrewnguyen.bowpress.core.model.TrendsResponse
 import com.andrewnguyen.bowpress.core.model.User
 import retrofit2.Response
 import retrofit2.http.Body
@@ -217,6 +220,26 @@ interface BowPressApi {
         @Query("bowType") bowType: String? = null,
         @Query("distance") distance: String? = null,
     ): PeriodComparison
+
+    @GET("analytics/timeline")
+    suspend fun fetchAnalyticsTimeline(
+        @Query("period") period: String,
+        @Query("bowType") bowType: String? = null,
+        @Query("distance") distance: String? = null,
+    ): TimelineResponse
+
+    @GET("analytics/drift")
+    suspend fun fetchAnalyticsDrift(
+        @Query("bowId") bowId: String,
+        @Query("period") period: String,
+    ): DriftResponse
+
+    @GET("analytics/trends")
+    suspend fun fetchAnalyticsTrends(
+        @Query("period") period: String,
+        @Query("bowType") bowType: String? = null,
+        @Query("distance") distance: String? = null,
+    ): TrendsResponse
 
     @GET("bows/{bowId}/suggestions")
     suspend fun fetchSuggestions(

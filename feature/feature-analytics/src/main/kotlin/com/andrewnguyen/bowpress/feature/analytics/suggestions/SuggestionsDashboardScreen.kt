@@ -14,40 +14,47 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk2
+import com.andrewnguyen.bowpress.core.designsystem.AppInk3
+import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppLine2
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
+import com.andrewnguyen.bowpress.core.designsystem.AppPond
+import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPLedgerRow
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPNavHeader
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPSectionTitle
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPStamp
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPStampTone
+import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
+import com.andrewnguyen.bowpress.core.designsystem.interUI
+import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.DeliveryType
-import com.andrewnguyen.bowpress.feature.analytics.ui.AnalyticsCard
-import com.andrewnguyen.bowpress.feature.analytics.ui.ConfidenceBadge
+import com.andrewnguyen.bowpress.core.model.SuggestionStatusStamp
 import java.time.Instant
+import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Stable test tags exposed for Compose UI tests. */
 object SuggestionsDashboardTestTags {
@@ -59,10 +66,11 @@ object SuggestionsDashboardTestTags {
 
 /**
  * Dashboard tab (home). Groups all undismissed suggestions by bow, surfaces
- * unread-first with an unread-count badge in the header, and supports
+ * unread-first with an unread-count stamp in the header, and supports
  * pull-to-refresh that hits `SuggestionRepository.refreshForBow` for each bow.
  *
- * Android port of iOS `DashboardView` / `DashboardViewModel`.
+ * Kenrokuen port — BPNavHeader + BPLedgerRow ledger layout, no Material3
+ * surfaces or chips.
  */
 @Composable
 fun SuggestionsDashboardScreen(
@@ -87,241 +95,309 @@ internal fun SuggestionsDashboardContent(
     onRefresh: () -> Unit,
     onOpenSuggestion: (bowId: String, suggestionId: String) -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("BowPress", fontWeight = FontWeight.SemiBold)
-                        if (state.unreadCount > 0) {
-                            Spacer(Modifier.width(10.dp))
-                            BadgedBox(
-                                modifier = Modifier.testTag(SuggestionsDashboardTestTags.UnreadBadge),
-                                badge = {
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                                    ) {
-                                        Text(state.unreadCount.toString())
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.AutoAwesome,
-                                    contentDescription = "Unread suggestions",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-    ) { padding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppPaper)
+            .testTag(SuggestionsDashboardTestTags.Root),
+    ) {
         PullToRefreshBox(
             isRefreshing = state.isRefreshing,
             onRefresh = onRefresh,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .testTag(SuggestionsDashboardTestTags.Root),
+            modifier = Modifier.fillMaxSize(),
         ) {
-            when {
-                state.isLoading && state.groups.isEmpty() -> LoadingState()
-                state.groups.isEmpty() -> EmptyState()
-                else -> SuggestionList(
-                    state = state,
-                    onOpenSuggestion = onOpenSuggestion,
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 32.dp),
+            ) {
+                item {
+                    BPNavHeader(
+                        eyebrow = "Bowpress",
+                        title = "Insights",
+                        meta = {
+                            HeaderMeta(
+                                unreadCount = state.unreadCount,
+                                totalSuggestions = state.groups.sumOf { it.suggestions.size },
+                                bowCount = state.groups.size,
+                            )
+                        },
+                    )
+                }
+                item {
+                    Box(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+                        SummaryBanner(unreadCount = state.unreadCount)
+                    }
+                }
+
+                when {
+                    state.isLoading && state.groups.isEmpty() -> item {
+                        Box(modifier = Modifier.padding(24.dp)) {
+                            Text(
+                                text = "Loading insights…",
+                                style = interUI(11.sp).copy(color = AppInk3),
+                            )
+                        }
+                    }
+                    state.groups.isEmpty() -> item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 18.dp, vertical = 32.dp)
+                                .testTag(SuggestionsDashboardTestTags.EmptyState),
+                        ) {
+                            EmptyState()
+                        }
+                    }
+                    else -> state.groups.forEach { group ->
+                        item(key = "group-header-${group.bowId}") {
+                            Box(modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) {
+                                BPSectionTitle(
+                                    title = group.bowName,
+                                    aside = if (group.unreadCount > 0) "${group.unreadCount} unread" else null,
+                                )
+                            }
+                        }
+                        val ordered = group.suggestions
+                        ordered.forEachIndexed { idx, suggestion ->
+                            item(key = "sug-${suggestion.id}") {
+                                Box(modifier = Modifier.padding(horizontal = 18.dp)) {
+                                    SuggestionLedgerRow(
+                                        suggestion = suggestion,
+                                        index = idx + 1,
+                                        onClick = { onOpenSuggestion(suggestion.bowId, suggestion.id) },
+                                    )
+                                }
+                                if (idx < ordered.size - 1) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 18.dp)
+                                            .height(1.dp)
+                                            .background(AppLine2),
+                                    )
+                                }
+                            }
+                        }
+                        item(key = "group-spacer-${group.bowId}") {
+                            Spacer(Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(AppLine),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-// ---------- Sub-components ----------
+// ---------- Header meta ----------
 
 @Composable
-private fun SuggestionList(
-    state: SuggestionsDashboardUiState,
-    onOpenSuggestion: (bowId: String, suggestionId: String) -> Unit,
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item { SummaryBanner(unreadCount = state.unreadCount) }
-
-        state.groups.forEach { group ->
-            item(key = "hdr-${group.bowId}") {
-                Text(
-                    text = group.bowName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-            items(
-                items = group.suggestions,
-                key = { it.id },
-            ) { suggestion ->
-                SuggestionRowCard(
-                    suggestion = suggestion,
-                    onClick = { onOpenSuggestion(suggestion.bowId, suggestion.id) },
-                )
-            }
-        }
+private fun HeaderMeta(unreadCount: Int, totalSuggestions: Int, bowCount: Int) {
+    Column(horizontalAlignment = Alignment.End) {
+        Text(
+            text = monoLine("$unreadCount", " unread"),
+            style = jetbrainsMono(10.sp),
+            modifier = Modifier.testTag(SuggestionsDashboardTestTags.UnreadBadge),
+        )
+        Text(
+            text = monoLine("$totalSuggestions", " ranked"),
+            style = jetbrainsMono(10.sp),
+        )
+        Text(
+            text = "across $bowCount bow${if (bowCount == 1) "" else "s"}",
+            style = jetbrainsMono(10.sp).copy(color = AppInk3),
+        )
     }
 }
+
+private fun monoLine(value: String, unit: String) = buildAnnotatedString {
+    withStyle(SpanStyle(color = AppInk, fontWeight = FontWeight.Medium)) { append(value) }
+    withStyle(SpanStyle(color = AppInk3)) { append(unit) }
+}
+
+// ---------- Summary banner ----------
 
 @Composable
 private fun SummaryBanner(unreadCount: Int) {
+    val title: String
+    val subtitle: String
     if (unreadCount == 0) {
-        BannerRow(
-            icon = Icons.Filled.CheckCircle,
-            title = "All caught up",
-            subtitle = "No new insights at the moment.",
-            tint = Color(0xFF2E7D32),
-        )
+        title = "All caught up"
+        subtitle = "no new insights at the moment"
     } else {
-        val title = if (unreadCount == 1) "1 new insight" else "$unreadCount new insights"
-        BannerRow(
-            icon = Icons.Filled.AutoAwesome,
-            title = title,
-            subtitle = "Tap a card to review and apply.",
-            tint = MaterialTheme.colorScheme.primary,
-        )
+        title = if (unreadCount == 1) "1 new insight" else "$unreadCount new insights"
+        subtitle = "tap a row to review and apply"
     }
-}
-
-@Composable
-private fun BannerRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    tint: Color,
-) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(tint.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-            .padding(14.dp),
+            .background(com.andrewnguyen.bowpress.core.designsystem.AppPaper2)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = tint,
-        )
-        Column(modifier = Modifier.weight(1f)) {
+        Box(modifier = Modifier.width(3.dp).height(38.dp).background(AppPondDk))
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = tint,
+                style = frauncesDisplay(18.sp, italic = true).copy(color = AppInk),
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                style = interUI(10.5.sp).copy(color = AppInk3),
             )
         }
     }
 }
 
+// ---------- Ledger row ----------
+
 @Composable
-private fun SuggestionRowCard(
+private fun SuggestionLedgerRow(
     suggestion: AnalyticsSuggestion,
+    index: Int,
     onClick: () -> Unit,
 ) {
-    AnalyticsCard(
+    val confPct = (suggestion.confidence * 100).roundToInt()
+    val stampText = resolvedStatusStamp(suggestion)
+    val stampTone = stampTone(stampText)
+    Box(
         modifier = Modifier
-            .clickable { onClick() }
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
             .testTag(SuggestionsDashboardTestTags.SuggestionCard),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Lightbulb,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = suggestion.parameter,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (suggestion.wasRead) FontWeight.Medium else FontWeight.SemiBold,
-                    color = if (suggestion.wasRead) {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                )
-                ConfidenceBadge(confidence = suggestion.confidence)
-            }
-            Text(
-                text = "${suggestion.currentValue}  →  ${suggestion.suggestedValue}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = suggestion.reasoning,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                maxLines = 3,
-            )
-        }
+        BPLedgerRow(
+            index = index,
+            title = bowParameterDisplayName(suggestion.parameter),
+            detail = resolvedInlineSummary(suggestion),
+            monoLine = "$confPct% confidence · " + relativeTime(suggestion.createdAt) +
+                if (!suggestion.wasRead) " · new" else "",
+            stamp = { BPStamp(text = stampText.uppercase(), tone = stampTone) },
+            accessory = { ConfidenceBar(confidence = suggestion.confidence) },
+        )
     }
 }
 
 @Composable
-private fun LoadingState() {
+private fun ConfidenceBar(confidence: Double) {
+    val pct = confidence.coerceIn(0.0, 1.0).toFloat()
     Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .width(40.dp)
+            .height(2.dp)
+            .background(AppLine),
     ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(pct)
+                .height(2.dp)
+                .background(AppPond),
+        )
     }
 }
+
+// ---------- Empty ----------
 
 @Composable
 private fun EmptyState() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag(SuggestionsDashboardTestTags.EmptyState),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Filled.AutoAwesome,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-            modifier = Modifier
-                .width(72.dp)
-                .height(72.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "No suggestions yet",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(6.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        BPEyebrow(text = "No suggestions yet")
         Text(
             text = "Keep logging sessions and we'll surface insights here.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            modifier = Modifier.padding(horizontal = 40.dp),
+            style = frauncesDisplay(18.sp, italic = true).copy(color = AppInk),
+        )
+        Text(
+            text = "Typically six sessions form the first picture — tune one parameter, " +
+                "retest, and the engine adapts.",
+            style = interUI(11.5.sp).copy(color = AppInk2),
         )
     }
 }
+
+// ---------- Helpers (local mirrors of AnalyticsDashboardScreen's) ----------
+
+private fun resolvedInlineSummary(suggestion: AnalyticsSuggestion): String {
+    val override = suggestion.inlineSummary?.trim().orEmpty()
+    if (override.isNotEmpty()) return override
+    val cur = suggestion.currentValue.trim()
+    val next = suggestion.suggestedValue.trim()
+    return when {
+        cur.isEmpty() -> next
+        next.isEmpty() -> cur
+        else -> "$cur → $next"
+    }
+}
+
+private fun resolvedStatusStamp(suggestion: AnalyticsSuggestion): String {
+    suggestion.statusStamp?.let {
+        return when (it) {
+            SuggestionStatusStamp.NEW -> "New"
+            SuggestionStatusStamp.PROPOSED -> "Proposed"
+            SuggestionStatusStamp.GOOD -> "Good"
+            SuggestionStatusStamp.REVIEW -> "Review"
+        }
+    }
+    return when {
+        suggestion.wasApplied -> "Applied"
+        suggestion.confidence >= 0.85 -> "Good"
+        suggestion.confidence < 0.6 -> "Review"
+        else -> "Proposed"
+    }
+}
+
+private fun stampTone(stamp: String): BPStampTone = when (stamp.lowercase(Locale.US)) {
+    "new", "proposed", "applied" -> BPStampTone.Pond
+    "good" -> BPStampTone.Pine
+    "review", "dismissed" -> BPStampTone.Maple
+    else -> BPStampTone.Pond
+}
+
+private fun relativeTime(t: Instant): String {
+    val now = Instant.now()
+    val secs = (now.epochSecond - t.epochSecond).coerceAtLeast(0L)
+    return when {
+        secs < 60 -> "just now"
+        secs < 3600 -> "${secs / 60} min ago"
+        secs < 86_400 -> "${secs / 3600} hr ago"
+        secs < 86_400 * 30 -> "${secs / 86_400} d ago"
+        else -> "${secs / (86_400 * 30)} mo ago"
+    }
+}
+
+private fun bowParameterDisplayName(raw: String): String {
+    val map = mapOf(
+        "drawLength" to "Draw Length",
+        "letOffPct" to "Let-Off %",
+        "peepHeight" to "Peep Height",
+        "dLoopLength" to "D-Loop Length",
+        "topCableTwists" to "Top Cable Twists",
+        "bottomCableTwists" to "Bottom Cable Twists",
+        "mainStringTopTwists" to "Main String Top Twists",
+        "mainStringBottomTwists" to "Main String Bottom Twists",
+        "topLimbTurns" to "Top Limb Turns",
+        "bottomLimbTurns" to "Bottom Limb Turns",
+        "restVertical" to "Rest Vertical",
+        "restHorizontal" to "Rest Horizontal",
+        "restDepth" to "Rest Depth",
+        "sightPosition" to "Sight Position",
+        "gripAngle" to "Grip Angle",
+        "nockingHeight" to "Nocking Height",
+    )
+    map[raw]?.let { return it }
+    val sb = StringBuilder()
+    raw.forEachIndexed { idx, c ->
+        if (idx > 0 && c.isUpperCase()) sb.append(' ')
+        sb.append(c)
+    }
+    return sb.toString().replaceFirstChar { it.uppercase() }
+}
+
 
 // ---------- Previews ----------
 

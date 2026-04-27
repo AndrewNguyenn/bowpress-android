@@ -1,8 +1,12 @@
 package com.andrewnguyen.bowpress.feature.settings
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,43 +14,51 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk3
+import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppLine2
+import com.andrewnguyen.bowpress.core.designsystem.AppMaple
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
+import com.andrewnguyen.bowpress.core.designsystem.AppPond
+import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPCard
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPEditLink
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPNavHeader
+import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
+import com.andrewnguyen.bowpress.core.designsystem.interUI
+import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
+import com.andrewnguyen.bowpress.core.model.Entitlement
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.core.model.User
 
-@OptIn(ExperimentalMaterial3Api::class)
+private const val TERMS_URL = "https://andrewnguyenn.github.io/bowpress-web/terms.html"
+private const val PRIVACY_URL = "https://andrewnguyenn.github.io/bowpress-web/privacy.html"
+
 @Composable
 fun SettingsScreen(
     onEditProfile: () -> Unit,
@@ -62,29 +74,23 @@ fun SettingsScreen(
         if (state.signedOut) onSignedOut()
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Settings") }) },
-    ) { padding ->
-        SettingsBody(
-            padding = padding,
-            user = state.user,
-            entitlementActive = state.entitlement.isActive,
-            notificationsEnabled = state.notificationsEnabled,
-            onEditProfile = onEditProfile,
-            onChangePassword = onChangePassword,
-            onDeleteAccount = onDeleteAccount,
-            onManageSubscription = onManageSubscription,
-            onSignOut = viewModel::signOut,
-            onNotificationsToggle = viewModel::setNotificationsEnabled,
-        )
-    }
+    SettingsBody(
+        user = state.user,
+        entitlement = state.entitlement,
+        notificationsEnabled = state.notificationsEnabled,
+        onEditProfile = onEditProfile,
+        onChangePassword = onChangePassword,
+        onDeleteAccount = onDeleteAccount,
+        onManageSubscription = onManageSubscription,
+        onSignOut = viewModel::signOut,
+        onNotificationsToggle = viewModel::setNotificationsEnabled,
+    )
 }
 
 @Composable
 private fun SettingsBody(
-    padding: PaddingValues,
     user: User?,
-    entitlementActive: Boolean,
+    entitlement: Entitlement,
     notificationsEnabled: Boolean,
     onEditProfile: () -> Unit,
     onChangePassword: () -> Unit,
@@ -93,196 +99,339 @@ private fun SettingsBody(
     onSignOut: () -> Unit,
     onNotificationsToggle: (Boolean) -> Unit,
 ) {
+    val context = LocalContext.current
+    val unitSystem = LocalUnitSystem.current
+    val setUnitSystem = LocalUnitSystemSetter.current
+
+    val planLabel = when {
+        !entitlement.isActive -> "Free"
+        entitlement.productId?.contains("annual") == true -> "Pro Annual"
+        entitlement.productId?.contains("monthly") == true -> "Pro Monthly"
+        else -> "Pro"
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(padding)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+            .background(AppPaper)
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text(
-            "Account",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        )
+        BPNavHeader(eyebrow = "BOWPRESS · ACCOUNT", title = "Settings")
 
-        ProfileRow(user = user, onClick = onEditProfile)
+        // Profile block
+        ProfileBlock(user = user, onEdit = onEditProfile)
 
-        SectionHeader("Subscription")
-        SettingsRow(
-            icon = Icons.Default.Star,
-            title = if (entitlementActive) "Manage Subscription" else "Upgrade to Pro",
-            subtitle = if (entitlementActive) "View plan details" else "Unlock the full tuning engine",
-            onClick = onManageSubscription,
-        )
+        Spacer(Modifier.height(20.dp))
 
-        SectionHeader("Preferences")
-        NotificationsToggleRow(
-            enabled = notificationsEnabled,
-            onToggle = onNotificationsToggle,
-        )
-
-        SectionHeader("Security")
-        if (user?.canChangePassword != false) {
-            SettingsRow(
-                icon = Icons.Default.Lock,
-                title = "Change Password",
-                subtitle = "Update your password",
-                onClick = onChangePassword,
-                testTagValue = "settings_change_password",
-            )
-        }
-        SettingsRow(
-            icon = Icons.Default.Logout,
-            title = "Sign Out",
-            subtitle = null,
-            onClick = onSignOut,
-            testTagValue = "settings_sign_out",
-        )
-        SettingsRow(
-            icon = Icons.Default.PersonOutline,
-            title = "Delete Account",
-            subtitle = "Permanently remove your data",
-            onClick = onDeleteAccount,
-            destructive = true,
-            testTagValue = "settings_delete_account",
-        )
-
-        Spacer(Modifier.height(24.dp))
-    }
-}
-
-@Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        modifier = Modifier.padding(top = 8.dp),
-    )
-}
-
-@Composable
-private fun ProfileRow(user: User?, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .pointerInput(user?.id) {
-                detectTapGestures(onTap = { if (user != null) onClick() })
-            }
-            .testTag("settings_profile_row"),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                Icons.Default.AccountCircle,
-                contentDescription = null,
-                tint = BowPressColors.Accent,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape),
-            )
-            Column(Modifier.weight(1f)) {
-                Text(
-                    user?.name ?: "Not signed in",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+        // Group 1: Subscription + Notifications + Units
+        Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+            BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
+                SettingsValueRow(
+                    label = "Subscription",
+                    value = planLabel,
+                    onClick = onManageSubscription,
+                    testTag = "settings_subscription",
                 )
-                if (user != null) {
-                    Text(
-                        user.email,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                NotificationsRow(
+                    enabled = notificationsEnabled,
+                    onToggle = onNotificationsToggle,
+                )
+                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                UnitsRow(
+                    unitSystem = unitSystem,
+                    onToggle = { metric ->
+                        setUnitSystem(if (metric) UnitSystem.METRIC else UnitSystem.IMPERIAL)
+                    },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Group 2: Privacy + Terms + Sign out
+        Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+            BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
+                SettingsLinkRow(
+                    label = "Privacy Policy",
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    },
+                )
+                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                SettingsLinkRow(
+                    label = "Terms of Service",
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(TERMS_URL))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    },
+                )
+                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                SettingsLinkRow(
+                    label = "Sign Out",
+                    labelColor = AppMaple,
+                    onClick = onSignOut,
+                    testTag = "settings_sign_out",
+                )
+            }
+        }
+
+        // Account management (change password / delete account) — preserved routes
+        if (user?.canChangePassword != false) {
+            Spacer(Modifier.height(8.dp))
+            Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+                BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
+                    SettingsLinkRow(
+                        label = "Change Password",
+                        onClick = onChangePassword,
+                        testTag = "settings_change_password",
                     )
                 }
             }
-            if (user != null) {
-                Icon(Icons.Default.ChevronRight, contentDescription = null)
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+            BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
+                SettingsLinkRow(
+                    label = "Delete Account",
+                    labelColor = AppMaple,
+                    onClick = onDeleteAccount,
+                    testTag = "settings_delete_account",
+                )
             }
+        }
+
+        // Colophon
+        Colophon()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Profile block
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ProfileBlock(user: User?, onEdit: () -> Unit) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Square avatar — no corner radius
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .background(AppPondDk),
+                contentAlignment = Alignment.Center,
+            ) {
+                val initials = initials(user?.name.orEmpty())
+                Text(
+                    text = initials,
+                    style = frauncesDisplay(22.sp, italic = true).copy(color = AppPaper),
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = user?.name ?: "—",
+                    style = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
+                        .copy(color = AppInk),
+                )
+                Text(
+                    text = (user?.email ?: "Not signed in").uppercase(),
+                    style = jetbrainsMono(10.sp).copy(
+                        color = AppInk3,
+                        letterSpacing = 0.04.em,
+                    ),
+                    maxLines = 1,
+                )
+            }
+
+            if (user != null) {
+                BPEditLink(label = "EDIT", onClick = onEdit)
+            }
+        }
+
+        // 1dp hairline below profile block
+        HorizontalDivider(
+            modifier = Modifier.padding(bottom = 18.dp),
+            color = AppLine,
+            thickness = 1.dp,
+        )
+    }
+}
+
+private fun initials(name: String): String {
+    val words = name.trim().split("\\s+".toRegex()).filter(String::isNotBlank)
+    return words.take(2).map { it.first().uppercaseChar() }.joinToString("").ifEmpty { "?" }
+}
+
+// ---------------------------------------------------------------------------
+// Group rows
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun SettingsValueRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    testTag: String? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = interUI(14.sp).copy(color = AppInk),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = value,
+                style = jetbrainsMono(10.sp).copy(color = AppInk3, letterSpacing = 0.04.em),
+            )
+            Text(
+                text = "›",
+                style = frauncesDisplay(16.sp, italic = true).copy(color = AppPond),
+            )
         }
     }
 }
 
 @Composable
-private fun NotificationsToggleRow(
+private fun NotificationsRow(
     enabled: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp)
             .testTag("settings_notifications_toggle"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
+        Text(
+            text = "Push Notifications",
+            style = interUI(14.sp).copy(color = AppInk),
+        )
+        Switch(checked = enabled, onCheckedChange = onToggle)
+    }
+}
+
+@Composable
+private fun UnitsRow(
+    unitSystem: UnitSystem,
+    onToggle: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = "Units",
+            style = interUI(14.sp).copy(color = AppInk),
+        )
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                Icons.Default.Notifications,
-                contentDescription = null,
-                tint = BowPressColors.Accent,
-                modifier = Modifier.size(24.dp),
-            )
             Text(
-                text = "Notifications",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f),
+                text = unitSystem.label.uppercase(),
+                style = jetbrainsMono(10.sp).copy(color = AppInk3, letterSpacing = 0.04.em),
             )
-            Switch(checked = enabled, onCheckedChange = onToggle)
+            Switch(
+                checked = unitSystem == UnitSystem.METRIC,
+                onCheckedChange = onToggle,
+            )
         }
     }
 }
 
 @Composable
-private fun SettingsRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String?,
+private fun SettingsLinkRow(
+    label: String,
     onClick: () -> Unit,
-    destructive: Boolean = false,
-    testTagValue: String? = null,
+    labelColor: Color = AppInk,
+    testTag: String? = null,
 ) {
-    val tint = if (destructive) MaterialTheme.colorScheme.error else BowPressColors.Accent
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { onClick() })
-            }
-            .then(if (testTagValue != null) Modifier.testTag(testTagValue) else Modifier),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                )
-                if (subtitle != null) {
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    )
-                }
-            }
-            Icon(Icons.Default.ChevronRight, contentDescription = null)
-        }
+        Text(
+            text = label,
+            style = interUI(14.sp).copy(color = labelColor),
+        )
+        Text(
+            text = "›",
+            style = frauncesDisplay(16.sp, italic = true).copy(color = AppPond),
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Colophon
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun Colophon() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 28.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "est. arch",
+            style = frauncesDisplay(11.sp, italic = true).copy(
+                color = AppInk3,
+                letterSpacing = 0.08.em,
+            ),
+        )
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.size(5.dp).background(AppPond))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "kanazawa",
+            style = frauncesDisplay(11.sp, italic = true).copy(
+                color = AppInk3,
+                letterSpacing = 0.08.em,
+            ),
+        )
     }
 }
