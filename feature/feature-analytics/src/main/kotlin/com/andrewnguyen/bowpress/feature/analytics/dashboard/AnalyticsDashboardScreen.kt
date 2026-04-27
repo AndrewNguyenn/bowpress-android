@@ -131,6 +131,7 @@ fun AnalyticsDashboardScreen(
     onOpenSuggestion: (bowId: String, suggestionId: String) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenTimeline: (bowId: String) -> Unit,
+    onOpenTrendFinding: (TrendFinding) -> Unit = {},
     viewModel: AnalyticsDashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -143,6 +144,7 @@ fun AnalyticsDashboardScreen(
         onOpenSuggestion = onOpenSuggestion,
         onOpenHistory = onOpenHistory,
         onOpenTimeline = onOpenTimeline,
+        onOpenTrendFinding = onOpenTrendFinding,
         onDismissSuggestion = viewModel::dismissSuggestion,
         onMarkRead = viewModel::markSuggestionRead,
     )
@@ -159,6 +161,7 @@ internal fun AnalyticsDashboardContent(
     onOpenSuggestion: (bowId: String, suggestionId: String) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenTimeline: (bowId: String) -> Unit,
+    onOpenTrendFinding: (TrendFinding) -> Unit = {},
     onDismissSuggestion: (String) -> Unit = {},
     onMarkRead: (String) -> Unit = {},
 ) {
@@ -257,6 +260,7 @@ internal fun AnalyticsDashboardContent(
                                 findings = trends.findings,
                                 totalArrows = overview.datasetSummary?.arrows
                                     ?: estimatedArrows(overview.sessionCount),
+                                onFindingClick = onOpenTrendFinding,
                             )
                         }
                     }
@@ -986,7 +990,11 @@ private fun LegendRow(
 // ---------- Trend analysis ----------
 
 @Composable
-private fun TrendAnalysisSection(findings: List<TrendFinding>, totalArrows: Int) {
+private fun TrendAnalysisSection(
+    findings: List<TrendFinding>,
+    totalArrows: Int,
+    onFindingClick: (TrendFinding) -> Unit = {},
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1010,7 +1018,7 @@ private fun TrendAnalysisSection(findings: List<TrendFinding>, totalArrows: Int)
         } else {
             Column {
                 findings.forEachIndexed { idx, finding ->
-                    TrendLedgerRow(finding = finding)
+                    TrendLedgerRow(finding = finding, onClick = { onFindingClick(finding) })
                     if (idx < findings.size - 1) {
                         Box(
                             modifier = Modifier
@@ -1026,10 +1034,11 @@ private fun TrendAnalysisSection(findings: List<TrendFinding>, totalArrows: Int)
 }
 
 @Composable
-private fun TrendLedgerRow(finding: TrendFinding) {
+private fun TrendLedgerRow(finding: TrendFinding, onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,

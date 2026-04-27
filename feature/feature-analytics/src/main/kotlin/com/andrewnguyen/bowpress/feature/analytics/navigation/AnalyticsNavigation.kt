@@ -7,10 +7,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.andrewnguyen.bowpress.core.model.TrendFinding
 import com.andrewnguyen.bowpress.feature.analytics.dashboard.AnalyticsDashboardScreen
 import com.andrewnguyen.bowpress.feature.analytics.history.HistoricalSessionsScreen
 import com.andrewnguyen.bowpress.feature.analytics.suggestion.SuggestionDetailScreen
 import com.andrewnguyen.bowpress.feature.analytics.timeline.ScoreTimelineScreen
+import com.andrewnguyen.bowpress.feature.analytics.trend.TrendFindingDetailScreen
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import kotlinx.serialization.json.Json
 
 /**
  * Route constants for the analytics feature graph. Any external module (the host app)
@@ -29,15 +35,25 @@ object AnalyticsRoutes {
     /** Pattern: `analytics/timeline/{bowId}`. */
     const val TimelinePattern: String = "analytics/timeline/{bowId}"
 
+    /** Pattern: `analytics/trend/{findingJson}`. */
+    const val TrendDetailPattern: String = "analytics/trend/{findingJson}"
+
     fun suggestionDetail(bowId: String, suggestionId: String): String =
         "analytics/suggestion/$bowId/$suggestionId"
 
     fun timeline(bowId: String): String = "analytics/timeline/$bowId"
 
+    fun trendDetail(finding: TrendFinding): String {
+        val json = Json.encodeToString(TrendFinding.serializer(), finding)
+        val encoded = URLEncoder.encode(json, StandardCharsets.UTF_8.name())
+        return "analytics/trend/$encoded"
+    }
+
     /** Nav-arg keys — used by ViewModels to pluck values from `SavedStateHandle`. */
     object Args {
         const val BowId: String = "bowId"
         const val SuggestionId: String = "suggestionId"
+        const val FindingJson: String = "findingJson"
     }
 }
 
@@ -65,6 +81,24 @@ fun NavGraphBuilder.analyticsNavGraph(navController: NavController) {
                 onOpenTimeline = { bowId ->
                     navController.navigate(AnalyticsRoutes.timeline(bowId))
                 },
+                onOpenTrendFinding = { finding ->
+                    navController.navigate(AnalyticsRoutes.trendDetail(finding))
+                },
+            )
+        }
+
+        composable(
+            route = AnalyticsRoutes.TrendDetailPattern,
+            arguments = listOf(
+                navArgument(AnalyticsRoutes.Args.FindingJson) { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val raw = entry.arguments?.getString(AnalyticsRoutes.Args.FindingJson).orEmpty()
+            val decoded = URLDecoder.decode(raw, StandardCharsets.UTF_8.name())
+            val finding = Json.decodeFromString(TrendFinding.serializer(), decoded)
+            TrendFindingDetailScreen(
+                finding = finding,
+                onBack = { navController.popBackStack() },
             )
         }
 
