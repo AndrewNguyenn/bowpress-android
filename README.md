@@ -169,8 +169,31 @@ The `:app` module wires everything together via three pieces:
   from any tab and from the `bowpress://paywall` deep link. The analytics
   graph registers the `bowpress://suggestion/{id}?bowId={bowId}` deep link.
 
+## Cross-platform flow verification
+
+The `flows/` directory at the repo root is the **behavioral source of
+truth** for every user-visible flow, shared with the iOS app. Each
+`*.flow.json` file declares an ordered sequence of steps
+(tap/wait/assert/api) that both platforms' UI tests execute
+identically. See `flows/SPEC.md` for the contract.
+
+The Android side ships:
+
+- `core-designsystem/.../testing/TestTags.kt` — canonical testTag
+  string constants. Every `Modifier.testTag(...)` referenced by a flow
+  must match one of these.
+- `app/src/androidTest/.../flowtest/` — flow parser + runner. Runs in
+  Compose UI Test infrastructure; backed by a pluggable `NetworkProbe`
+  for HTTP stubbing/recording. See `flowtest/README.md`.
+- `.github/workflows/android.yml` — CI: build + unit tests + flow JSON
+  validation + emulator-based instrumented tests on PRs.
+
+Outstanding wire-up (Hilt test app, MockWebServer probe, NavController
+probe, server-patch HTTP client) is tracked in `BLOCKERS.md`.
+
 ## Status
 
-All 14 modules populated. Ready to build once a local JDK 17 + Android SDK 35
-are installed and the Gradle wrapper JAR is generated (see "One-time wrapper
-bootstrap" above).
+All 14 modules populated. Verification harness scaffolded; full e2e
+flow execution gated on the wire-up items in `BLOCKERS.md`. See that
+file for everything that's known to be missing — both code-level
+(stubs, divergences) and external (OAuth, Firebase, backend endpoints).
