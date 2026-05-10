@@ -91,7 +91,19 @@ private object DevMockData {
         model = "Satori",
         createdAt = daysAgo(60),
     )
-    val bows: List<Bow> = listOf(bow1, bow2)
+    // Third bow exists so the Equipment list shows all three bow types,
+    // matching iOS DevMockData. No sessions attached — barebow chip in
+    // Analytics will surface empty state (correct behavior).
+    val bow3 = Bow(
+        id = "dev_bow3",
+        userId = userId,
+        name = "Border HEX7 Barebow",
+        bowType = BowType.BAREBOW,
+        brand = "Border",
+        model = "HEX7",
+        createdAt = daysAgo(20),
+    )
+    val bows: List<Bow> = listOf(bow1, bow2, bow3)
 
     // --- Arrow configs -----------------------------------------------------
 

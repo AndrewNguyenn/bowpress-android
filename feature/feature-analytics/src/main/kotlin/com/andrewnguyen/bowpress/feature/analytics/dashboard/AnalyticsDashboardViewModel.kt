@@ -95,7 +95,8 @@ class AnalyticsDashboardViewModel @Inject constructor(
     private val analyticsRefreshBus: AnalyticsRefreshBus,
 ) : ViewModel() {
 
-    private val selectedPeriod = MutableStateFlow(AnalyticsPeriod.WEEK)
+    // Default period matches iOS AnalyticsView (`.threeDays`).
+    private val selectedPeriod = MutableStateFlow(AnalyticsPeriod.THREE_DAYS)
 
     /** `null` = "All bows" — no `bowType` query param sent. */
     private val selectedBowType = MutableStateFlow<BowType?>(null)

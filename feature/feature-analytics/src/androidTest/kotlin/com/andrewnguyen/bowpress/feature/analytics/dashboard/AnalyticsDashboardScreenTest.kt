@@ -25,24 +25,24 @@ class AnalyticsDashboardScreenTest {
     @Test
     fun dashboard_rendersRootWhenOverviewPresent() {
         val state = DashboardUiState(
-            period = AnalyticsPeriod.WEEK,
+            period = AnalyticsPeriod.THREE_DAYS,
             isLoading = false,
             overview = AnalyticsOverview(
-                period = AnalyticsPeriod.WEEK,
+                period = AnalyticsPeriod.THREE_DAYS,
                 sessionCount = 3,
                 avgArrowScore = 9.2,
                 xPercentage = 18.0,
             ),
             comparison = PeriodComparison(
-                period = AnalyticsPeriod.WEEK,
+                period = AnalyticsPeriod.THREE_DAYS,
                 current = PeriodSlice(
-                    label = "Last 1 Week",
+                    label = "Last 3 Days",
                     avgArrowScore = 9.2,
                     xPercentage = 18.0,
                     sessionCount = 3,
                 ),
                 previous = PeriodSlice(
-                    label = "Previous 1 Week",
+                    label = "Previous 3 Days",
                     avgArrowScore = 9.0,
                     xPercentage = 16.0,
                     sessionCount = 2,

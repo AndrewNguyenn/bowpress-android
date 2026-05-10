@@ -50,19 +50,19 @@ class AnalyticsDashboardViewModelTest {
     @Test
     fun `initial state exposes overview, comparison, and top 3 suggestions`() = runTest {
         val overview = AnalyticsOverview(
-            period = AnalyticsPeriod.WEEK,
+            period = AnalyticsPeriod.THREE_DAYS,
             sessionCount = 7,
             avgArrowScore = 9.4,
             xPercentage = 25.0,
         )
         val comparison = PeriodComparison(
-            period = AnalyticsPeriod.WEEK,
-            current = PeriodSlice("Last 1 Week", avgArrowScore = 9.4, xPercentage = 25.0, sessionCount = 7),
-            previous = PeriodSlice("Previous 1 Week", avgArrowScore = 9.0, xPercentage = 20.0, sessionCount = 6),
+            period = AnalyticsPeriod.THREE_DAYS,
+            current = PeriodSlice("Last 3 Days", avgArrowScore = 9.4, xPercentage = 25.0, sessionCount = 7),
+            previous = PeriodSlice("Previous 3 Days", avgArrowScore = 9.0, xPercentage = 20.0, sessionCount = 6),
         )
         val analyticsRepository = mockk<AnalyticsRepository>()
-        coEvery { analyticsRepository.overview(AnalyticsPeriod.WEEK, null, null) } returns overview
-        coEvery { analyticsRepository.comparison(AnalyticsPeriod.WEEK, null, null) } returns comparison
+        coEvery { analyticsRepository.overview(AnalyticsPeriod.THREE_DAYS, null, null) } returns overview
+        coEvery { analyticsRepository.comparison(AnalyticsPeriod.THREE_DAYS, null, null) } returns comparison
 
         // Five suggestions — ViewModel should surface the top 3 (undismissed, unread first).
         val suggestions = (1..5).map { idx ->
@@ -122,13 +122,13 @@ class AnalyticsDashboardViewModelTest {
     fun `dismissed suggestions are filtered out before the top-3 take`() = runTest {
         val analyticsRepository = mockk<AnalyticsRepository>()
         coEvery { analyticsRepository.overview(any(), any(), any()) } returns AnalyticsOverview(
-            period = AnalyticsPeriod.WEEK,
+            period = AnalyticsPeriod.THREE_DAYS,
             sessionCount = 1,
             avgArrowScore = 9.0,
             xPercentage = 10.0,
         )
         coEvery { analyticsRepository.comparison(any(), any(), any()) } returns PeriodComparison(
-            period = AnalyticsPeriod.WEEK,
+            period = AnalyticsPeriod.THREE_DAYS,
             current = PeriodSlice(label = "a", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
             previous = PeriodSlice(label = "b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
         )
@@ -172,19 +172,19 @@ class AnalyticsDashboardViewModelTest {
     fun `selectBowType triggers a re-fetch with the chosen style`() = runTest {
         val analyticsRepository = mockk<AnalyticsRepository>()
         // Two stubs — one for the initial null call, one for the BAREBOW call.
-        coEvery { analyticsRepository.overview(AnalyticsPeriod.WEEK, null, null) } returns AnalyticsOverview(
-            period = AnalyticsPeriod.WEEK, sessionCount = 9, avgArrowScore = 9.0, xPercentage = 0.0,
+        coEvery { analyticsRepository.overview(AnalyticsPeriod.THREE_DAYS, null, null) } returns AnalyticsOverview(
+            period = AnalyticsPeriod.THREE_DAYS, sessionCount = 9, avgArrowScore = 9.0, xPercentage = 0.0,
         )
-        coEvery { analyticsRepository.comparison(AnalyticsPeriod.WEEK, null, null) } returns PeriodComparison(
-            period = AnalyticsPeriod.WEEK,
+        coEvery { analyticsRepository.comparison(AnalyticsPeriod.THREE_DAYS, null, null) } returns PeriodComparison(
+            period = AnalyticsPeriod.THREE_DAYS,
             current = PeriodSlice(label = "a", avgArrowScore = 9.0, xPercentage = 0.0, sessionCount = 9),
             previous = PeriodSlice(label = "b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
         )
-        coEvery { analyticsRepository.overview(AnalyticsPeriod.WEEK, BowType.BAREBOW, null) } returns AnalyticsOverview(
-            period = AnalyticsPeriod.WEEK, sessionCount = 3, avgArrowScore = 7.5, xPercentage = 5.0,
+        coEvery { analyticsRepository.overview(AnalyticsPeriod.THREE_DAYS, BowType.BAREBOW, null) } returns AnalyticsOverview(
+            period = AnalyticsPeriod.THREE_DAYS, sessionCount = 3, avgArrowScore = 7.5, xPercentage = 5.0,
         )
-        coEvery { analyticsRepository.comparison(AnalyticsPeriod.WEEK, BowType.BAREBOW, null) } returns PeriodComparison(
-            period = AnalyticsPeriod.WEEK,
+        coEvery { analyticsRepository.comparison(AnalyticsPeriod.THREE_DAYS, BowType.BAREBOW, null) } returns PeriodComparison(
+            period = AnalyticsPeriod.THREE_DAYS,
             current = PeriodSlice(label = "a", avgArrowScore = 7.5, xPercentage = 5.0, sessionCount = 3),
             previous = PeriodSlice(label = "b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
         )
@@ -238,13 +238,13 @@ class AnalyticsDashboardViewModelTest {
     private fun stubLocalEngine(): LocalAnalyticsEngine {
         val engine = mockk<LocalAnalyticsEngine>()
         coEvery { engine.overview(any(), any()) } returns AnalyticsOverview(
-            period = AnalyticsPeriod.WEEK,
+            period = AnalyticsPeriod.THREE_DAYS,
             sessionCount = 0,
             avgArrowScore = 0.0,
             xPercentage = 0.0,
         )
         coEvery { engine.comparison(any(), any()) } returns PeriodComparison(
-            period = AnalyticsPeriod.WEEK,
+            period = AnalyticsPeriod.THREE_DAYS,
             current = PeriodSlice(label = "a", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
             previous = PeriodSlice(label = "b", avgArrowScore = 0.0, xPercentage = 0.0, sessionCount = 0),
         )
