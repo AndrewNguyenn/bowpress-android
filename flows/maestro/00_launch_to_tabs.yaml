@@ -1,0 +1,33 @@
+# Maestro flow: launch the app, wait for hydration to clear, assert the
+# main tab bar exists. Runs identically against iOS Sim + Android Emulator.
+#
+# This is the cheapest cross-platform parity signal — proves both apps
+# boot to the same scaffold. Maps to iOS XCUITest's ScreenshotTests.swift
+# baseline ("tab bar never appeared (hydration splash stuck?)").
+#
+# Prerequisites:
+#   - iOS:     DEBUG build auto-signs in; main tab bar should appear
+#              within 20s after splash clears.
+#   - Android: DEBUG build does NOT yet auto-sign in (parity divergence,
+#              BLOCKERS tracking). Will land on AuthScreen instead of
+#              main_tab_bar — this flow will FAIL on Android until
+#              auto-sign-in is wired to match iOS.
+appId: com.andrewnguyen.bowpress
+tags:
+  - parity
+  - smoke
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+# NOTE: asserting tab bar via text labels rather than testTag/accessibilityID
+# because iOS MainTabView's UITabBar doesn't expose `main_tab_bar` as an
+# accessibilityIdentifier (only Android Compose does). Adding the iOS
+# identifier for symmetry is tracked in BLOCKERS — until then text is the
+# common signal on both platforms.
+- assertVisible: "Analytics"
+- assertVisible: "Equipment"
+- assertVisible: "Settings"

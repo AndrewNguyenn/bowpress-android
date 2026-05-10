@@ -88,6 +88,21 @@ Play permissions — calls to the Play Developer API would 401.
 
 ## Code — closable in this repo without external dependencies
 
+### 3b. iOS-side `main_tab_bar` accessibilityIdentifier missing
+
+**Status:** Android `MainScaffold.kt` tags the NavigationBar with
+`Modifier.testTag(TestTags.MainTabBar)` so cross-platform Maestro
+flows can assert tab-bar presence by id. iOS `MainTabView.swift`
+doesn't have the corresponding `.accessibilityIdentifier("main_tab_bar")`
+on its TabView, so a Maestro flow that uses `id: main_tab_bar` fails
+on iOS (verified 2026-05-10 — see `flows/maestro/00_launch_to_tabs.yaml`).
+
+**Where to fix:** add `.accessibilityIdentifier("main_tab_bar")` to the
+TabView root in `bowpress-ios/Sources/BowPress/Navigation/MainTabView.swift`.
+Once landed, the text-based fallback assertion in
+`flows/maestro/00_launch_to_tabs.yaml` can be replaced with an id-based
+one.
+
 ### 4. Tab order divergence (Android Dashboard vs iOS Log)
 
 **Status:** Android tab 0 is `Dashboard` (label "Home", content =
