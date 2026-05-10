@@ -1,0 +1,8 @@
+{
+  "id": "test-user-id",
+  "email": "e2e@bowpress.dev",
+  "name": "Test Archer",
+  "createdAt": "2025-01-01T00:00:00Z",
+  "emailVerified": true,
+  "authProvider": "email"
+}

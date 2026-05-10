@@ -1,0 +1,12 @@
+{
+  "id": "test-plot-id",
+  "sessionId": "test-session-id",
+  "bowConfigId": "test-config-id",
+  "arrowConfigId": "test-arrow-id",
+  "ring": 10,
+  "zone": "CENTER",
+  "plotX": 0.0,
+  "plotY": 0.0,
+  "shotAt": "2025-01-01T10:05:00Z",
+  "excluded": false
+}

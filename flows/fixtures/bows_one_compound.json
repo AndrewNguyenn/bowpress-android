@@ -1,0 +1,11 @@
+[
+  {
+    "id": "test-bow-id",
+    "userId": "test-user-id",
+    "name": "Hoyt Carbon RX-9",
+    "bowType": "compound",
+    "brand": "Hoyt",
+    "model": "Carbon RX-9",
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+]

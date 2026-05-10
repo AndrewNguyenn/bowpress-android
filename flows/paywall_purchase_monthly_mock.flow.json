@@ -1,0 +1,26 @@
+{
+  "name": "paywall_purchase_monthly_mock",
+  "description": "Mock-mode variant of paywall_purchase_monthly. Bypasses Play Billing by stubbing the post-purchase /subscription/verify-google call directly, then asserts the upgrade banner clears. Useful for fast CI runs without Play Console scaffolding.",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_inactive.json",
+    "GET /bows": "fixtures/bows_empty.json",
+    "GET /arrow-configs": "fixtures/arrow_configs_empty.json"
+  },
+  "launch": {
+    "autoSignInEmail": "e2e-free@bowpress.dev",
+    "env": { "REAL_ENTITLEMENT": "1", "BOWPRESS_FAKE_BILLING": "1" }
+  },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Equipment" },
+    { "type": "wait", "tag": "upgrade_banner", "timeout": 10 },
+    { "type": "tap", "tag": "upgrade_banner" },
+    { "type": "wait", "tag": "paywall_monthly_button", "timeout": 15 },
+    { "type": "apiRespond", "method": "POST", "path": "/subscription/verify-google", "status": 200, "bodyFile": "fixtures/entitlement_active.json" },
+    { "type": "tap", "tag": "paywall_monthly_button" },
+    { "type": "apiExpect", "method": "POST", "path": "/subscription/verify-google" },
+    { "type": "waitGone", "tag": "upgrade_banner", "timeout": 15 }
+  ]
+}

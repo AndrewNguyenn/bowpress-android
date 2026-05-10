@@ -1,0 +1,24 @@
+{
+  "name": "auth_email_signup_verify",
+  "description": "New user signs up → backend returns 202 with verification_required → user enters 6-digit code → backend returns user+token → main scaffold.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "steps": [
+    { "type": "wait", "tag": "auth_continue_email", "timeout": 10 },
+    { "type": "tap", "tag": "auth_continue_email" },
+    { "type": "wait", "tag": "email_auth_email", "timeout": 5 },
+    { "type": "tap", "tag": "email_auth_signup_toggle" },
+    { "type": "type", "tag": "email_auth_name", "text": "Test Archer" },
+    { "type": "type", "tag": "email_auth_email", "text": "newuser@bowpress.dev" },
+    { "type": "type", "tag": "email_auth_password", "text": "bowpress-e2e-pw-1234" },
+    { "type": "type", "tag": "email_auth_confirm_password", "text": "bowpress-e2e-pw-1234" },
+    { "type": "apiRespond", "method": "POST", "path": "/auth/signup", "status": 202, "body": { "status": "verification_required", "email": "newuser@bowpress.dev" } },
+    { "type": "tap", "tag": "email_auth_submit" },
+    { "type": "wait", "tag": "verify_code", "timeout": 5 },
+    { "type": "type", "tag": "verify_code", "text": "123456" },
+    { "type": "apiRespond", "method": "POST", "path": "/auth/verify-email", "status": 200, "bodyFile": "fixtures/auth_signin_success.json" },
+    { "type": "tap", "tag": "verify_submit" },
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "wait", "tag": "main_tab_bar", "timeout": 5 }
+  ]
+}

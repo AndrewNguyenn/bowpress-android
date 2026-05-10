@@ -1,0 +1,24 @@
+{
+  "name": "auth_email_signin",
+  "description": "Unauthenticated user lands on AuthScreen, taps Continue with Email, types valid credentials, submits, lands on main scaffold.",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /bows": "fixtures/bows_empty.json",
+    "GET /arrow-configs": "fixtures/arrow_configs_empty.json",
+    "GET /sessions": "fixtures/sessions_empty.json"
+  },
+  "steps": [
+    { "type": "wait", "tag": "auth_continue_email", "timeout": 10 },
+    { "type": "tap", "tag": "auth_continue_email" },
+    { "type": "wait", "tag": "email_auth_email", "timeout": 5 },
+    { "type": "type", "tag": "email_auth_email", "text": "e2e@bowpress.dev" },
+    { "type": "type", "tag": "email_auth_password", "text": "bowpress-e2e-pw-1234" },
+    { "type": "apiRespond", "method": "POST", "path": "/auth/signin", "status": 200, "bodyFile": "fixtures/auth_signin_success.json" },
+    { "type": "tap", "tag": "email_auth_submit" },
+    { "type": "apiExpect", "method": "POST", "path": "/auth/signin", "bodyContains": { "email": "e2e@bowpress.dev" } },
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "wait", "tag": "main_tab_bar", "timeout": 5 }
+  ]
+}

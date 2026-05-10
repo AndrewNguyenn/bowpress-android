@@ -1,0 +1,14 @@
+[
+  {
+    "id": "test-arrow-id",
+    "userId": "test-user-id",
+    "label": "300 spine 100gr field",
+    "brand": "Easton",
+    "model": "X10",
+    "length": 28.0,
+    "pointWeight": 100,
+    "fletchingType": "vane",
+    "fletchingLength": 2.0,
+    "fletchingOffset": 3.0
+  }
+]

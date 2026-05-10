@@ -1,0 +1,32 @@
+{
+  "name": "session_start_plot_end",
+  "description": "Authenticated subscriber starts a session at 50m on a 10-ring face, plots one arrow, ends the session. Verifies POST /sessions, POST /plots, PUT /sessions/:id (endedAt set) all fire in order.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /bows": "fixtures/bows_one_compound.json",
+    "GET /bow-configurations": "fixtures/bow_configs_one.json",
+    "GET /arrow-configs": "fixtures/arrow_configs_one.json",
+    "GET /sessions": "fixtures/sessions_empty.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Session" },
+    { "type": "wait", "tag": "session_start_button", "timeout": 5 },
+    { "type": "tap", "tag": "session_distance_row_50m" },
+    { "type": "tap", "tag": "session_face_row_tenRing" },
+    { "type": "apiRespond", "method": "POST", "path": "/sessions", "status": 201, "bodyFile": "fixtures/sessions_post_created.json" },
+    { "type": "tap", "tag": "session_start_button" },
+    { "type": "apiExpect", "method": "POST", "path": "/sessions", "bodyContains": { "distance": "50m", "targetFaceType": "tenRing" } },
+    { "type": "wait", "tag": "target_plot", "timeout": 5 },
+    { "type": "apiRespond", "method": "POST", "path": "/sessions/test-session-id/plots", "status": 201, "bodyFile": "fixtures/plots_post_created.json" },
+    { "type": "tap", "tag": "target_plot" },
+    { "type": "apiExpect", "method": "POST", "path": "/sessions/test-session-id/plots" },
+    { "type": "apiRespond", "method": "PUT", "path": "/sessions/test-session-id", "status": 200, "bodyFile": "fixtures/sessions_put_ended.json" },
+    { "type": "tap", "tag": "end_session_button" },
+    { "type": "apiExpect", "method": "PUT", "path": "/sessions/test-session-id" }
+  ]
+}

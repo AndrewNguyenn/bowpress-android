@@ -1,0 +1,24 @@
+{
+  "name": "equipment_create_arrow",
+  "description": "Authenticated subscriber adds a new arrow configuration with label + spine details, saves, sees it on the Equipment list.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /bows": "fixtures/bows_empty.json",
+    "GET /bow-configurations": "fixtures/bow_configs_empty.json",
+    "GET /arrow-configs": "fixtures/arrow_configs_empty.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Equipment" },
+    { "type": "wait", "tag": "add_arrows_button", "timeout": 5 },
+    { "type": "tap", "tag": "add_arrows_button" },
+    { "type": "type", "tag": "arrow_label_field", "text": "300 spine 100gr field" },
+    { "type": "apiRespond", "method": "POST", "path": "/arrow-configs", "status": 201, "bodyFile": "fixtures/arrow_configs_post_created.json" },
+    { "type": "tap", "tag": "save_arrow_button" },
+    { "type": "apiExpect", "method": "POST", "path": "/arrow-configs", "bodyContains": { "label": "300 spine 100gr field" } }
+  ]
+}

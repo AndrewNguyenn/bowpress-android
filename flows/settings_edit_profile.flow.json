@@ -1,0 +1,22 @@
+{
+  "name": "settings_edit_profile",
+  "description": "User edits display name on the EditProfile screen; PATCH /me fires with the new name; returns to Settings.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Settings" },
+    { "type": "wait", "tag": "settings_edit_profile", "timeout": 5 },
+    { "type": "tap", "tag": "settings_edit_profile" },
+    { "type": "wait", "tag": "edit_profile_name_field", "timeout": 5 },
+    { "type": "type", "tag": "edit_profile_name_field", "text": "Andrew", "clearFirst": true },
+    { "type": "apiRespond", "method": "PATCH", "path": "/me", "status": 200, "bodyFile": "fixtures/user_authed.json" },
+    { "type": "tap", "tag": "edit_profile_save_button" },
+    { "type": "apiExpect", "method": "PATCH", "path": "/me", "bodyContains": { "name": "Andrew" } }
+  ]
+}

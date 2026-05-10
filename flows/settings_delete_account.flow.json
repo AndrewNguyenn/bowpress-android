@@ -1,0 +1,22 @@
+{
+  "name": "settings_delete_account",
+  "description": "User deletes their account from Settings → Delete Account, confirms with password, DELETE /me fires, returns to AuthScreen.",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Settings" },
+    { "type": "wait", "tag": "settings_delete_account", "timeout": 5 },
+    { "type": "tap", "tag": "settings_delete_account" },
+    { "type": "wait", "tag": "delete_account_password", "timeout": 5 },
+    { "type": "type", "tag": "delete_account_password", "text": "old-password-1234" },
+    { "type": "apiRespond", "method": "DELETE", "path": "/me", "status": 204 },
+    { "type": "tap", "tag": "delete_account_confirm" },
+    { "type": "apiExpect", "method": "DELETE", "path": "/me" },
+    { "type": "wait", "tag": "auth_continue_email", "timeout": 5 }
+  ]
+}

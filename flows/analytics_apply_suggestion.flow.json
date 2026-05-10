@@ -1,0 +1,24 @@
+{
+  "name": "analytics_apply_suggestion",
+  "description": "User opens a suggestion from the Suggestions dashboard, taps Apply, server returns the new BowConfiguration, dashboard reflects applied state.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /bows": "fixtures/bows_one_compound.json",
+    "GET /bows/test-bow-id/suggestions": "fixtures/suggestions_one_unread.json",
+    "GET /bows/test-bow-id/suggestions/test-suggestion-id": "fixtures/suggestion_detail.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "wait", "tag": "suggestions_dashboard_root", "timeout": 5 },
+    { "type": "wait", "tag": "suggestions_dashboard_suggestion_card", "timeout": 5 },
+    { "type": "tap", "tag": "suggestions_dashboard_suggestion_card" },
+    { "type": "wait", "tag": "suggestion_apply_button", "timeout": 5 },
+    { "type": "apiRespond", "method": "POST", "path": "/bows/test-bow-id/suggestions/test-suggestion-id/apply", "status": 200, "bodyFile": "fixtures/suggestion_apply_response.json" },
+    { "type": "tap", "tag": "suggestion_apply_button" },
+    { "type": "apiExpect", "method": "POST", "path": "/bows/test-bow-id/suggestions/test-suggestion-id/apply" }
+  ]
+}

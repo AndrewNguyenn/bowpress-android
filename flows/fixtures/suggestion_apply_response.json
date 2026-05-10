@@ -1,0 +1,16 @@
+{
+  "suggestion": {
+    "id": "test-suggestion-id",
+    "bowId": "test-bow-id",
+    "wasApplied": true,
+    "appliedAt": "2025-01-01T10:30:00Z",
+    "appliedConfigId": "test-new-config-id"
+  },
+  "newConfig": {
+    "id": "test-new-config-id",
+    "bowId": "test-bow-id",
+    "userId": "test-user-id",
+    "label": "Applied: rest_horizontal -1",
+    "createdAt": "2025-01-01T10:30:00Z"
+  }
+}

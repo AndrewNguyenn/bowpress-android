@@ -1,0 +1,28 @@
+{
+  "name": "sight_marks_add",
+  "description": "User opens a bow's Sight Marks list, adds a new mark at 30y, POST /sight-marks fires, the row appears in the list.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /bows": "fixtures/bows_one_compound.json",
+    "GET /sight-marks": "fixtures/sight_marks_empty.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Equipment" },
+    { "type": "wait", "tag": "bow_row_test-bow-id", "timeout": 5 },
+    { "type": "tap", "tag": "bow_row_test-bow-id" },
+    { "type": "wait", "tag": "sight_marks_link", "timeout": 5 },
+    { "type": "tap", "tag": "sight_marks_link" },
+    { "type": "wait", "tag": "sight_marks_add_button", "timeout": 5 },
+    { "type": "tap", "tag": "sight_marks_add_button" },
+    { "type": "type", "tag": "sight_mark_distance_field", "text": "30" },
+    { "type": "type", "tag": "sight_mark_value_field", "text": "0.420" },
+    { "type": "apiRespond", "method": "POST", "path": "/sight-marks", "status": 201, "bodyFile": "fixtures/sight_marks_post_created.json" },
+    { "type": "tap", "tag": "sight_mark_save_button" },
+    { "type": "apiExpect", "method": "POST", "path": "/sight-marks", "bodyContains": { "distance": 30 } }
+  ]
+}

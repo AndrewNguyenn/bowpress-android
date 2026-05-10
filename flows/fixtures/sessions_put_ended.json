@@ -1,0 +1,13 @@
+{
+  "id": "test-session-id",
+  "bowId": "test-bow-id",
+  "bowConfigId": "test-config-id",
+  "arrowConfigId": "test-arrow-id",
+  "startedAt": "2025-01-01T10:00:00Z",
+  "endedAt": "2025-01-01T10:30:00Z",
+  "notes": "",
+  "feelTags": [],
+  "arrowCount": 1,
+  "targetFaceType": "tenRing",
+  "distance": "50m"
+}

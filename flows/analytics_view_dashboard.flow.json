@@ -1,0 +1,21 @@
+{
+  "name": "analytics_view_dashboard",
+  "description": "Authenticated subscriber opens the Analytics tab; the dashboard renders with overview, comparison, trends, and unread suggestions populated from fixtures.",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /analytics/overview": "fixtures/analytics_overview.json",
+    "GET /analytics/comparison": "fixtures/analytics_comparison.json",
+    "GET /analytics/trends": "fixtures/analytics_trends.json",
+    "GET /analytics/timeline": "fixtures/analytics_timeline.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Analytics" },
+    { "type": "wait", "tag": "analytics_dashboard_root", "timeout": 5 },
+    { "type": "apiExpect", "method": "GET", "path": "/analytics/overview" },
+    { "type": "apiExpect", "method": "GET", "path": "/analytics/comparison" }
+  ]
+}

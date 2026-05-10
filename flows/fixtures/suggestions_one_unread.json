@@ -1,0 +1,15 @@
+[
+  {
+    "id": "test-suggestion-id",
+    "bowId": "test-bow-id",
+    "createdAt": "2025-01-01T10:00:00Z",
+    "parameter": "rest_horizontal",
+    "suggestedValue": "-1",
+    "currentValue": "-3",
+    "reasoning": "Response curve peaked at -2 then reversed at -3.",
+    "confidence": 0.86,
+    "wasRead": false,
+    "wasDismissed": false,
+    "deliveryType": "inApp"
+  }
+]

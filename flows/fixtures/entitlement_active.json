@@ -1,0 +1,8 @@
+{
+  "isActive": true,
+  "inTrial": false,
+  "provider": "google",
+  "productId": "com.andrewnguyen.bowpress.monthly",
+  "expiresAt": "2099-12-31T23:59:59Z",
+  "autoRenew": true
+}

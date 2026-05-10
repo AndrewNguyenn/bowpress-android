@@ -1,0 +1,23 @@
+{
+  "name": "paywall_purchase_monthly",
+  "description": "Unentitled user opens Equipment, sees upgrade banner, taps it, buys monthly product, banner dismisses (entitlement now active). Mirror of PaywallUITests.testPaywallPurchase.",
+  "runModes": ["live"],
+  "launch": {
+    "autoSignInEmail": "e2e-free@bowpress.dev",
+    "autoSignInPassword": "bowpress-e2e-pw-1234",
+    "env": {
+      "REAL_ENTITLEMENT": "1",
+      "USE_LOCAL_API": "1"
+    }
+  },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "wait", "tag": "main_tab_bar", "timeout": 5 },
+    { "type": "tapTab", "label": "Equipment" },
+    { "type": "wait", "tag": "upgrade_banner", "timeout": 10 },
+    { "type": "tap", "tag": "upgrade_banner" },
+    { "type": "wait", "tag": "paywall_monthly_button", "timeout": 15 },
+    { "type": "tap", "tag": "paywall_monthly_button" },
+    { "type": "waitGone", "tag": "upgrade_banner", "timeout": 15 }
+  ]
+}

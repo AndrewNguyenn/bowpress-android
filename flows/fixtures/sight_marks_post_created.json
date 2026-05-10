@@ -1,0 +1,11 @@
+{
+  "id": "test-sightmark-id",
+  "userId": "test-user-id",
+  "bowId": "test-bow-id",
+  "distance": 30,
+  "distanceUnit": "yards",
+  "mark": 0.420,
+  "isSuggestion": false,
+  "createdAt": "2025-01-01T10:00:00Z",
+  "updatedAt": "2025-01-01T10:00:00Z"
+}

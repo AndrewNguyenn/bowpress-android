@@ -1,0 +1,5 @@
+{
+  "currentPeriod": { "avgScore": 9.4, "sessionCount": 14, "totalArrows": 342 },
+  "priorPeriod": { "avgScore": 9.1, "sessionCount": 12, "totalArrows": 296 },
+  "delta": { "avgScore": 0.3, "trending": "up" }
+}

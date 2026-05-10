@@ -1,0 +1,27 @@
+{
+  "name": "equipment_create_bow",
+  "description": "Authenticated subscriber on Equipment tab taps Add Bow, picks compound, names it, saves, returns to home with the new bow row visible.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /bows": "fixtures/bows_empty.json",
+    "GET /bow-configurations": "fixtures/bow_configs_empty.json",
+    "GET /arrow-configs": "fixtures/arrow_configs_empty.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Equipment" },
+    { "type": "wait", "tag": "add_bows_button", "timeout": 5 },
+    { "type": "tap", "tag": "add_bows_button" },
+    { "type": "wait", "tag": "bow_type_compound", "timeout": 5 },
+    { "type": "tap", "tag": "bow_type_compound" },
+    { "type": "type", "tag": "bow_name_field", "text": "Hoyt Carbon RX-9" },
+    { "type": "apiRespond", "method": "POST", "path": "/bows", "status": 201, "bodyFile": "fixtures/bows_post_created.json" },
+    { "type": "tap", "tag": "save_bow_button" },
+    { "type": "apiExpect", "method": "POST", "path": "/bows", "bodyContains": { "name": "Hoyt Carbon RX-9", "bowType": "compound" } },
+    { "type": "wait", "tag": "bow_row_test-bow-id", "timeout": 5 }
+  ]
+}

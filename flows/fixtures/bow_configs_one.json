@@ -1,0 +1,11 @@
+[
+  {
+    "id": "test-config-id",
+    "bowId": "test-bow-id",
+    "userId": "test-user-id",
+    "label": "Initial setup",
+    "drawLength": 28.5,
+    "isReference": true,
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+]

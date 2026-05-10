@@ -1,0 +1,17 @@
+{
+  "name": "settings_sign_out",
+  "description": "Authenticated user opens Settings, taps Sign Out, returns to AuthScreen. No backend call required (token is cleared client-side).",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Settings" },
+    { "type": "wait", "tag": "settings_sign_out", "timeout": 5 },
+    { "type": "tap", "tag": "settings_sign_out" },
+    { "type": "wait", "tag": "auth_continue_email", "timeout": 5 }
+  ]
+}
