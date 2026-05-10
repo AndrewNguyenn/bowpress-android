@@ -42,6 +42,22 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    sourceSets {
+        // The flow-spec runner ships flow JSON files as test assets. The
+        // source of truth lives at repo root in `flows/`; we copy them into
+        // a build-dir location and register that as an androidTest asset
+        // srcDir. See `copyFlowsToTestAssets` task below.
+        //
+        // The kotlin/ srcDir is added explicitly because the Kotlin Android
+        // plugin only auto-registers it for library modules, not application
+        // modules — without this AGP silently skips compileDebugAndroidTestKotlin
+        // (NO-SOURCE) and the flow-spec tests don't ship in the test APK.
+        named("androidTest") {
+            assets.srcDir(layout.buildDirectory.dir("generated/flowAssets"))
+            java.srcDirs("src/androidTest/kotlin")
+        }
+    }
 }
 
 dependencies {
@@ -103,4 +119,24 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+
+    // Flow-spec test runner (parses flows/*.flow.json + drives Compose UI Test).
+    androidTestImplementation(libs.kotlinx.serialization.json)
+}
+
+// Copy the repo-root `flows/` directory (the cross-platform behavioral
+// spec source of truth) into a build-dir location that's wired as an
+// androidTest asset srcDir above. After this task runs, the test APK
+// contains `flows/*.flow.json` + `flows/fixtures/*.json` at the asset
+// root, addressable via `context.assets.open("flows/<name>.flow.json")`.
+val copyFlowsToTestAssets by tasks.registering(Copy::class) {
+    from(rootProject.layout.projectDirectory.dir("flows"))
+    into(layout.buildDirectory.dir("generated/flowAssets/flows"))
+    include("**/*.json")
+}
+
+afterEvaluate {
+    listOf("mergeDebugAndroidTestAssets", "mergeReleaseAndroidTestAssets").forEach { taskName ->
+        tasks.findByName(taskName)?.dependsOn(copyFlowsToTestAssets)
+    }
 }
