@@ -3,9 +3,12 @@ package com.andrewnguyen.bowpress.feature.analytics.dashboard
 import app.cash.turbine.test
 import com.andrewnguyen.bowpress.core.data.analytics.LocalAnalyticsEngine
 import com.andrewnguyen.bowpress.core.data.repository.AnalyticsRepository
+import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
+import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
+import com.andrewnguyen.bowpress.feature.analytics.mock.NoOpAnalyticsFixtureDecorator
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
@@ -97,8 +100,10 @@ class AnalyticsDashboardViewModelTest {
             suggestionRepository = suggestionRepository,
             bowRepository = bowRepository,
             sessionRepository = sessionRepository,
+            arrowConfigRepository = stubArrowConfigRepo(),
             localEngine = stubLocalEngine(),
             analyticsRefreshBus = stubRefreshBus(),
+            fixtureDecorator = NoOpAnalyticsFixtureDecorator,
         )
 
         vm.uiState.test {
@@ -152,8 +157,10 @@ class AnalyticsDashboardViewModelTest {
             suggestionRepository = suggestionRepository,
             bowRepository = bowRepository,
             sessionRepository = sessionRepository,
+            arrowConfigRepository = stubArrowConfigRepo(),
             localEngine = stubLocalEngine(),
             analyticsRefreshBus = stubRefreshBus(),
+            fixtureDecorator = NoOpAnalyticsFixtureDecorator,
         )
 
         vm.uiState.test {
@@ -204,8 +211,10 @@ class AnalyticsDashboardViewModelTest {
             suggestionRepository = suggestionRepository,
             bowRepository = bowRepository,
             sessionRepository = sessionRepository,
+            arrowConfigRepository = stubArrowConfigRepo(),
             localEngine = stubLocalEngine(),
             analyticsRefreshBus = stubRefreshBus(),
+            fixtureDecorator = NoOpAnalyticsFixtureDecorator,
         )
 
         vm.uiState.test {
@@ -254,6 +263,10 @@ class AnalyticsDashboardViewModelTest {
 
     private fun stubRefreshBus(): AnalyticsRefreshBus = mockk {
         every { events } returns MutableSharedFlow()
+    }
+
+    private fun stubArrowConfigRepo(): ArrowConfigRepository = mockk {
+        every { observeAll() } returns MutableStateFlow(emptyList<ArrowConfiguration>())
     }
 
     private fun sample(

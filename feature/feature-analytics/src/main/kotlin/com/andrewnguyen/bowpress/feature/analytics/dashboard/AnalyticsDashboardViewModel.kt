@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.analytics.LocalAnalyticsEngine
 import com.andrewnguyen.bowpress.core.data.repository.AnalyticsRepository
+import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
+import com.andrewnguyen.bowpress.feature.analytics.mock.AnalyticsFixtureDecorator
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
@@ -91,8 +93,10 @@ class AnalyticsDashboardViewModel @Inject constructor(
     private val suggestionRepository: SuggestionRepository,
     private val bowRepository: BowRepository,
     private val sessionRepository: SessionRepository,
+    private val arrowConfigRepository: ArrowConfigRepository,
     private val localEngine: LocalAnalyticsEngine,
     private val analyticsRefreshBus: AnalyticsRefreshBus,
+    private val fixtureDecorator: AnalyticsFixtureDecorator,
 ) : ViewModel() {
 
     // Default period matches iOS AnalyticsView (`.threeDays`).
@@ -116,6 +120,19 @@ class AnalyticsDashboardViewModel @Inject constructor(
         sessionRepository.observeCompleted()
             .map { sessions -> sessions.mapNotNull { it.distance }.toSet() }
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    // First bow / arrow drive the DEBUG dataset-summary fixture (MockAnalyticsWave2)
+    // and could feed other "primary equipment" UI in the future. Eagerly cached so the
+    // dashboard flow doesn't re-query Room on every period/bow/distance change.
+    private val firstBow: StateFlow<com.andrewnguyen.bowpress.core.model.Bow?> =
+        bowRepository.observeBows()
+            .map { it.firstOrNull() }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val firstArrow: StateFlow<com.andrewnguyen.bowpress.core.model.ArrowConfiguration?> =
+        arrowConfigRepository.observeAll()
+            .map { it.firstOrNull() }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
@@ -191,15 +208,37 @@ class AnalyticsDashboardViewModel @Inject constructor(
                         val trends = runCatching {
                             analyticsRepository.fetchTrends(period, bowType, distance)
                         }.getOrNull()
+                        // Wave-2 decoration: in DEBUG, FORCES headline numerals
+                        // to the spec figure (10.4 / 72% / 5 sess), fills
+                        // overview.sparkline so the Score timeline renders
+                        // without a backend, and gives the CompareStrip
+                        // non-zero "previous" values. Mirrors iOS
+                        // `decorateOverviewWithMocks` /
+                        // `decorateComparisonWithMocks`. Release builds get a
+                        // NoOp decorator from AnalyticsFixtureModule and
+                        // render whatever the server sent.
+                        //
+                        // WARNING: in DEBUG, this OVERRIDES real backend
+                        // values — manual QA against a real backend will see
+                        // 10.4 / 72% regardless of actual data. Same trap
+                        // exists on iOS, by design for design-review parity.
+                        // Build a release variant when QA-ing real data.
+                        val decoratedOverview = fixtureDecorator.decorateOverview(
+                            overview = overview,
+                            firstBow = firstBow.value,
+                            firstArrow = firstArrow.value,
+                        )
+                        val decoratedComparison = fixtureDecorator.decorateComparison(comparison)
+                        val decoratedTimeline = timeline ?: fixtureDecorator.timelineFallback(period)
                         emit(
                             AnalyticsFetch.Success(
                                 period = period,
                                 bowType = bowType,
                                 distance = distance,
-                                overview = overview,
-                                comparison = comparison,
+                                overview = decoratedOverview,
+                                comparison = decoratedComparison,
                                 trendInsights = insights,
-                                timeline = timeline,
+                                timeline = decoratedTimeline,
                                 trends = trends,
                             ),
                         )
