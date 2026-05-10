@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.feature.subscription
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -56,8 +57,28 @@ class PlayBillingManager @Inject constructor(
     private val _products = MutableStateFlow<List<ProductDetails>>(emptyList())
     val products: StateFlow<List<ProductDetails>> = _products.asStateFlow()
 
-    private val _entitlement = MutableStateFlow(Entitlement.Inactive)
+    /**
+     * Initial entitlement: `Active` in DEBUG (so ReadOnlyGate doesn't overlay
+     * the whole app during dev) unless `REAL_ENTITLEMENT=1` system property is
+     * set. Production builds always start `Inactive` and are updated by the
+     * Play Billing connect → verifier round-trip. Mirrors iOS
+     * `SubscriptionManager` DEBUG shortcut.
+     */
+    private val _entitlement = MutableStateFlow(
+        if (isDebugBuild() && !isRealEntitlementRequested()) {
+            Entitlement.ActiveDevDebug
+        } else {
+            Entitlement.Inactive
+        },
+    )
     val entitlement: StateFlow<Entitlement> = _entitlement.asStateFlow()
+
+    private fun isDebugBuild(): Boolean =
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+    private fun isRealEntitlementRequested(): Boolean =
+        System.getProperty("REAL_ENTITLEMENT") == "1" ||
+            System.getenv("REAL_ENTITLEMENT") == "1"
 
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
