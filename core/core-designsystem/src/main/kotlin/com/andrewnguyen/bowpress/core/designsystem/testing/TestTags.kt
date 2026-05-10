@@ -1,0 +1,122 @@
+package com.andrewnguyen.bowpress.core.designsystem.testing
+
+/**
+ * Canonical testTag string constants. Every interactive element exercised by
+ * a flow file (under `flows/`) must be tagged with one of these strings.
+ *
+ * Constants here MUST stay in sync with the iOS `AccessibilityIdentifiers`
+ * file. Any change here is a contract change — update both platforms in the
+ * same commit, or e2e flow tests will diverge.
+ *
+ * Convention:
+ *  - snake_case
+ *  - feature-prefixed where ambiguous (`paywall_…`, `email_auth_…`)
+ *  - dynamic ids use `${prefix}_$id` interpolation at the call site
+ *    (e.g. `bow_row_${bow.id}`); the prefix is captured here as
+ *    `BowRowPrefix` so tests can compose `bow_row_<uuid>` reliably.
+ */
+object TestTags {
+
+    // -----------------------------------------------------------------------
+    // App scaffold / launch
+    // -----------------------------------------------------------------------
+    const val HydrationSplash: String = "hydration_splash"
+    const val MainTabBar: String = "main_tab_bar"
+
+    // -----------------------------------------------------------------------
+    // Auth
+    // -----------------------------------------------------------------------
+    const val AuthContinueGoogle: String = "auth_continue_google"
+    const val AuthContinueEmail: String = "auth_continue_email"
+
+    const val EmailAuthName: String = "email_auth_name"
+    const val EmailAuthEmail: String = "email_auth_email"
+    const val EmailAuthPassword: String = "email_auth_password"
+    const val EmailAuthConfirmPassword: String = "email_auth_confirm_password"
+    const val EmailAuthSubmit: String = "email_auth_submit"
+    const val EmailAuthError: String = "email_auth_error"
+
+    const val VerifyCode: String = "verify_code"
+    const val VerifySubmit: String = "verify_submit"
+    const val VerifyResend: String = "verify_resend"
+    const val VerifyError: String = "verify_error"
+
+    // -----------------------------------------------------------------------
+    // Equipment
+    // -----------------------------------------------------------------------
+    const val AddBowsButton: String = "add_bows_button"
+    const val AddArrowsButton: String = "add_arrows_button"
+    const val BowNameField: String = "bow_name_field"
+    const val ArrowLabelField: String = "arrow_label_field"
+    const val BowConfigLabelField: String = "bow_config_label_field"
+    const val SaveConfigButton: String = "save_config_button"
+    const val EditLatestButton: String = "edit_latest_button"
+    /** Concat with bow id: `${BowRowPrefix}${bow.id}` */
+    const val BowRowPrefix: String = "bow_row_"
+    /** Concat with config id: `${HistoryRowPrefix}${config.id}` */
+    const val HistoryRowPrefix: String = "history_row_"
+    /** Concat with lowercase bow type name: `${BowTypeRowPrefix}compound` */
+    const val BowTypeRowPrefix: String = "bow_type_"
+
+    // -----------------------------------------------------------------------
+    // Session
+    // -----------------------------------------------------------------------
+    const val SessionStartButton: String = "session_start_button"
+    const val DistancePicker: String = "distance_picker"
+    const val TargetFacePicker: String = "target_face_picker"
+    const val TargetPlot: String = "target_plot"
+    const val SessionNameField: String = "session_name_field"
+    /** Concat with distance raw value: `${SessionDistanceRowPrefix}20yd` */
+    const val SessionDistanceRowPrefix: String = "session_distance_row_"
+    /** Concat with face raw value: `${SessionFaceRowPrefix}tenRing` */
+    const val SessionFaceRowPrefix: String = "session_face_row_"
+
+    // -----------------------------------------------------------------------
+    // Analytics
+    // -----------------------------------------------------------------------
+    const val AnalyticsDashboardRoot: String = "analytics_dashboard_root"
+    const val SuggestionsDashboardRoot: String = "suggestions_dashboard_root"
+    const val SuggestionsEmptyState: String = "suggestions_dashboard_empty_state"
+    const val SuggestionsUnreadBadge: String = "suggestions_dashboard_unread_badge"
+    const val SuggestionCard: String = "suggestions_dashboard_suggestion_card"
+    const val SuggestionApplyButton: String = "suggestion_apply_button"
+    /** Concat with session id: `${SessionRowPrefix}${session.id}` */
+    const val SessionRowPrefix: String = "session_row_"
+    const val EditSessionButton: String = "edit_session_button"
+    const val EditSessionNotes: String = "edit_session_notes"
+    const val EditSessionTags: String = "edit_session_tags"
+
+    // -----------------------------------------------------------------------
+    // Subscription / paywall
+    // -----------------------------------------------------------------------
+    const val UpgradeBanner: String = "upgrade_banner"
+    const val PaywallSheet: String = "paywall_sheet"
+    const val PaywallMonthlyButton: String = "paywall_monthly_button"
+    const val PaywallAnnualButton: String = "paywall_annual_button"
+    const val PaywallRestoreButton: String = "paywall_restore_button"
+    const val PaywallRedeemButton: String = "paywall_redeem_button"
+    const val PaywallTermsButton: String = "paywall_terms_button"
+    const val PaywallPrivacyButton: String = "paywall_privacy_button"
+    const val PaywallAlreadySubscribedNote: String = "paywall_already_subscribed_note"
+
+    // -----------------------------------------------------------------------
+    // Settings
+    // -----------------------------------------------------------------------
+    const val SettingsSubscription: String = "settings_subscription"
+    const val SettingsSignOut: String = "settings_sign_out"
+    const val SettingsChangePassword: String = "settings_change_password"
+    const val SettingsDeleteAccount: String = "settings_delete_account"
+    const val SettingsNotificationsToggle: String = "settings_notifications_toggle"
+    const val UnitSystemToggle: String = "unit_system_toggle"
+
+    const val EditProfileNameField: String = "edit_profile_name_field"
+    const val EditProfileSaveButton: String = "edit_profile_save_button"
+
+    const val ChangePasswordCurrent: String = "change_password_current"
+    const val ChangePasswordNew: String = "change_password_new"
+    const val ChangePasswordConfirm: String = "change_password_confirm"
+    const val ChangePasswordSubmit: String = "change_password_submit"
+
+    const val DeleteAccountPassword: String = "delete_account_password"
+    const val DeleteAccountConfirm: String = "delete_account_confirm"
+}

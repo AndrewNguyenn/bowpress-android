@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -42,6 +43,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.interUI
+import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.feature.analytics.navigation.AnalyticsRoutes
 import com.andrewnguyen.bowpress.feature.analytics.navigation.analyticsNavGraph
 import com.andrewnguyen.bowpress.feature.analytics.suggestions.SuggestionsDashboardScreen
@@ -86,6 +88,7 @@ fun MainScaffold(
                 NavigationBar(
                     containerColor = AppPaper,
                     tonalElevation = 0.dp,
+                    modifier = Modifier.testTag(TestTags.MainTabBar),
                 ) {
                     TopTab.entries.forEach { tab ->
                         val selected = currentRoute?.startsWith(tab.graphRoute) == true

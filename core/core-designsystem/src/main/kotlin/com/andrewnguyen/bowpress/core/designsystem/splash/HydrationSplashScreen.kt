@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,7 @@ import com.andrewnguyen.bowpress.core.designsystem.bp.BPWordmark
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
+import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import kotlinx.coroutines.delay
 
 // ---------------------------------------------------------------------------
@@ -148,7 +150,8 @@ fun HydrationSplashScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(AppPaper),
+            .background(AppPaper)
+            .testTag(TestTags.HydrationSplash),
     ) {
         // Top header — absolute, paired with the telemetry row at the bottom.
         HeaderStrip(
