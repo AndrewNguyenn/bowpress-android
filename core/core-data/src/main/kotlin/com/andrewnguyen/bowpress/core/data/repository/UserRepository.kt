@@ -15,6 +15,7 @@ import com.andrewnguyen.bowpress.core.network.SignUpResponse
 import com.andrewnguyen.bowpress.core.network.TokenStore
 import com.andrewnguyen.bowpress.core.network.UpdateProfileRequest
 import com.andrewnguyen.bowpress.core.network.VerifyEmailRequest
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,16 +96,28 @@ class UserRepository @Inject constructor(
     /**
      * DEBUG-only short-circuit that pre-flips the app to the signed-in state
      * with a dev fixture user, matching iOS `AppState` DEBUG behavior
-     * (`isAuthenticated = true`, pre-filled dev user). No-op if a token
-     * already exists.
+     * (`isAuthenticated = true`, pre-filled dev user).
+     *
+     * Behavior:
+     * - If a real (non-dev) token is persisted from a prior real sign-in:
+     *   no-op — preserve that session.
+     * - If no token yet, OR the persisted token is the dev token (every
+     *   process restart in DEBUG): install the dev token AND re-seed the
+     *   in-memory `_currentUser` StateFlow.
+     *
+     * The second case matters because `_currentUser` is in-memory only —
+     * without re-seeding on every launch, the second cold start of the
+     * day would have a persisted token but a null `currentUser`, leaving
+     * Settings showing "Not signed in" despite isSignedIn returning true.
      *
      * Gated by `BuildConfig.DEBUG` in [AppStateViewModel]; production paths
      * never call this. Backend calls under this token will 401 — that's
      * fine, `hydrate()` swallows the failure via runCatching.
      */
     fun seedDevAuth() {
-        if (tokenStore.getToken() != null) return
-        tokenStore.setToken(DEV_DEBUG_TOKEN)
+        val current = tokenStore.getToken()
+        if (current != null && current != DEV_DEBUG_TOKEN) return
+        if (current == null) tokenStore.setToken(DEV_DEBUG_TOKEN)
         _currentUser.value = User(
             id = "dev-user",
             email = "dev@bowpress.local",
@@ -121,7 +134,11 @@ class UserRepository @Inject constructor(
         return response.user
     }
 
-    private companion object {
-        const val DEV_DEBUG_TOKEN = "dev-debug-token"
+    internal companion object {
+        // Load-bearing literal: seedDevAuth() keys re-seeding off equality with
+        // this value. Do not reuse this string in tests as a "real" backend
+        // token — the in-memory user would be clobbered on the next launch.
+        @VisibleForTesting
+        internal const val DEV_DEBUG_TOKEN = "dev-debug-token"
     }
 }

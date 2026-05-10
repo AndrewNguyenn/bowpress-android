@@ -14,6 +14,12 @@ dependencies {
     implementation(project(":core:core-designsystem"))
     implementation(project(":core:core-navigation"))
 
+    // Settings observes the entitlement StateFlow from PlayBillingManager so
+    // the Subscription row renders Pro Monthly / Pro Annual / Free correctly.
+    // Acceptable coupling — both modules already live under feature/ and
+    // share the Entitlement core-model.
+    implementation(project(":feature:feature-subscription"))
+
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
