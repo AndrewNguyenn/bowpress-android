@@ -1,25 +1,23 @@
 package com.andrewnguyen.bowpress.feature.auth
 
 /**
- * Google Sign-In server client ID.
+ * Google Sign-In server client ID, passed to
+ * `GetGoogleIdOption.Builder().setServerClientId(...)`.
  *
- * **HEADS UP:** the value below is the iOS OAuth client ID. Android apps
- * authenticated via Credential Manager need their _own_ Android OAuth 2.0 client
- * registered in the Google Cloud Console (keyed by the app's package + SHA-1 of
- * the signing keypair).
+ * This is the **Web Application** OAuth 2.0 client minted in the
+ * `bowpress-ios` Google Cloud project. Credential Manager mints ID
+ * tokens whose audience equals this client ID; the bowpress-api Worker's
+ * `GOOGLE_CLIENT_ID` secret must include this string in its
+ * comma-separated allowlist alongside the iOS client ID so
+ * `verifyIdToken` (authController.ts:443-450) accepts Android-minted
+ * tokens.
  *
- * Once the Android client is created, two follow-ups are needed before the flow
- * works end-to-end:
- *   1. Replace [SERVER_CLIENT_ID] with the Android (or shared Web) OAuth client ID.
- *   2. Add that client ID to the `audience` allowlist in the bowpress-api Worker
- *      (see `verifyGoogleIdToken` in `bowpress-api/src/auth.ts`), so the server
- *      accepts ID tokens minted for Android.
- *
- * For now we pass the iOS client ID as a placeholder so the code compiles and
- * the UI renders — flagged in README.
+ * Note: the Android-typed OAuth client is auto-created by Firebase when
+ * the debug + release SHA-1 fingerprints are registered — it gates
+ * client integrity but its client ID is never sent in the sign-in
+ * request, so it doesn't appear here.
  */
 object GoogleAuthConfig {
-    // TODO(auth): replace with Android OAuth client ID once registered.
     const val SERVER_CLIENT_ID: String =
-        "516990179779-05k066j5guhgc0021jsbl9pvj8bb285m.apps.googleusercontent.com"
+        "516990179779-ktgfk5rv1taubsht419mlvv2clbh6qhc.apps.googleusercontent.com"
 }

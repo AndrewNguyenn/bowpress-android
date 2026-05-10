@@ -89,49 +89,51 @@ These centralize `compileSdk`, `minSdk`, `targetSdk`, Java/Kotlin 17 toolchains,
 
 `feature-auth` uses Credential Manager + Google Identity to mint an ID token and
 POSTs it to `/auth/signin-google`. The server client ID used by the Android
-picker lives in `feature/feature-auth/.../GoogleAuthConfig.kt`.
+picker lives in `feature/feature-auth/.../GoogleAuthConfig.kt` and is the
+**Web Application** OAuth 2.0 client minted in the `bowpress-ios` Cloud project
+(client ID: `516990179779-ktgfk5rv1taubsht419mlvv2clbh6qhc...`).
 
-**Current placeholder:** the iOS OAuth client ID
-(`516990179779-…-05k066j5guhgc0021jsbl9pvj8bb285m.apps.googleusercontent.com`).
-Before Google Sign-In can work on Android you must:
+For the flow to work end-to-end the Worker's `GOOGLE_CLIENT_ID` secret must
+include this Web client ID in its comma-separated allowlist (alongside the iOS
+client). See `bowpress-api/src/controllers/authController.ts:443-450`:
+```
+wrangler secret put GOOGLE_CLIENT_ID --env production
+# value: <iOS-client-id>,516990179779-ktgfk5rv1taubsht419mlvv2clbh6qhc.apps.googleusercontent.com
+```
 
-1. Register a new **Android OAuth 2.0 client** in the Google Cloud Console for
-   project `516990179779`, keyed by `com.andrewnguyen.bowpress` plus the SHA-1
-   fingerprint of the debug and upload keystores.
-2. Replace `GoogleAuthConfig.SERVER_CLIENT_ID` with the resulting ID (or with
-   the existing Web client ID if we choose to share audiences across
-   platforms).
-3. Add that client ID to the Worker's `GOOGLE_AUDIENCE` allowlist
-   (`bowpress-api/src/auth.ts`) so `verifyGoogleIdToken` accepts tokens minted
-   for Android.
-
-Until step 2 is done the Continue-with-Google button will render but the
-Credential Manager request will fail at token-mint time.
+The Android-typed OAuth client (auto-created by Firebase from the SHA-1
+fingerprints) gates client integrity but is never sent in the sign-in request.
 
 ## Firebase / FCM setup (feature-subscription + app push)
 
-The app ships a **placeholder `app/google-services.json`** so `./gradlew build`
-succeeds before a real Firebase project is provisioned. Push notifications will
-not deliver (and `FirebaseMessaging.getInstance().token` will fail) until the
-real file is in place.
+The `bowpress-ios` GCP project has Firebase enabled with two Android apps
+registered:
+- `com.andrewnguyen.bowpress` (release) — Firebase App ID
+  `1:516990179779:android:538f20eaa89edef3f44576`
+- `com.andrewnguyen.bowpress.debug` (debug variant)
 
-To wire real FCM:
+`app/google-services.json` is the real config (project `bowpress-ios`,
+project number `516990179779`). FCM is functional in debug builds today;
+release builds need the **upload keystore SHA-1** registered before
+`FirebaseMessaging.getInstance().token` resolves on signed APKs:
 
-1. Create a Firebase project in the
-   [Firebase Console](https://console.firebase.google.com/) (or reuse an
-   existing one). Add two Android apps:
-   - `com.andrewnguyen.bowpress` (release)
-   - `com.andrewnguyen.bowpress.debug` (debug build variant)
-2. Upload the **debug** and **release** keystore SHA-1 fingerprints to both
-   apps (required for Google Sign-In + SafetyNet integrations).
-3. Download the generated `google-services.json` from the Firebase Console and
-   replace `app/google-services.json` with it.
-4. Add a server key / Admin SDK service account to the BowPress Worker config
-   so `/device-tokens` can round-trip via HTTP v1.
+```sh
+# Register the release/upload keystore SHA-1 with both Firebase apps:
+SHA1="..."  # from `keytool -list -v -keystore <upload.jks>`
+TOKEN=$(gcloud auth print-access-token)
+for APPID in 538f20eaa89edef3f44576 438afb3b5471233bf44576; do
+  curl -X POST \
+    "https://firebase.googleapis.com/v1beta1/projects/bowpress-ios/androidApps/1:516990179779:android:$APPID/sha" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "x-goog-user-project: bowpress-ios" \
+    -H "Content-Type: application/json" \
+    -d "{\"shaHash\":\"$SHA1\",\"certType\":\"SHA_1\"}"
+done
+```
 
-The `DeviceTokenRegistrar` (in `core-data`) is idempotent — both
-`onNewToken` and the post-auth `PushInitializer` call `register(token)` and
-the registrar dedupes on the token string.
+The `DeviceTokenRegistrar` (in `core-data`) is idempotent — both `onNewToken`
+and the post-auth `PushInitializer` call `register(token)` and the registrar
+dedupes on the token string.
 
 ## Google Play Billing — Subscription product IDs
 

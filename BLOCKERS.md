@@ -6,63 +6,80 @@ unblocks each one. Items needing human credentials or a backend
 deployment land in the **External** section; items that can be closed
 purely with code land in **Code**.
 
-Last updated: 2026-05-10 by the parity-verification work.
+Last updated: 2026-05-10 by the firebase-wireup work.
 
 ---
 
 ## External — needs human credentials, accounts, or a backend deploy
 
-### 1. Google OAuth Android client ID
+### 1. ~~Google OAuth client ID~~ ✅ (one Worker secret push remaining)
 
-**Status:** placeholder iOS client ID is in
-`feature/feature-auth/.../GoogleAuthConfig.kt:SERVER_CLIENT_ID`.
-Continue-with-Google renders but Credential Manager fails at token-mint
-because the audience is wrong.
+OAuth Web client created in `bowpress-ios` Cloud project on 2026-05-10:
+`516990179779-ktgfk5rv1taubsht419mlvv2clbh6qhc.apps.googleusercontent.com`.
+Wired into `feature-auth/.../GoogleAuthConfig.kt`.
 
-**Unblock:**
-1. In Google Cloud Console (project `516990179779`), create an Android
-   OAuth 2.0 client keyed by package `com.andrewnguyen.bowpress` plus
-   the SHA-1 fingerprints of debug + upload keystores.
-2. Replace `SERVER_CLIENT_ID` with the new client (or the existing Web
-   client ID if cross-platform audience sharing is preferred).
-3. Add the resulting client ID to the Worker's `GOOGLE_AUDIENCE`
-   allowlist in `bowpress-api/src/auth.ts`'s `verifyGoogleIdToken`.
+**Remaining:** push the Web client ID into the Worker's `GOOGLE_CLIENT_ID`
+audience allowlist so `verifyIdToken` accepts Android-minted tokens:
 
-### 2. Real `app/google-services.json`
+```sh
+cd bowpress-api
+wrangler login              # one-time, if not already
+wrangler secret put GOOGLE_CLIENT_ID --env production
+# paste: <existing-iOS-client-id>,516990179779-ktgfk5rv1taubsht419mlvv2clbh6qhc.apps.googleusercontent.com
+```
 
-**Status:** placeholder `app/google-services.json` keeps `./gradlew
-build` green but FCM is non-functional. `FirebaseMessaging.getInstance().token`
-will fail until the real file is in place.
+The Worker reads `GOOGLE_CLIENT_ID` and splits on comma
+(`authController.ts:443-450`), so both iOS and Android audiences are
+honored.
 
-**Unblock:**
-1. Provision (or reuse) a Firebase project. Add two Android apps:
-   - `com.andrewnguyen.bowpress` (release)
-   - `com.andrewnguyen.bowpress.debug` (debug build variant suffix)
-2. Upload SHA-1 fingerprints for debug + upload keystores.
-3. Download the generated `google-services.json` and replace the
-   placeholder.
-4. Add a server key / Admin SDK service account to the Worker config so
-   `/device-tokens` can round-trip via FCM HTTP v1.
+### 2. ~~Real `app/google-services.json`~~ ✅ (release SHA-1 remaining)
 
-### 3. Backend `/subscription/verify-google` endpoint
+Firebase added to `bowpress-ios` GCP project on 2026-05-10. Two Android
+apps registered (release `1:516990179779:android:538f20eaa89edef3f44576`,
+debug `1:516990179779:android:438afb3b5471233bf44576`). Debug keystore
+SHA-1 `7A:0E:6D:F8:80:0C:47:6E:50:2A:71:36:14:F8:BA:A8:44:54:8A:52`
+registered on both apps. `app/google-services.json` replaced with the
+real config — FCM functional in debug builds.
 
-**Status:** `bowpress-api` has `/subscription/verify` (Apple JWS) and
-`/subscription/verify-google` is wired in
-`subscriptionController.ts:54` BUT requires
-`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` to be configured; in production
-without it, the endpoint returns 501. The Android client
-(`HttpSubscriptionVerifier`) currently treats Google verification as a
-TODO and leaves entitlement client-only after a Play Billing purchase
-acknowledgement.
+**Remaining:** when the upload (release) keystore exists, register its
+SHA-1 with both Firebase apps via the curl snippet documented in
+`README.md` "Firebase / FCM setup" section.
 
-**Unblock:**
-1. Configure `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` in production via
-   `wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. The service
-   account needs read access to Play Console subscription tokens.
-2. Update `feature-subscription/SubscriptionVerifier.kt` to call
+### 3. Backend `/subscription/verify-google` endpoint — blocked on Play Console
+
+**Status:** the Cloud-side prerequisite is done — service account
+`bowpress-play-billing@bowpress-ios.iam.gserviceaccount.com` exists
+with a JSON key stored at `~/.bowpress-secrets/play-billing-key.json`
+(mode 600). The endpoint is wired in
+`bowpress-api/src/controllers/subscriptionController.ts:54` and returns
+501 in production until the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secret
+is set.
+
+**Hard blocker — no Play Console developer account yet.** Granting the
+service account access to subscription tokens (Play Console → Setup →
+API access → User permissions) requires a published developer account
+and the BowPress app uploaded to it. The CF secret is intentionally
+**not** set today because the service account would be inert without
+Play permissions — calls to the Play Developer API would 401.
+
+**Unblock sequence (when ready to ship Play):**
+1. Sign up for a [Play Console developer account](https://play.google.com/console/signup) ($25 one-time).
+2. Upload a signed AAB of BowPress; wait for the Play Console listing to
+   appear.
+3. Link the `bowpress-ios` Cloud project under
+   Play Console → Setup → API access.
+4. Grant the `bowpress-play-billing` service account
+   "View app information" + "Manage orders and subscriptions" on the
+   BowPress app.
+5. Set the CF secret:
+   ```sh
+   cd bowpress-api
+   wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_JSON --env production < ~/.bowpress-secrets/play-billing-key.json
+   ```
+6. Update `feature-subscription/SubscriptionVerifier.kt` to call
    `/subscription/verify-google` with `{purchaseToken, productId,
    packageName}` and propagate the returned `Entitlement`.
-3. Add a webhook receiver for Google Play Real-Time Developer
+7. Add a webhook receiver for Google Play Real-Time Developer
    Notifications (RTDN) so server-side state stays in sync between
    client verifies (mirrors the existing Apple webhook in
    `bowpress-api/src/routes/appleWebhookRoutes.ts`).
