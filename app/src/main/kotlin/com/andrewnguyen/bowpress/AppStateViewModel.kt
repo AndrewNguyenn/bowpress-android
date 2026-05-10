@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
+import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.UnitSystem
@@ -36,7 +37,8 @@ class AppStateViewModel @Inject constructor(
     private val unitPreferencesRepository: UnitPreferencesRepository,
     private val pushInitializer: PushInitializer,
     billingManager: PlayBillingManager,
-    analyticsRefreshBus: AnalyticsRefreshBus,
+    private val analyticsRefreshBus: AnalyticsRefreshBus,
+    private val devMockDataSeeder: DevMockDataSeeder,
 ) : ViewModel() {
 
     init {
@@ -147,9 +149,21 @@ class AppStateViewModel @Inject constructor(
 
     private fun hydrate() {
         viewModelScope.launch {
+            // DEBUG: seed Room with mock archery data so the Analytics tab
+            // doesn't show "Not enough data" on a fresh emulator. Mirrors
+            // iOS DevMockData (Sources/BowPress/State/DevMockData.swift).
+            // Idempotent — no-op once any bow exists.
+            val seededFresh = if (BuildConfig.DEBUG) {
+                runCatching { devMockDataSeeder.seedIfEmpty() }.getOrDefault(Unit).let { true }
+            } else false
             runCatching { userRepository.refreshProfile() }
             pushInitializer.start()
             _uiState.value = _uiState.value.copy(isHydrating = false)
+            // Feature VMs (AnalyticsDashboardViewModel et al.) may have
+            // collected their initial flow emission while Room was still
+            // empty — bump the refresh bus once after seeding so they
+            // re-query and pick up the fixture data.
+            if (seededFresh) analyticsRefreshBus.bump()
         }
     }
 }
