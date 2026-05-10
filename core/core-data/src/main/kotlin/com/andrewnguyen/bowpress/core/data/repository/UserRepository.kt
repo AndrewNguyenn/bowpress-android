@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.core.data.repository
 
+import com.andrewnguyen.bowpress.core.model.AuthProvider
 import com.andrewnguyen.bowpress.core.model.User
 import com.andrewnguyen.bowpress.core.network.AuthResponse
 import com.andrewnguyen.bowpress.core.network.AppleSignInRequest
@@ -17,6 +18,7 @@ import com.andrewnguyen.bowpress.core.network.VerifyEmailRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -90,9 +92,36 @@ class UserRepository @Inject constructor(
         _currentUser.value = null
     }
 
+    /**
+     * DEBUG-only short-circuit that pre-flips the app to the signed-in state
+     * with a dev fixture user, matching iOS `AppState` DEBUG behavior
+     * (`isAuthenticated = true`, pre-filled dev user). No-op if a token
+     * already exists.
+     *
+     * Gated by `BuildConfig.DEBUG` in [AppStateViewModel]; production paths
+     * never call this. Backend calls under this token will 401 — that's
+     * fine, `hydrate()` swallows the failure via runCatching.
+     */
+    fun seedDevAuth() {
+        if (tokenStore.getToken() != null) return
+        tokenStore.setToken(DEV_DEBUG_TOKEN)
+        _currentUser.value = User(
+            id = "dev-user",
+            email = "dev@bowpress.local",
+            name = "Dev User",
+            createdAt = Instant.parse("2025-01-01T00:00:00Z"),
+            emailVerified = true,
+            authProvider = AuthProvider.EMAIL,
+        )
+    }
+
     private fun applyAuth(response: AuthResponse): User {
         tokenStore.setToken(response.token)
         _currentUser.value = response.user
         return response.user
+    }
+
+    private companion object {
+        const val DEV_DEBUG_TOKEN = "dev-debug-token"
     }
 }

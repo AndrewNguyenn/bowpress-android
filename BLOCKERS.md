@@ -105,9 +105,39 @@ one.
 
 ### 4. Tab order divergence (Android Dashboard vs iOS Log)
 
-**Status:** Android tab 0 is `Dashboard` (label "Home", content =
-`SuggestionsDashboardScreen`); iOS tab 0 is `Analytics` and tab 1 is
-`Log` (`HistoricalSessionsView`). The 5 tabs are not 1:1.
+**Status:** Confirmed visually 2026-05-10 via Maestro screenshot diff
+(loop iteration 2). Android tab 0 = "Home" → SuggestionsDashboardScreen
+("All caught up / no new insights"). iOS tab 0 = "Analytics" →
+AnalyticsView (overview stats, comparison, trends, suggestions inline).
+The 5 tabs are not 1:1; iOS's "Log" tab (HistoricalSessionsView) has
+no Android counterpart at the top level.
+
+**Where to fix (Android-side):** in `app/MainScaffold.kt` `TopTab` enum,
+match iOS order — Analytics, Log, Session, Equipment, Settings.
+SuggestionsDashboardScreen content folds into the Analytics tab (iOS
+puts suggestions inline in the Analytics overview). Add a Log tab
+backed by `HistoricalSessionsScreen` (already exists, currently buried
+inside the Analytics nav graph). Remove the standalone Dashboard tab.
+
+### 4c. Android DEBUG entitlement defaults to inactive
+
+**Status:** Confirmed 2026-05-10 (loop iteration 2). On a fresh
+emulator install, Android's `PlayBillingManager.entitlement` emits
+`Entitlement(isActive=false)` because there's no Play Billing
+connection in DEBUG. The `ReadOnlyGate` then overlays the
+"Subscribe to log new sessions and edit equipment" banner across the
+whole app.
+
+iOS DEBUG hardcodes `SubscriptionManager.isSubscribed=true` unless
+the `REAL_ENTITLEMENT=1` env var is set (per spec.md). So iOS DEBUG
+never shows the banner unless explicitly testing the lapsed path.
+
+**Where to fix:** in `feature-subscription/PlayBillingManager.kt`,
+mirror the iOS DEBUG shortcut — emit `Entitlement.Active` initial
+state in DEBUG unless `REAL_ENTITLEMENT=1` system property or env
+var is set. Keeps release builds unchanged.
+
+### 4-legacy. Original tab-order divergence note (preserved for context)
 
 **Where to fix:** `app/MainScaffold.kt:200-210` (`TopTab` enum +
 ordering) and the corresponding nav graph wiring. Decide whether

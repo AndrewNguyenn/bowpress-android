@@ -39,6 +39,18 @@ class AppStateViewModel @Inject constructor(
     analyticsRefreshBus: AnalyticsRefreshBus,
 ) : ViewModel() {
 
+    init {
+        // Mirror iOS AppState DEBUG path: pre-flip the auth gate with a
+        // dev fixture user so the emulator boots straight into MainScaffold
+        // (iOS XCUITest baseline). Real signed-in sessions are detected by
+        // the token-store check inside seedDevAuth and short-circuit.
+        //
+        // This init block sits BEFORE the property initializers below so
+        // `_uiState`'s read of `isSignedIn` sees the seeded state — Kotlin
+        // executes init blocks + property initializers in declaration order.
+        if (BuildConfig.DEBUG) userRepository.seedDevAuth()
+    }
+
     private val _uiState = MutableStateFlow(
         AppUiState(
             isAuthenticated = userRepository.isSignedIn,
