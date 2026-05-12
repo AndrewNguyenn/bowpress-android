@@ -1325,7 +1325,7 @@ private fun SuggestionsLedgerSection(
             aside = if (suggestions.isEmpty()) null else "${suggestions.size} ranked",
         )
         Text(
-            text = "by confidence · tap for detail",
+            text = "by confidence · swipe left on a card to dismiss",
             style = interUI(10.5.sp).copy(color = AppInk3),
         )
         if (suggestions.isEmpty()) {
@@ -1337,10 +1337,11 @@ private fun SuggestionsLedgerSection(
         } else {
             Column {
                 suggestions.forEachIndexed { idx, suggestion ->
-                    SuggestionLedgerRow(
+                    DismissibleSuggestionRow(
                         suggestion = suggestion,
                         index = idx + 1,
                         onTap = { onOpen(suggestion) },
+                        onDismiss = { onDismiss(suggestion.id) },
                     )
                     if (idx < suggestions.size - 1) {
                         Box(
@@ -1352,6 +1353,61 @@ private fun SuggestionsLedgerSection(
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun DismissibleSuggestionRow(
+    suggestion: AnalyticsSuggestion,
+    index: Int,
+    onTap: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val dismissState = androidx.compose.material3.rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart) {
+                onDismiss()
+                true
+            } else false
+        },
+    )
+    androidx.compose.material3.SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            // Only paint the dismiss affordance once the row has actually moved.
+            val progress = dismissState.progress
+            if (progress > 0.05f &&
+                dismissState.dismissDirection ==
+                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(AppMaple)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Text(
+                        text = "DISMISS",
+                        style = jetbrainsMono(11.sp).copy(color = AppPaper),
+                    )
+                }
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("suggestion_dismiss_${suggestion.id}"),
+    ) {
+        Box(modifier = Modifier.background(AppPaper)) {
+            SuggestionLedgerRow(
+                suggestion = suggestion,
+                index = index,
+                onTap = onTap,
+            )
         }
     }
 }
