@@ -83,9 +83,6 @@ fun NavGraphBuilder.equipmentNavGraph(
             onOpenConfig = { configId ->
                 navController.navigate(EquipmentRoutes.bowConfigDetail(bowId, configId))
             },
-            onEditLatest = { configId ->
-                navController.navigate(EquipmentRoutes.bowConfigEdit(bowId, configId))
-            },
         )
     }
 

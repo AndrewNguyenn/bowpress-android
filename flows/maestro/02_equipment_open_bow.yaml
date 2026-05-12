@@ -34,11 +34,23 @@ tags:
 - waitForAnimationToEnd:
     timeout: 3000
 # Bow name is the detail screen's title — appears on every detail layout.
-# "Setup" and "Bow Info" are the two section headers that both platforms render.
+# "Draw Length" is a Setup-section row label that both platforms render with
+# identical case (no platform-specific text-style transform), so it's the
+# robust cross-platform signal for "edit form is visible". Section header text
+# is also asserted: iOS Form section title `Section("Setup")` exposes "Setup"
+# as the underlying accessibility node; Android SectionHeader applies
+# `.uppercase()` for Material styling so the rendered string is "SETUP". The
+# row label assertion sidesteps that divergence.
 - assertVisible: "Mathews TITLE 36"
-- assertVisible: "Setup"
+- assertVisible: "Draw Length"
 - takeScreenshot: ${SCREENSHOT_PREFIX}_02_bow_detail
-# Skip an explicit back navigation — Maestro's `back` command works on
-# Android (system back) but is a no-op on iOS navigation stacks without
-# a hardware key, so a single YAML can't cover the return. The detail
-# screenshot is the parity-load-bearing signal anyway.
+# Interaction: tap Save and verify navigation returns to the equipment list.
+# iOS BowDetailView.saveCurrentState calls dismiss() after persisting; Android
+# BowDetailScreen now mirrors that with LaunchedEffect(savedConfigId) → onBack.
+# After save we should land back on the Equipment tab with both rigs visible.
+- tapOn: "Save"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Mathews TITLE 36"
+- assertVisible: "Border HEX7 Barebow"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_03_after_save

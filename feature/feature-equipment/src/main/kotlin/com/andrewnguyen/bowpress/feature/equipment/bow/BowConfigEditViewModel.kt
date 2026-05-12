@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -21,9 +22,15 @@ import java.util.UUID
 import javax.inject.Inject
 
 /**
- * Backs the conditional bow-config edit form. State is seeded from the base
- * config passed in on the route (`configId`) — either the latest tune (for
- * "Edit latest") or a history entry (for "Log new tuning from this snapshot").
+ * Backs the conditional bow-config edit form. Init has three outcomes:
+ *
+ *   1. Explicit `configId` nav arg → seed from that config (history-entry edit
+ *      or "Log new tuning from this snapshot" flow).
+ *   2. No `configId`, bow has ≥1 config → seed from the bow's latest config.
+ *      This is the BowDetailScreen inline-form path that matches iOS.
+ *   3. No `configId`, bow has zero configs → seed from type-aware defaults so
+ *      the form is still usable (defensive; new bows are normally created with
+ *      an initial config attached).
  *
  * The form itself is gated by [EquipmentFieldRules][com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules].
  * This ViewModel only carries raw values; whether a field renders is a pure
@@ -37,7 +44,8 @@ class BowConfigEditViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val bowId: String = checkNotNull(savedStateHandle[EquipmentArgs.BOW_ID])
-    private val configId: String = checkNotNull(savedStateHandle[EquipmentArgs.CONFIG_ID])
+    // Optional: missing on the bow-detail route (which seeds from the latest config).
+    private val configId: String? = savedStateHandle[EquipmentArgs.CONFIG_ID]
 
     data class UiState(
         val bow: Bow? = null,
@@ -92,11 +100,22 @@ class BowConfigEditViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val bow = bowRepository.getBow(bowId)
-            val base = bowConfigRepository.getById(configId)
+            val base = when {
+                configId != null -> bowConfigRepository.getById(configId)
+                // Bow-detail inline-form path: take the latest config from the live
+                // configs flow. `first()` resolves once the repository has emitted
+                // its initial value, so we don't return stale state.
+                else -> bowConfigRepository.observeByBow(bowId).first()
+                    .maxByOrNull { it.createdAt }
+            }
             if (bow != null && base != null) {
                 _state.value = seedFromBase(bow, base)
+            } else if (bow != null) {
+                // Bow exists but no configs yet (new bow path) — show defaults so
+                // the inline form is still usable.
+                _state.value = UiState(bow = bow, baseConfig = null, isLoading = false)
             } else {
-                _state.update { it.copy(isLoading = false, errorMessage = "Bow or config not found") }
+                _state.value = UiState(isLoading = false, errorMessage = "Bow or config not found")
             }
         }
     }
@@ -134,6 +153,9 @@ class BowConfigEditViewModel @Inject constructor(
     fun updateRearStabRightWeight(v: Double) = _state.update { it.copy(rearStabRightWeight = v.coerceIn(0.0, 30.0)) }
 
     fun dismissError() = _state.update { it.copy(errorMessage = null) }
+
+    /** Clear the one-shot `savedConfigId` after a navigation callback has consumed it. */
+    fun acknowledgeSaved() = _state.update { it.copy(savedConfigId = null) }
 
     /**
      * Snapshot the current form into a brand-new [BowConfiguration] and persist.

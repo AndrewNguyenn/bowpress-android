@@ -161,7 +161,9 @@ fun BowConfigEditScreen(
                 callbacks = viewModel.asCallbacks(),
                 unitSystem = LocalUnitSystem.current,
                 onUnitSystemChange = LocalUnitSystemSetter.current,
-                modifier = Modifier.padding(padding),
+                modifier = Modifier
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState()),
             )
         }
     }
@@ -171,6 +173,11 @@ fun BowConfigEditScreen(
  * Stateless form body extracted for Compose UI testing. The screen-level
  * composable above gathers `state` via Hilt; this version takes it directly so
  * tests can drive `bowType` / `rearStabSide` through synthetic state.
+ *
+ * The caller owns the scroll modifier — standalone usage applies
+ * `Modifier.verticalScroll(...)`; when embedded (BowDetailScreen) the parent's
+ * scroll container already paginates everything, and a nested vertical scroll
+ * would crash with `Vertically scrollable component was measured with infinity`.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -186,7 +193,6 @@ internal fun BowConfigEditFormBody(
     Column(
         modifier = modifier
             .padding(horizontal = 16.dp)
-            .verticalScroll(rememberScrollState())
             .testTag("bow_config_edit_form_${bowType.name.lowercase()}"),
     ) {
         UnitToggle(
@@ -210,7 +216,10 @@ internal fun BowConfigEditFormBody(
         }
 
         // Bow setup — type-specific.
-        SectionHeader(if (EquipmentFieldRules.sectionVisible(Section.BASE_SETUP, bowType, isSetup)) "Base Setup" else "Bow Setup")
+        // iOS BowDetailView uses "Setup" for the editable case; "Base Setup" is
+        // Android-only — the read-only summary shown when logging a new tuning
+        // entry against an existing snapshot.
+        SectionHeader(if (EquipmentFieldRules.sectionVisible(Section.BASE_SETUP, bowType, isSetup)) "Base Setup" else "Setup")
         when {
             EquipmentFieldRules.sectionVisible(Section.BASE_SETUP, bowType, isSetup) -> {
                 // Compound non-setup: read-only summary row (matches iOS text block).

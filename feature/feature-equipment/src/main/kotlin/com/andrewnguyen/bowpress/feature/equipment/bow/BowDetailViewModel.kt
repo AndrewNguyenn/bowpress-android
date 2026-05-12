@@ -18,9 +18,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Backs [BowDetailScreen]. The bow itself is loaded once on init (it doesn't
- * change shape live), but the list of configurations is observed reactively so
- * the "Edit latest → save" round-trip reflects immediately.
+ * Backs [BowDetailScreen]'s read-only header + reactive history list. The bow
+ * itself is loaded once on init (it doesn't change shape live); the list of
+ * configurations is observed reactively so a freshly-saved config appears in
+ * the history immediately if the user returns to this screen. Edit-form state
+ * lives in [BowConfigEditViewModel], which the same screen also hosts.
  */
 @HiltViewModel
 class BowDetailViewModel @Inject constructor(
@@ -39,10 +41,7 @@ class BowDetailViewModel @Inject constructor(
         val isLoading: Boolean = true,
         val isDeleted: Boolean = false,
         val errorMessage: String? = null,
-    ) {
-        /** Most recent configuration by createdAt — the "latest" for the Edit action. */
-        val latest: BowConfiguration? get() = configurations.maxByOrNull { it.createdAt }
-    }
+    )
 
     private val _bowFlow = MutableStateFlow<Bow?>(null)
 
@@ -90,6 +89,4 @@ class BowDetailViewModel @Inject constructor(
             }
         }
     }
-
-    fun latestConfigId(): String? = state.value.latest?.id
 }

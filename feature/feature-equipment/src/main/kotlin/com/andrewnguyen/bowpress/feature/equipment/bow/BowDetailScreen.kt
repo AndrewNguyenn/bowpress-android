@@ -10,25 +10,31 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -36,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
+import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.feature.equipment.components.ScoreBadge
 import com.andrewnguyen.bowpress.feature.equipment.components.SectionHeader
@@ -44,22 +53,42 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Bow header + chronological list of tuning configurations. Tapping a history
- * row opens [BowConfigDetailScreen]; "Edit latest" opens [BowConfigEditScreen]
- * seeded from the most recent config. Matches iOS `BowDetailView`'s core
- * affordances while being simpler — we don't re-render the entire edit form
- * here because the Compose idiom puts that work in a dedicated sheet.
+ * Bow detail screen — matches iOS BowDetailView's structure: the editable Bow
+ * Setup form is inlined directly here, followed by the tuning history list.
+ * Tapping Save in the toolbar creates a new configuration (same semantics as
+ * iOS `saveCurrentState`). Tapping a history row opens [BowConfigDetailScreen]
+ * for a read-only view of that snapshot's diff against the current config.
+ *
+ * Two ViewModels back this screen:
+ *  - [BowDetailViewModel] owns the bow's reactive config list + delete action.
+ *  - [BowConfigEditViewModel] owns the editable form state. When this screen is
+ *    composed via the `equipment/bow/{bowId}` route (no `configId` arg), the
+ *    edit ViewModel seeds itself from the bow's latest config — see
+ *    [BowConfigEditViewModel] init.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BowDetailScreen(
     onBack: () -> Unit,
     onOpenConfig: (configId: String) -> Unit,
-    onEditLatest: (configId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BowDetailViewModel = hiltViewModel(),
+    editViewModel: BowConfigEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val editState by editViewModel.state.collectAsStateWithLifecycle()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // After a Save round-trip the edit VM stamps savedConfigId. Acknowledge it so
+    // the one-shot signal can't re-fire on later recompositions, then pop back —
+    // matches iOS BowDetailView.saveCurrentState() which calls dismiss() after
+    // the configuration is persisted.
+    LaunchedEffect(editState.savedConfigId) {
+        if (editState.savedConfigId != null) {
+            editViewModel.acknowledgeSaved()
+            onBack()
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -70,7 +99,22 @@ fun BowDetailScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.deleteBow(); onBack() }) {
+                    if (editState.isSaving) {
+                        CircularProgressIndicator(
+                            color = BowPressColors.Accent,
+                            modifier = Modifier.size(24.dp).padding(end = 12.dp),
+                        )
+                    } else {
+                        TextButton(
+                            onClick = editViewModel::save,
+                            enabled = !editState.isLoading && editState.bow != null,
+                            modifier = Modifier.testTag("save_bow_button"),
+                        ) { Text("Save") }
+                    }
+                    IconButton(
+                        onClick = { showDeleteConfirm = true },
+                        enabled = !editState.isSaving,
+                    ) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete bow")
                     }
                 },
@@ -78,38 +122,71 @@ fun BowDetailScreen(
         },
     ) { padding ->
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = BowPressColors.Accent)
-            }
-            state.bow == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("Bow not found", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            state.isLoading || editState.isLoading -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator(color = BowPressColors.Accent) }
+
+            state.bow == null -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { Text("Bow not found", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+
             else -> BowDetailBody(
                 bow = state.bow!!,
                 configurations = state.configurations,
+                editState = editState,
+                editCallbacks = editViewModel.asCallbacks(),
                 onOpenConfig = onOpenConfig,
-                onEditLatest = {
-                    viewModel.latestConfigId()?.let(onEditLatest)
-                },
                 onToggleReference = viewModel::setReference,
                 modifier = Modifier.padding(padding),
             )
         }
     }
+
+    // Destructive confirmation — matches iOS BowDetailView's "Delete <bow>?"
+    // alert (BowDetailView.swift:221-232). Without this, a single trash-icon
+    // tap immediately purged the bow and its history.
+    if (showDeleteConfirm) {
+        val bowName = state.bow?.name.orEmpty()
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(if (bowName.isNotEmpty()) "Delete $bowName?" else "Delete bow?") },
+            text = {
+                Text("This permanently removes this bow along with its tuning history and shooting sessions. This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    viewModel.deleteBow()
+                    onBack()
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BowDetailBody(
-    bow: com.andrewnguyen.bowpress.core.model.Bow,
+    bow: Bow,
     configurations: List<BowConfiguration>,
+    editState: BowConfigEditViewModel.UiState,
+    editCallbacks: BowConfigEditCallbacks,
     onOpenConfig: (String) -> Unit,
-    onEditLatest: () -> Unit,
     onToggleReference: (configId: String, pinned: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        // Header panel.
-        Column(modifier = Modifier.padding(vertical = 12.dp)) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        // Header band — bow name (large), bow type, optional brand · model.
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(bow.name, style = MaterialTheme.typography.headlineSmall)
             Text(bow.bowType.label, style = MaterialTheme.typography.bodyMedium, color = BowPressColors.Accent)
             if (bow.brand.isNotEmpty() || bow.model.isNotEmpty()) {
@@ -118,32 +195,38 @@ private fun BowDetailBody(
             }
         }
 
-        FilledTonalButton(
-            onClick = onEditLatest,
-            enabled = configurations.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth().testTag("edit_latest_button"),
-        ) { Text("Edit latest tune") }
+        // Inline editable form — mirrors iOS BowDetailView's Setup / String &
+        // Cable / Limbs / etc. sections. isSetup=true so the form renders
+        // editable rows for Draw Length / Let-off / Peep / D-Loop (vs the
+        // read-only Base Setup summary used when logging a subsequent tune).
+        BowConfigEditFormBody(
+            state = editState,
+            bowType = bow.bowType,
+            isSetup = true,
+            callbacks = editCallbacks,
+            unitSystem = LocalUnitSystem.current,
+            onUnitSystemChange = LocalUnitSystemSetter.current,
+        )
 
-        Spacer(Modifier.height(8.dp))
-        SectionHeader("History")
-
-        if (configurations.isEmpty()) {
-            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text("No configurations yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(16.dp))
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            SectionHeader("History")
+            if (configurations.isEmpty()) {
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text("No configurations yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                configurations.forEach { config ->
+                    HistoryRow(
+                        config = config,
+                        onOpen = { onOpenConfig(config.id) },
+                        onTogglePin = { onToggleReference(config.id, config.isReference != true) },
+                    )
+                    HorizontalDivider()
+                }
             }
-            return
         }
-
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(configurations, key = { it.id }) { config ->
-                HistoryRow(
-                    config = config,
-                    onOpen = { onOpenConfig(config.id) },
-                    onTogglePin = { onToggleReference(config.id, config.isReference != true) },
-                )
-                HorizontalDivider()
-            }
-        }
+        Spacer(Modifier.height(24.dp))
     }
 }
 
