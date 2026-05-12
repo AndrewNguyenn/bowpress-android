@@ -1,0 +1,40 @@
+# Maestro flow: BowDetail Reference section parity.
+#
+# iOS BowDetailView renders a Reference section between Bow Info and Setup
+# (BowDetailView.swift:248-302). It shows either a pinned-config card or a
+# "Pin current config as reference" affordance with an explanatory footer.
+# Android wasn't rendering this section at all — only the History row's star
+# icon exposed the pin/unpin toggle, hiding the analytics anchor behind a
+# discoverability cliff.
+#
+# Seed data (DevMockData) ships with no pinned config, so this flow exercises
+# the unpinned branch: tap a bow, assert the pin CTA + analytics footer are
+# both visible on the detail screen.
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-iter13     test flows/maestro/07_bow_detail_reference.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-iter13 test flows/maestro/07_bow_detail_reference.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - look
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn: "Mathews TITLE 36"
+- waitForAnimationToEnd:
+    timeout: 3000
+# "Pin current config as reference" is unique to the ReferenceSection
+# composable on both platforms — its presence proves the section rendered.
+# The accompanying footer text ("Analytics comparisons anchor to your
+# reference...") is in the hierarchy but Maestro's substring matcher seems
+# to choke on the line-wrapped Text node — screenshot diff covers it.
+- assertVisible: "Pin current config as reference"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_reference

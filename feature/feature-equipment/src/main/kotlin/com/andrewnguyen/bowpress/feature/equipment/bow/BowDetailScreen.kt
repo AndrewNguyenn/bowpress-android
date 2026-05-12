@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -195,6 +196,16 @@ private fun BowDetailBody(
             }
         }
 
+        // Reference section — mirrors iOS BowDetailView.referenceSection
+        // (BowDetailView.swift:248-302). Shows the pinned-config card if one
+        // exists, and offers a "Pin current config as reference" affordance
+        // for scoreable configs that aren't already the reference.
+        ReferenceSection(
+            configurations = configurations,
+            onToggleReference = onToggleReference,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+
         // Inline editable form — mirrors iOS BowDetailView's Setup / String &
         // Cable / Limbs / etc. sections. isSetup=true so the form renders
         // editable rows for Draw Length / Let-off / Peep / D-Loop (vs the
@@ -267,6 +278,106 @@ private fun HistoryRow(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             ScoreBadge(score = config.avgArrowScore, isReference = config.isReference == true)
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * iOS BowDetailView.referenceSection port. Two stacked affordances:
+ *  - If any config has `isReference == true`, render a "Reference" card with
+ *    a star icon, the config label, the score-plus-source subtitle, and an
+ *    Unpin button when the pin was manual (auto-selected pins don't expose
+ *    Unpin because the analytics pipeline will replace them anyway).
+ *  - If the latest config isn't the reference, render a "Pin current config
+ *    as reference" button — guarded by the same scoreable / no-existing-ref
+ *    predicate iOS uses, with a footer explaining the analytics anchor.
+ */
+@Composable
+private fun ReferenceSection(
+    configurations: List<BowConfiguration>,
+    onToggleReference: (configId: String, pinned: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pinned = configurations.firstOrNull { it.isReference == true }
+    val current = configurations.maxByOrNull { it.createdAt }
+    val canOfferPin = current != null
+        && current.isReference != true
+        && (current.scoreable == true || pinned == null)
+
+    if (pinned == null && !canOfferPin) return
+
+    Column(modifier = modifier) {
+        if (pinned != null) {
+            SectionHeader("Reference")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = BowPressColors.Accent,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = pinned.label ?: "Pinned configuration",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    val source = if (pinned.referenceManuallyPinned == true) {
+                        "Manually pinned"
+                    } else {
+                        "Auto-selected by analytics"
+                    }
+                    val subtitle = pinned.avgArrowScore?.let { score ->
+                        "Score ${score.toInt()} / 100 · $source"
+                    } ?: source
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (pinned.referenceManuallyPinned == true) {
+                    TextButton(
+                        onClick = { onToggleReference(pinned.id, false) },
+                        modifier = Modifier.testTag("unpin_reference_button"),
+                    ) {
+                        Text("Unpin", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+
+        if (canOfferPin && current != null) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleReference(current.id, true) }
+                    .padding(vertical = 12.dp)
+                    .testTag("pin_current_button"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.StarBorder,
+                    contentDescription = null,
+                    tint = BowPressColors.Accent,
+                )
+                Text(
+                    text = "Pin current config as reference",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            Text(
+                text = "Analytics comparisons anchor to your reference. Unpinning lets the pipeline auto-select the highest-scoring config after each session.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
         }
     }
 }
