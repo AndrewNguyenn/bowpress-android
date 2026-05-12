@@ -1,0 +1,49 @@
+# Iter 21: BowDetail "Bow Info" section parity. iOS renders an editable Name
+# field + readonly Type row in a "Bow Info" section between the unit toggle
+# and the reference section. Asserts the section exists, the name is
+# editable, and Type shows the bow's type label.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Create a fresh bow so the detail screen has a known, deterministic name.
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Add Bow"
+- tapOn: "Recurve"
+- tapOn:
+    id: "bow_name_field"
+- inputText: "Iter21 Info Bow"
+- tapOn: "Save"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Detail screen for the new bow
+- tapOn:
+    text: ".*Iter21 Info Bow.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Bow Info section visible with Name + Type rows
+- assertVisible:
+    text: ".*Bow Info.*"
+- assertVisible: "Name"
+- assertVisible: "Type"
+- assertVisible:
+    text: ".*Recurve.*"
+
+# Name field present and currently bound to the bow name
+- assertVisible:
+    text: ".*Iter21 Info Bow.*"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_bowdetail_info

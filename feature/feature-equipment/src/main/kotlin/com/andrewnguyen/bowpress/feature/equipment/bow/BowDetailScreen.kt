@@ -26,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -196,6 +197,16 @@ private fun BowDetailBody(
             }
         }
 
+        // Bow Info section — mirrors iOS BowDetailView (BowDetailView.swift:119-124).
+        // Editable Name + readonly Type. iOS surfaces Name as editable but its
+        // saveCurrentState() only persists the BowConfiguration and never touches
+        // Bow.name — Android matches that surface exactly. If iOS later wires
+        // bow persistence, mirror it here.
+        BowInfoSection(
+            bow = bow,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+
         // Reference section — mirrors iOS BowDetailView.referenceSection
         // (BowDetailView.swift:248-302). Shows the pinned-config card if one
         // exists, and offers a "Pin current config as reference" affordance
@@ -238,6 +249,42 @@ private fun BowDetailBody(
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BowInfoSection(
+    bow: Bow,
+    modifier: Modifier = Modifier,
+) {
+    var name by remember(bow.id) { mutableStateOf(bow.name) }
+    Column(modifier = modifier) {
+        SectionHeader("Bow Info")
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Name") },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .testTag("bow_info_name_field"),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Type", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.weight(1f))
+            Text(
+                bow.bowType.label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
