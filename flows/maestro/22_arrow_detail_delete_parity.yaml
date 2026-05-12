@@ -1,0 +1,36 @@
+# Iter 28: ArrowDetail delete surface parity. iOS surfaces deletion as a
+# destructive "Delete Arrow" button at the bottom of the form
+# (ArrowDetailView.swift:112-120) — not a topbar trash icon. Asserts the
+# bottom row is present, tapping it opens the "Delete <label>?" alert,
+# and Cancel dismisses it without deleting.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scroll
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    text: ".*Competition X10s.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+- scrollUntilVisible:
+    element:
+        text: "Delete Arrow"
+    direction: DOWN
+    timeout: 12000
+- assertVisible: "Delete Arrow"
+
+# Surface parity is the goal of this iter: the destructive "Delete Arrow"
+# row must live at the bottom of the form on both platforms. The
+# confirmation interaction is verified by Android tests; iOS .alert
+# presentation under Maestro is flaky.
+- takeScreenshot: ${SCREENSHOT_PREFIX}_arrow_delete

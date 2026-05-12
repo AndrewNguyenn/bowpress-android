@@ -1,7 +1,10 @@
 package com.andrewnguyen.bowpress.feature.equipment.arrow
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,9 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +29,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -44,6 +52,7 @@ fun ArrowDetailScreen(
     viewModel: ArrowDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isDeleted) { if (state.isDeleted) onBack() }
     LaunchedEffect(state.showSavedBanner) {
@@ -64,9 +73,9 @@ fun ArrowDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::delete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete arrow")
-                    }
+                    // iOS ArrowDetailView surfaces deletion as a destructive row
+                    // at the bottom of the form (ArrowDetailView.swift:112-120),
+                    // not a topbar action — rendered below alongside the form.
                     if (state.isSaving) {
                         CircularProgressIndicator(
                             color = BowPressColors.Accent,
@@ -124,9 +133,46 @@ fun ArrowDetailScreen(
                 state.errorMessage?.let { msg ->
                     Text(msg, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
+
+                Spacer(Modifier.height(16.dp))
+                // iOS ArrowDetailView renders a destructive "Delete Arrow" button
+                // below Notes (ArrowDetailView.swift:112-120). Centered, error-tinted.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDeleteConfirm = true }
+                        .padding(vertical = 14.dp)
+                        .testTag("delete_arrow_button"),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        "Delete Arrow",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+                HorizontalDivider()
                 Spacer(Modifier.height(24.dp))
                 }
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        val name = state.label.ifEmpty { "this arrow" }
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete $name?") },
+            text = { Text("This permanently removes this arrow. This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    viewModel.delete()
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
     }
 }
