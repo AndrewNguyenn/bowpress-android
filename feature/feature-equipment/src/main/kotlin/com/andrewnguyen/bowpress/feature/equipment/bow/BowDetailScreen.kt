@@ -114,12 +114,9 @@ fun BowDetailScreen(
                             modifier = Modifier.testTag("save_bow_button"),
                         ) { Text("Save") }
                     }
-                    IconButton(
-                        onClick = { showDeleteConfirm = true },
-                        enabled = !editState.isSaving,
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete bow")
-                    }
+                    // iOS BowDetailView surfaces deletion as a destructive button at
+                    // the bottom of the form (BowDetailView.swift:181-191), not a
+                    // topbar action — the bottom row is rendered inside BowDetailBody.
                 },
             )
         },
@@ -142,6 +139,7 @@ fun BowDetailScreen(
                 editCallbacks = editViewModel.asCallbacks(),
                 onOpenConfig = onOpenConfig,
                 onToggleReference = viewModel::setReference,
+                onDeleteRequested = { showDeleteConfirm = true },
                 modifier = Modifier.padding(padding),
             )
         }
@@ -181,6 +179,7 @@ private fun BowDetailBody(
     editCallbacks: BowConfigEditCallbacks,
     onOpenConfig: (String) -> Unit,
     onToggleReference: (configId: String, pinned: Boolean) -> Unit,
+    onDeleteRequested: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -248,6 +247,24 @@ private fun BowDetailBody(
 
         Spacer(Modifier.height(16.dp))
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            // iOS BowDetailView renders a destructive "Delete Bow" button below
+            // History (BowDetailView.swift:181-191). Centered, error-tinted text.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onDeleteRequested)
+                    .padding(vertical = 14.dp)
+                    .testTag("delete_bow_button"),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    "Delete Bow",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
             SectionHeader("History")
             if (configurations.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {

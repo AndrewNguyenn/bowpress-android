@@ -1,0 +1,55 @@
+# Iter 24: BowDetail delete-bow surface parity. iOS exposes deletion as a
+# destructive button at the bottom of the form (BowDetailView.swift:181-191),
+# NOT a topbar trash icon. Asserts the bottom row is present and tapping it
+# opens the "Delete <name>?" confirmation alert.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Create a fresh bow so we can delete it without disturbing seed data.
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "Recurve"
+- tapOn:
+    id: "bow_name_field"
+- inputText: "Iter24 Doomed"
+- tapOn: "Save"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- tapOn:
+    text: ".*Iter24 Doomed.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Scroll to the bottom of the form where the destructive row lives
+- scrollUntilVisible:
+    element:
+        text: "Delete Bow"
+    direction: DOWN
+    timeout: 12000
+- assertVisible: "Delete Bow"
+
+# Tap it — confirmation should appear
+- tapOn: "Delete Bow"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    text: ".*Delete Iter24 Doomed.*"
+
+# Dismiss the confirmation by tapping Cancel — bow should remain
+- tapOn: "Cancel"
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_bowdetail_delete
