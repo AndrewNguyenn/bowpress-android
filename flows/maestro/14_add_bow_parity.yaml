@@ -1,0 +1,67 @@
+# Iter 20: Add Bow screen parity. iOS has only "Bow Type" + "Name Your Bow"
+# (brand/model live nowhere in this flow on iOS — they're saved as empty
+# strings and edited later). Asserts the section labels, segmented bow-type
+# pills, that the name field gates Save, and that a typed name + Save
+# returns to the Equipment list with the new bow visible.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Open the Add Bow modal — first ADD on Equipment home is the Bows row.
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Header + section labels
+- assertVisible: "Add Bow"
+- assertVisible: "Cancel"
+- assertVisible: "Save"
+- assertVisible:
+    text: ".*Bow Type.*"
+- assertVisible:
+    text: ".*Name Your Bow.*"
+
+# Bow type pills present
+- assertVisible: "Compound"
+- assertVisible: "Recurve"
+- assertVisible: "Barebow"
+
+# Brand/Model section MUST NOT exist (iOS doesn't have it)
+- assertNotVisible:
+    text: ".*Brand & Model.*"
+- assertNotVisible: "Brand"
+- assertNotVisible: "Model"
+
+# Switch bow type — Recurve becomes selected
+- tapOn: "Recurve"
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Name field placeholder visible before typing
+- assertVisible:
+    text: ".*My Hoyt.*"
+
+# Type a name; Save must become tappable
+- tapOn:
+    id: "bow_name_field"
+- inputText: "Parity Iter 20 Bow"
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn: "Save"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Back on Equipment list with the new bow rendered
+- assertVisible:
+    text: ".*Parity Iter 20 Bow.*"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_add_bow_done
