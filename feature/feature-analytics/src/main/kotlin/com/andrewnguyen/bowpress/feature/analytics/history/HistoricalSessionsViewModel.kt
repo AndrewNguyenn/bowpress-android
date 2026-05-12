@@ -216,7 +216,13 @@ class HistoricalSessionsViewModel @Inject constructor(
                         items.size == 1 -> bestId == session.id && avg >= historicalBest - 0.001
                         else -> session.id == bestId && avg == bestAvg && avg > 0.0
                     }
-                    val title: String? = session.distance?.let { "Range · ${it.label}" }
+                    // Prefer the user-supplied session name (matches iOS log row
+                    // primary title — `session.title` becomes "Pre-comp tune
+                    // check", "Long-distance work", etc.). Fall back to the
+                    // distance-derived label for sessions without a name so the
+                    // row still has something to lead with.
+                    val title: String? = session.title?.takeIf { it.isNotBlank() }
+                        ?: session.distance?.let { "Range · ${it.label}" }
                     SessionRow(
                         id = session.id,
                         startedAt = session.startedAt,

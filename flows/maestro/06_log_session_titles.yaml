@@ -1,0 +1,34 @@
+# Maestro flow: Log tab — assert each session row leads with its name.
+#
+# iOS Session log uses the user-supplied session name as the primary row title
+# ("Pre-comp tune check", "Long-distance work", "Indoor practice"). Android was
+# rendering a generic "Range · DISTANCE" string instead, even though the
+# underlying ShootingSession had a `title` field. Iter 12 wires the VM to
+# prefer `session.title` for the row title and fall back to the distance-derived
+# label only when title is blank.
+#
+# This flow runs against the DevMockData seed (DevMockData.kt:230-260, three
+# THIS_WEEK sessions with the same three titles iOS shows).
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-iter12     test flows/maestro/06_log_session_titles.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-iter12 test flows/maestro/06_log_session_titles.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - look
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Session log"
+- assertVisible: "Pre-comp tune check"
+- assertVisible: "Long-distance work"
+- assertVisible: "Indoor practice"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_session_titles
