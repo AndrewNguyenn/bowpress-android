@@ -1,0 +1,32 @@
+# Edit Profile parity. iOS shows a "Profile" section header above the
+# name field and disables Save until the name actually changes from the
+# current user's name. Android previously had no section header and Save
+# was always enabled. Iter 17 brings Android into structural + functional
+# parity using BowPress design system primitives.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Settings"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "EDIT"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "Edit Profile"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Structural parity: the screen title, the "Profile" section header above
+# the field, and the Save button row are all present on both platforms.
+# The canSave gating (Save disabled until the name actually changes) is
+# verified at the ViewModel layer; iOS exposes no identifier on the field
+# and the placeholder is hidden by the loaded value, so a cross-platform
+# field-edit interaction isn't a clean assertion to add here.
+- assertVisible: "Edit Profile"
+- assertVisible: "Profile"
+- assertVisible: "Save"
