@@ -79,9 +79,8 @@ fun SettingsScreen(
         entitlement = state.entitlement,
         notificationsEnabled = state.notificationsEnabled,
         onEditProfile = onEditProfile,
-        onChangePassword = onChangePassword,
-        onDeleteAccount = onDeleteAccount,
         onManageSubscription = onManageSubscription,
+        onRestorePurchases = viewModel::restorePurchases,
         onSignOut = viewModel::signOut,
         onNotificationsToggle = viewModel::setNotificationsEnabled,
     )
@@ -93,9 +92,8 @@ private fun SettingsBody(
     entitlement: Entitlement,
     notificationsEnabled: Boolean,
     onEditProfile: () -> Unit,
-    onChangePassword: () -> Unit,
-    onDeleteAccount: () -> Unit,
     onManageSubscription: () -> Unit,
+    onRestorePurchases: () -> Unit,
     onSignOut: () -> Unit,
     onNotificationsToggle: (Boolean) -> Unit,
 ) {
@@ -104,11 +102,13 @@ private fun SettingsBody(
     val setUnitSystem = LocalUnitSystemSetter.current
 
     val planLabel = when {
-        !entitlement.isActive -> "Free"
-        entitlement.productId?.contains("annual") == true -> "Pro Annual"
-        entitlement.productId?.contains("monthly") == true -> "Pro Monthly"
-        else -> "Pro"
+        !entitlement.isActive -> "FREE"
+        entitlement.productId?.contains("annual") == true -> "PRO ANNUAL"
+        entitlement.productId?.contains("monthly") == true -> "PRO MONTHLY"
+        else -> "BOWPRESS PRO"
     }
+    val subscriptionCtaLabel =
+        if (entitlement.isActive) "View subscription plans" else "Upgrade to Pro"
 
     Column(
         modifier = Modifier
@@ -153,7 +153,7 @@ private fun SettingsBody(
         Column(modifier = Modifier.padding(horizontal = 18.dp)) {
             BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
                 SettingsLinkRow(
-                    label = "Privacy Policy",
+                    label = "Privacy policy",
                     onClick = {
                         runCatching {
                             context.startActivity(
@@ -165,7 +165,7 @@ private fun SettingsBody(
                 )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 SettingsLinkRow(
-                    label = "Terms of Service",
+                    label = "Terms of service",
                     onClick = {
                         runCatching {
                             context.startActivity(
@@ -177,7 +177,7 @@ private fun SettingsBody(
                 )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 SettingsLinkRow(
-                    label = "Sign Out",
+                    label = "Sign out",
                     labelColor = AppMaple,
                     onClick = onSignOut,
                     testTag = "settings_sign_out",
@@ -185,29 +185,20 @@ private fun SettingsBody(
             }
         }
 
-        // Account management (change password / delete account) — preserved routes
-        if (user?.canChangePassword != false) {
-            Spacer(Modifier.height(8.dp))
-            Column(modifier = Modifier.padding(horizontal = 18.dp)) {
-                BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
-                    SettingsLinkRow(
-                        label = "Change Password",
-                        onClick = onChangePassword,
-                        testTag = "settings_change_password",
-                    )
-                }
-            }
-        }
+        Spacer(Modifier.height(16.dp))
 
-        Spacer(Modifier.height(8.dp))
-
+        // Group 3: Subscription / restore — matches iOS subscriptionAccessRow
         Column(modifier = Modifier.padding(horizontal = 18.dp)) {
             BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
+                SubscriptionAccessRow(
+                    title = subscriptionCtaLabel,
+                    onClick = onManageSubscription,
+                )
+                HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 SettingsLinkRow(
-                    label = "Delete Account",
-                    labelColor = AppMaple,
-                    onClick = onDeleteAccount,
-                    testTag = "settings_delete_account",
+                    label = "Restore purchases",
+                    onClick = onRestorePurchases,
+                    testTag = "settings_restore_purchases",
                 )
             }
         }
@@ -337,10 +328,19 @@ private fun NotificationsRow(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = "Push Notifications",
+            text = "Push notifications",
             style = interUI(14.sp).copy(color = AppInk),
         )
-        Switch(checked = enabled, onCheckedChange = onToggle)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = if (enabled) "ON" else "OFF",
+                style = jetbrainsMono(10.sp).copy(color = AppInk3, letterSpacing = 0.04.em),
+            )
+            Switch(checked = enabled, onCheckedChange = onToggle)
+        }
     }
 }
 
@@ -349,10 +349,13 @@ private fun UnitsRow(
     unitSystem: UnitSystem,
     onToggle: (Boolean) -> Unit,
 ) {
+    val metric = unitSystem == UnitSystem.METRIC
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .clickable { onToggle(!metric) }
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .testTag("settings_units_row"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -362,17 +365,51 @@ private fun UnitsRow(
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = unitSystem.label.uppercase(),
                 style = jetbrainsMono(10.sp).copy(color = AppInk3, letterSpacing = 0.04.em),
             )
-            Switch(
-                checked = unitSystem == UnitSystem.METRIC,
-                onCheckedChange = onToggle,
+            Text(
+                text = "›",
+                style = frauncesDisplay(16.sp, italic = true).copy(color = AppPond),
             )
         }
+    }
+}
+
+@Composable
+private fun SubscriptionAccessRow(
+    title: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .testTag("settings_subscription_cta"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f, fill = false),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = interUI(14.sp).copy(color = AppInk),
+            )
+            Text(
+                text = "unlock the full tuning engine",
+                style = jetbrainsMono(10.sp).copy(color = AppInk3, letterSpacing = 0.04.em),
+            )
+        }
+        Text(
+            text = "›",
+            style = frauncesDisplay(16.sp, italic = true).copy(color = AppPond),
+        )
     }
 }
 

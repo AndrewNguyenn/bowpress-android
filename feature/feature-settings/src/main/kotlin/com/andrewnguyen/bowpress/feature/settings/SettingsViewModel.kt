@@ -113,6 +113,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun restorePurchases() {
+        viewModelScope.launch {
+            runCatching { billingManager.restorePurchases() }
+        }
+    }
+
     private fun observeNotificationsPreference() {
         viewModelScope.launch {
             notificationPreferences.notificationsEnabled.collect { enabled ->

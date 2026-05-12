@@ -1,0 +1,46 @@
+# Settings tab parity — iOS is the oracle.
+# Verifies the iter-14 restructure: sentence-case labels, ON-state mono text
+# next to the notifications toggle, Units row tap-to-toggle, View subscription
+# plans + Restore purchases card replacing the legacy Change Password / Delete
+# Account cards.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Settings"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Sentence-case labels (matches iOS)
+- assertVisible: "Push notifications"
+- assertVisible: "Privacy policy"
+- assertVisible: "Terms of service"
+- assertVisible: "Sign out"
+
+# Notification ON-state mono label
+- assertVisible: "ON"
+
+# Subscription value uppercased to match iOS
+- assertVisible: "PRO MONTHLY"
+
+# Subscription / restore card replaces Change Password / Delete Account
+- assertVisible: "View subscription plans"
+- assertVisible: "unlock the full tuning engine"
+- assertVisible: "Restore purchases"
+- assertNotVisible: "Change Password"
+- assertNotVisible: "Delete Account"
+
+# Units row is now tap-to-toggle: imperial → metric → imperial.
+- assertVisible: "IMPERIAL"
+- tapOn: "Units"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: "METRIC"
+- tapOn: "Units"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: "IMPERIAL"
