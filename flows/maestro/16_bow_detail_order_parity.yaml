@@ -1,0 +1,52 @@
+# Iter 22: BowDetail section ordering parity. iOS renders UnitToggle FIRST,
+# then Bow Info, then Reference, then type-specific Setup. Android previously
+# rendered Bow Info → Reference → UnitToggle (inside form body) → Label →
+# Setup. Asserts the corrected order and that the spurious "Label" section
+# (which iOS hides on BowDetail) is gone.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Create a fresh bow so the assertions don't depend on prior state.
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "Recurve"
+- tapOn:
+    id: "bow_name_field"
+- inputText: "Iter22 Order Bow"
+- tapOn: "Save"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Open the bow's detail
+- tapOn:
+    text: ".*Iter22 Order Bow.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# iOS-equivalent sections present
+- assertVisible: "Imperial"
+- assertVisible: "Metric"
+- assertVisible:
+    text: ".*Bow Info.*"
+- assertVisible: "Name"
+- assertVisible: "Type"
+- assertVisible: "Setup"
+
+# iOS BowDetail does NOT expose a Label section or "Optional label" field —
+# that lives in the dedicated Log Tuning flow on iOS.
+- assertNotVisible:
+    text: ".*Optional label.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_bowdetail_order

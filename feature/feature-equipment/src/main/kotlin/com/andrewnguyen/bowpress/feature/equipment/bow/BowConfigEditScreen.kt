@@ -189,19 +189,26 @@ internal fun BowConfigEditFormBody(
     unitSystem: UnitSystem,
     onUnitSystemChange: (UnitSystem) -> Unit,
     modifier: Modifier = Modifier,
+    // BowDetailScreen renders its own UnitToggle + Bow Info ahead of this body
+    // (matches iOS BowDetailView ordering) and iOS doesn't expose a Label there,
+    // so let the caller suppress both.
+    showUnitToggle: Boolean = true,
+    showLabel: Boolean = true,
 ) {
     Column(
         modifier = modifier
             .padding(horizontal = 16.dp)
             .testTag("bow_config_edit_form_${bowType.name.lowercase()}"),
     ) {
-        UnitToggle(
-            system = unitSystem,
-            onSystemChange = onUnitSystemChange,
-            modifier = Modifier.padding(vertical = 8.dp),
-        )
+        if (showUnitToggle) {
+            UnitToggle(
+                system = unitSystem,
+                onSystemChange = onUnitSystemChange,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+        }
 
-        if (EquipmentFieldRules.sectionVisible(Section.LABEL, bowType, isSetup)) {
+        if (showLabel && EquipmentFieldRules.sectionVisible(Section.LABEL, bowType, isSetup)) {
             SectionHeader("Label")
             OutlinedTextField(
                 value = state.label,

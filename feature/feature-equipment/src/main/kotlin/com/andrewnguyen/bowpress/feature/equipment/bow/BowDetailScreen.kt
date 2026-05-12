@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
+import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.feature.equipment.components.ScoreBadge
@@ -197,6 +198,15 @@ private fun BowDetailBody(
             }
         }
 
+        // iOS BowDetailView puts the unit toggle at the very top of the form,
+        // above Bow Info (BowDetailView.swift:117). Render it here so the body
+        // can suppress its own.
+        UnitToggle(
+            system = LocalUnitSystem.current,
+            onSystemChange = LocalUnitSystemSetter.current,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+
         // Bow Info section — mirrors iOS BowDetailView (BowDetailView.swift:119-124).
         // Editable Name + readonly Type. iOS surfaces Name as editable but its
         // saveCurrentState() only persists the BowConfiguration and never touches
@@ -228,6 +238,12 @@ private fun BowDetailBody(
             callbacks = editCallbacks,
             unitSystem = LocalUnitSystem.current,
             onUnitSystemChange = LocalUnitSystemSetter.current,
+            // iOS BowDetailView doesn't render the unit toggle or a Label section
+            // inside the type-specific form — UnitToggle is already drawn above
+            // Bow Info, and iOS leaves config labels to BowConfigEditView's
+            // dedicated "Log Tuning" flow.
+            showUnitToggle = false,
+            showLabel = false,
         )
 
         Spacer(Modifier.height(16.dp))
