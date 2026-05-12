@@ -1,0 +1,37 @@
+# Settings EDIT → Account screen parity. iOS oracle: tapping EDIT on
+# Settings opens an "Account" view with read-only Name + Email, then
+# Edit Profile + Delete Account actions, then a Sign Out button with
+# a confirmation dialog. Android previously jumped straight to the
+# Edit Profile name field — iter 16 inserts the matching Account screen.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Settings"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "EDIT"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Account screen sections
+- assertVisible: "Account"
+- assertVisible: "Name"
+- assertVisible: "Email"
+- assertVisible: "Edit Profile"
+- assertVisible: "Delete Account"
+- assertVisible: "Sign Out"
+
+# Sign Out triggers a confirmation dialog rather than signing out
+# immediately. iOS renders it as a confirmationDialog popover; Android as
+# an AlertDialog. We only verify the prompt copy appears on both — the
+# Cancel control is rendered by the system on iOS and not surfaced through
+# the accessibility tree, so we don't attempt to interact further here.
+- tapOn: "Sign Out"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: "Sign out of BowPress?"

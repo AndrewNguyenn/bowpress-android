@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
  */
 object SettingsRoutes {
     const val HOME = "settings/home"
+    const val ACCOUNT = "settings/account"
     const val EDIT_PROFILE = "settings/profile"
     const val CHANGE_PASSWORD = "settings/change-password"
     const val DELETE_ACCOUNT = "settings/delete-account"
@@ -29,10 +30,19 @@ fun NavGraphBuilder.settingsNavGraph(
 ) {
     composable(SettingsRoutes.HOME) {
         SettingsScreen(
-            onEditProfile = { navController.navigate(SettingsRoutes.EDIT_PROFILE) },
+            onEditProfile = { navController.navigate(SettingsRoutes.ACCOUNT) },
             onChangePassword = { navController.navigate(SettingsRoutes.CHANGE_PASSWORD) },
             onDeleteAccount = { navController.navigate(SettingsRoutes.DELETE_ACCOUNT) },
             onManageSubscription = { navController.navigate(SettingsRoutes.PAYWALL) },
+            onSignedOut = onSignedOut,
+        )
+    }
+
+    composable(SettingsRoutes.ACCOUNT) {
+        AccountScreen(
+            onBack = { navController.popBackStack() },
+            onEditProfile = { navController.navigate(SettingsRoutes.EDIT_PROFILE) },
+            onDeleteAccount = { navController.navigate(SettingsRoutes.DELETE_ACCOUNT) },
             onSignedOut = onSignedOut,
         )
     }
