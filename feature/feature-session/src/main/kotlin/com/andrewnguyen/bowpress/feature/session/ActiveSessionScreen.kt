@@ -137,12 +137,18 @@ fun ActiveSessionScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
 
-            RecentArrowsStrip(
-                arrows = state.currentArrows,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-            )
+            // iOS SessionView doesn't surface a Recent Arrows strip at all
+            // (no equivalent in SessionView.swift). Render it only once
+            // arrows have been plotted so the empty-state layout matches iOS;
+            // future iters can decide whether to drop the strip entirely.
+            if (state.currentArrows.isNotEmpty()) {
+                RecentArrowsStrip(
+                    arrows = state.currentArrows,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                )
+            }
 
             RunningTotals(
                 arrows = state.currentArrows,

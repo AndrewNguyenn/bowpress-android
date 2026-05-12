@@ -1,0 +1,33 @@
+# Iter 32: empty in-session view must not surface the Recent Arrows strip.
+# iOS SessionView never renders one — there's no equivalent in
+# SessionView.swift. Android used to show 6 placeholder slots plus
+# "0.0 AVG OF LAST 0" before any arrow was plotted.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Session"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scrollUntilVisible:
+    element:
+        text: "Begin session"
+    direction: DOWN
+    timeout: 8000
+- tapOn: "Begin session"
+- waitForAnimationToEnd:
+    timeout: 6000
+- assertVisible:
+    text: ".*IN SESSION.*"
+
+# The strip and its "AVG OF LAST" caption must be gone in the empty state.
+- assertNotVisible:
+    text: ".*RECENT ARROWS.*"
+- assertNotVisible:
+    text: ".*AVG OF LAST.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_no_recent_strip
