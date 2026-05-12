@@ -6,7 +6,7 @@ import com.andrewnguyen.bowpress.core.data.repository.BowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowType
-import com.andrewnguyen.bowpress.feature.equipment.components.makeDefaultConfig
+import com.andrewnguyen.bowpress.core.data.config.makeDefaultConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

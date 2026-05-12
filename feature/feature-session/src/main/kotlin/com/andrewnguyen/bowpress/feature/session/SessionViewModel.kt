@@ -142,19 +142,17 @@ class SessionViewModel @Inject constructor(
 
     suspend fun startSession(bow: Bow, arrow: ArrowConfiguration) {
         _uiState.update { it.copy(isLoading = true, error = null) }
-        // Prefer the most recent saved config for the bow; surface an error if the
-        // caller launched without equipment being configured in feature-equipment.
+        // Prefer the most recent saved config for the bow; if none exists (e.g.
+        // a bow seeded before iter 20's auto-config), seed a default one and
+        // persist it. Mirrors iOS, where SessionView/SessionConfigSheet fall
+        // back to `BowConfiguration.makeDefault(for: bow)` rather than erroring.
         val existingConfigs = bowConfigRepo.getByBow(bow.id)
         val bowConfig = existingConfigs.maxByOrNull { it.createdAt }
-        if (bowConfig == null) {
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    error = "This bow has no saved configuration. Add one in Equipment first.",
-                )
+            ?: com.andrewnguyen.bowpress.core.data.config.makeDefaultConfig(bow).also {
+                bowConfigRepo.saveConfig(it)
             }
-            return
-        }
+        val configsForBow = if (existingConfigs.any { it.id == bowConfig.id }) existingConfigs
+        else existingConfigs + bowConfig
         val faceType = _uiState.value.selectedFaceType
         val distance = _uiState.value.selectedDistance
         val session = ShootingSession(
@@ -175,7 +173,7 @@ class SessionViewModel @Inject constructor(
                 activeArrowConfig = arrow,
                 selectedBow = bow,
                 selectedArrow = arrow,
-                bowConfigsByBow = it.bowConfigsByBow + (bow.id to existingConfigs),
+                bowConfigsByBow = it.bowConfigsByBow + (bow.id to configsForBow),
                 pendingBowConfig = null,
                 pendingArrowConfig = null,
                 currentArrows = emptyList(),

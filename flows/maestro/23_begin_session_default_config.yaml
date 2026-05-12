@@ -1,0 +1,35 @@
+# Iter 29: Begin session must not error when the selected bow has no
+# persisted config. iOS falls back to BowConfiguration.makeDefault(for:)
+# (SessionView.swift:609 / SessionConfigSheet.swift:410-411). Android used
+# to surface "This bow has no saved configuration..." and refuse to
+# navigate. After the fix Android seeds a default config inline.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Session"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scrollUntilVisible:
+    element:
+        text: "Begin session"
+    direction: DOWN
+    timeout: 8000
+- tapOn: "Begin session"
+- waitForAnimationToEnd:
+    timeout: 6000
+
+# Must land on the in-session screen, not the setup screen with an error.
+- assertNotVisible:
+    text: ".*no saved configuration.*"
+
+# In-session marker — "IN SESSION" eyebrow renders identically as one
+# text node across platforms.
+- assertVisible:
+    text: ".*IN SESSION.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_session_run

@@ -1,4 +1,4 @@
-package com.andrewnguyen.bowpress.feature.equipment.components
+package com.andrewnguyen.bowpress.core.data.config
 
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
@@ -9,9 +9,10 @@ import java.util.UUID
 
 /**
  * Seed a brand-new [BowConfiguration] with sensible defaults for [bow]. Mirrors
- * iOS `BowConfiguration.makeDefault(for:)`. A bow created via AddBowScreen always
- * gets a v1 configuration so analytics + sessions have something to anchor to —
- * the spec's data-flow summary requires this.
+ * iOS `BowConfiguration.makeDefault(for:)`. Lives in core-data so both equipment
+ * and session features can fall back to it when no persisted config exists yet
+ * — matches iOS's "always have a configuration" pattern (BowDetailView.swift
+ * seedState, SessionView/SessionConfigSheet `??` fallbacks).
  */
 fun makeDefaultConfig(bow: Bow, now: Instant = Instant.now()): BowConfiguration {
     return when (bow.bowType) {
