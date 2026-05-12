@@ -611,14 +611,21 @@ private fun ScoreTimelineSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
         ) {
-            BPSectionTitle(title = "Score timeline")
+            // BPSectionTitle internally applies Modifier.fillMaxWidth() so it
+            // consumed the entire row, pushing the range/σ off-screen. Render
+            // the title's Fraunces-italic 16sp style inline here so the outer
+            // SpaceBetween can place the range text on the right edge.
+            Text(
+                text = "Score timeline",
+                style = frauncesDisplay(16.sp, italic = true).copy(color = AppInk),
+            )
             if (avgs.isNotEmpty()) {
                 val lo = timeline?.range?.min ?: avgs.min()
                 val hi = timeline?.range?.max ?: avgs.max()
                 val sigma = timeline?.range?.sigma ?: computedSigma(avgs)
                 Text(
                     text = "range ${formatAvg(lo)}—${formatAvg(hi)} · σ ${"%.2f".format(sigma)}",
-                    style = jetbrainsMono(9.5.sp).copy(color = AppInk3),
+                    style = jetbrainsMono(11.sp).copy(color = AppInk3),
                 )
             }
         }
@@ -629,7 +636,31 @@ private fun ScoreTimelineSection(
                 modifier = Modifier.padding(vertical = 14.dp),
             )
         } else {
-            BPSparkline(points = avgs, height = 86.dp)
+            // Sparkline + y-axis labels overlay (top / mid / bottom). Matches
+            // iOS AnalyticsView.swift:392-403 ZStack with axisLabel rows.
+            Box {
+                BPSparkline(points = avgs, height = 86.dp)
+                Column(
+                    modifier = Modifier.height(86.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    val hi = avgs.max()
+                    val lo = avgs.min()
+                    val mid = (hi + lo) / 2
+                    Text(
+                        text = formatAvg(hi),
+                        style = jetbrainsMono(11.sp).copy(color = AppInk3),
+                    )
+                    Text(
+                        text = formatAvg(mid),
+                        style = jetbrainsMono(11.sp).copy(color = AppInk3),
+                    )
+                    Text(
+                        text = formatAvg(lo),
+                        style = jetbrainsMono(11.sp).copy(color = AppInk3),
+                    )
+                }
+            }
             TimelineXAxis(
                 points = points,
                 fallbackSparkline = sparkline ?: emptyList(),

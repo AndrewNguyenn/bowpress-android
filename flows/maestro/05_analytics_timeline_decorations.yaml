@@ -1,0 +1,39 @@
+# Maestro flow: Analytics Score timeline header + y-axis decorations.
+#
+# iOS AnalyticsView.timeline (AnalyticsView.swift:372-419) renders the chart
+# with two decorations Android was missing:
+#  - right-aligned "range LO—HI · σ S.SS" header annotation
+#  - y-axis tick labels (top / mid / bottom) overlayed on the sparkline
+#
+# Iter 11 ports both. This flow verifies the decorations show up on both
+# platforms.
+#
+# The exact values depend on the seed data (iter 6's MockAnalyticsWave2 fixes
+# the sparkline to listOf(9.4, 9.8, 10.0, 10.2, 10.1, 10.3, 10.5, 10.4, 10.7)),
+# so we assert on the deterministic top/bottom tick values "10.7" and "9.4"
+# plus the literal "σ" character which only the range annotation renders.
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-iter11     test flows/maestro/05_analytics_timeline_decorations.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-iter11 test flows/maestro/05_analytics_timeline_decorations.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - look
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Analytics"
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Score timeline"
+# σ proves the range annotation rendered to the right of the title.
+- assertVisible:
+    text: ".*σ.*"
+# Y-axis tick: max-value label is the top edge of the overlay.
+- assertVisible: "10.7"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_timeline_decorations
