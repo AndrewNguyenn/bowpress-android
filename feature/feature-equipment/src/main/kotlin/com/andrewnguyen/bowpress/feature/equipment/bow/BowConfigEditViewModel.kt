@@ -88,6 +88,9 @@ class BowConfigEditViewModel @Inject constructor(
         val clickerPosition: Double = 0.0,
         val rearStabLeftWeight: Double = 6.0,
         val rearStabRightWeight: Double = 6.0,
+        // Free-text grip / limb identifiers — recurve + barebow only.
+        val specificGrip: String = "",
+        val specificLimbs: String = "",
 
         val isSaving: Boolean = false,
         val savedConfigId: String? = null,
@@ -151,6 +154,8 @@ class BowConfigEditViewModel @Inject constructor(
     fun updateClickerPosition(v: Double) = _state.update { it.copy(clickerPosition = v.coerceIn(-50.0, 50.0)) }
     fun updateRearStabLeftWeight(v: Double) = _state.update { it.copy(rearStabLeftWeight = v.coerceIn(0.0, 30.0)) }
     fun updateRearStabRightWeight(v: Double) = _state.update { it.copy(rearStabRightWeight = v.coerceIn(0.0, 30.0)) }
+    fun updateSpecificGrip(v: String) = _state.update { it.copy(specificGrip = v) }
+    fun updateSpecificLimbs(v: String) = _state.update { it.copy(specificLimbs = v) }
 
     fun dismissError() = _state.update { it.copy(errorMessage = null) }
 
@@ -227,12 +232,16 @@ class BowConfigEditViewModel @Inject constructor(
                 rearStabRightWeight = s.rearStabRightWeight,
                 rearStabVertAngle = s.rearStabVertAngle,
                 rearStabHorizAngle = s.rearStabHorizAngle,
+                specificGrip = s.specificGrip.trim().takeIf { it.isNotEmpty() },
+                specificLimbs = s.specificLimbs.trim().takeIf { it.isNotEmpty() },
             )
             BowType.BAREBOW -> base.copy(
                 braceHeight = s.braceHeight,
                 tillerTop = s.tillerTop,
                 tillerBottom = s.tillerBottom,
                 plungerTension = s.plungerTension,
+                specificGrip = s.specificGrip.trim().takeIf { it.isNotEmpty() },
+                specificLimbs = s.specificLimbs.trim().takeIf { it.isNotEmpty() },
             )
         }
     }
@@ -280,12 +289,16 @@ class BowConfigEditViewModel @Inject constructor(
                 rearStabRightWeight = base.rearStabRightWeight ?: 6.0,
                 rearStabVertAngle = base.rearStabVertAngle ?: 0.0,
                 rearStabHorizAngle = base.rearStabHorizAngle ?: 0.0,
+                specificGrip = base.specificGrip.orEmpty(),
+                specificLimbs = base.specificLimbs.orEmpty(),
             )
             BowType.BAREBOW -> seed.copy(
                 braceHeight = base.braceHeight ?: 8.5,
                 tillerTop = base.tillerTop ?: 0.0,
                 tillerBottom = base.tillerBottom ?: 0.0,
                 plungerTension = base.plungerTension ?: 12,
+                specificGrip = base.specificGrip.orEmpty(),
+                specificLimbs = base.specificLimbs.orEmpty(),
             )
         }
     }

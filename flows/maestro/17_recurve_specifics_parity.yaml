@@ -1,0 +1,53 @@
+# Iter 23: Recurve specific grip + limbs parity. iOS shows a "Limbs" section
+# with a Specific Limbs text field, and a "Grip & Nock" section with a
+# Specific Grip text field sandwiched between Grip Angle and Nocking Height
+# (BowDetailView.swift recurveSections / limbsSection / specificGripRow).
+# Android was missing both fields entirely.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Create a fresh Recurve bow
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "Recurve"
+- tapOn:
+    id: "bow_name_field"
+- inputText: "Iter23 Recurve"
+- tapOn: "Save"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Open detail
+- tapOn:
+    text: ".*Iter23 Recurve.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Scroll until each section header lands in view; assert as we go.
+- scrollUntilVisible:
+    element:
+        text: "Limbs"
+    direction: DOWN
+    timeout: 8000
+- assertVisible: "Specific Limbs"
+
+- scrollUntilVisible:
+    element:
+        text: "Grip & Nock"
+    direction: DOWN
+    timeout: 8000
+- assertVisible: "Specific Grip"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_recurve_specifics

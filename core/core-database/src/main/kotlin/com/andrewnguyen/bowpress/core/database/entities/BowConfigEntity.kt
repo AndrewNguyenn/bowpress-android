@@ -33,6 +33,9 @@ data class BowConfigEntity(
     val gripAngle: Double,
     val nockingHeight: Int,
 
+    val specificGrip: String? = null,
+    val specificLimbs: String? = null,
+
     val frontStabWeight: Double? = null,
     val frontStabAngle: Double? = null,
 

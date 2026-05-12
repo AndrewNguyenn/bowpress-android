@@ -195,9 +195,13 @@ object EquipmentFieldRules {
         Section.BASE_SETUP -> bowType == BowType.COMPOUND && !isSetup
 
         Section.STRING_AND_CABLE,
-        Section.LIMBS,
         Section.REST,
         Section.SIGHT_GRIP_NOCK -> bowType == BowType.COMPOUND
+
+        // Compound: Top/Bottom Limb stepper rows.
+        // Recurve/Barebow: a single Specific Limbs free-text field.
+        // Section visibility itself is universal — callers branch on bow type.
+        Section.LIMBS -> true
 
         Section.GRIP_AND_NOCK,
         Section.TILLER,

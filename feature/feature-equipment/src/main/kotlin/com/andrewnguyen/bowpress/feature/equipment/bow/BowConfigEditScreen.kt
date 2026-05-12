@@ -92,6 +92,8 @@ interface BowConfigEditCallbacks {
     fun updateClickerPosition(v: Double)
     fun updateRearStabLeftWeight(v: Double)
     fun updateRearStabRightWeight(v: Double)
+    fun updateSpecificGrip(v: String)
+    fun updateSpecificLimbs(v: String)
 }
 
 /**
@@ -273,8 +275,25 @@ internal fun BowConfigEditFormBody(
         }
         if (EquipmentFieldRules.sectionVisible(Section.LIMBS, bowType, isSetup)) {
             SectionHeader("Limbs")
-            DoubleStepperRow("Top Limb", state.topLimbTurns, callbacks::updateTopLimb, limbTurnsLabel(state.topLimbTurns), -10.0, 10.0, 0.5)
-            DoubleStepperRow("Bottom Limb", state.bottomLimbTurns, callbacks::updateBottomLimb, limbTurnsLabel(state.bottomLimbTurns), -10.0, 10.0, 0.5)
+            when (bowType) {
+                BowType.COMPOUND -> {
+                    DoubleStepperRow("Top Limb", state.topLimbTurns, callbacks::updateTopLimb, limbTurnsLabel(state.topLimbTurns), -10.0, 10.0, 0.5)
+                    DoubleStepperRow("Bottom Limb", state.bottomLimbTurns, callbacks::updateBottomLimb, limbTurnsLabel(state.bottomLimbTurns), -10.0, 10.0, 0.5)
+                }
+                BowType.RECURVE, BowType.BAREBOW -> {
+                    OutlinedTextField(
+                        value = state.specificLimbs,
+                        onValueChange = callbacks::updateSpecificLimbs,
+                        label = { Text("Specific Limbs") },
+                        placeholder = { Text("e.g. Hoyt 970 Velos 36# medium") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .testTag("specific_limbs_field"),
+                    )
+                }
+            }
         }
         if (EquipmentFieldRules.sectionVisible(Section.REST, bowType, isSetup)) {
             SectionHeader("Rest")
@@ -314,6 +333,19 @@ internal fun BowConfigEditFormBody(
             SectionHeader("Grip & Nock")
             DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
                 UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
+            // iOS renders the Specific Grip text field between Grip Angle and
+            // Nocking Height (BowDetailView.swift recurveSections / barebowSections).
+            OutlinedTextField(
+                value = state.specificGrip,
+                onValueChange = callbacks::updateSpecificGrip,
+                label = { Text("Specific Grip") },
+                placeholder = { Text("e.g. Jager Hunter") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .testTag("specific_grip_field"),
+            )
             IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
                 UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
         }
@@ -432,4 +464,6 @@ internal fun BowConfigEditViewModel.asCallbacks(): BowConfigEditCallbacks = obje
     override fun updateClickerPosition(v: Double) = this@asCallbacks.updateClickerPosition(v)
     override fun updateRearStabLeftWeight(v: Double) = this@asCallbacks.updateRearStabLeftWeight(v)
     override fun updateRearStabRightWeight(v: Double) = this@asCallbacks.updateRearStabRightWeight(v)
+    override fun updateSpecificGrip(v: String) = this@asCallbacks.updateSpecificGrip(v)
+    override fun updateSpecificLimbs(v: String) = this@asCallbacks.updateSpecificLimbs(v)
 }

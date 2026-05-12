@@ -48,6 +48,11 @@ data class BowConfiguration(
     val gripAngle: Double,
     val nockingHeight: Int,
 
+    // Free-text grip / limb identifiers — recurve + barebow only.
+    // iOS canonicalizes empty -> nil; matching behaviour is in BowConfigEditViewModel.buildConfig.
+    val specificGrip: String? = null,
+    val specificLimbs: String? = null,
+
     // Front stabilizer (compound + recurve; barebow nil)
     val frontStabWeight: Double? = null,
     val frontStabAngle: Double? = null,
@@ -83,6 +88,7 @@ data class BowConfiguration(
             topLimbTurns == other.topLimbTurns && bottomLimbTurns == other.bottomLimbTurns &&
             restVertical == other.restVertical && restHorizontal == other.restHorizontal && restDepth == other.restDepth &&
             sightPosition == other.sightPosition && gripAngle == other.gripAngle && nockingHeight == other.nockingHeight &&
+            specificGrip == other.specificGrip && specificLimbs == other.specificLimbs &&
             frontStabWeight == other.frontStabWeight && frontStabAngle == other.frontStabAngle &&
             rearStabSide == other.rearStabSide && rearStabWeight == other.rearStabWeight &&
             rearStabVertAngle == other.rearStabVertAngle && rearStabHorizAngle == other.rearStabHorizAngle &&
