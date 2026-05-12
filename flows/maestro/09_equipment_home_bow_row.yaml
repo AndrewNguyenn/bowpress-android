@@ -1,0 +1,31 @@
+# Equipment home bow-row spec-line parity. iOS shows just the bow type
+# in the metadata row (e.g. "BAREBOW") because the brand+model are
+# already in the title. Android had been duplicating "BAREBOW · BORDER HEX7";
+# iter 15 strips the brand/model from the metadata to match iOS.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Bow names still in the title row
+- assertVisible: "Border HEX7 Barebow"
+- assertVisible: "Mathews TITLE 36"
+- assertVisible: "Hoyt Satori"
+
+# Bow types in the metadata row
+- assertVisible: "BAREBOW"
+- assertVisible: "COMPOUND"
+- assertVisible: "RECURVE"
+
+# Model names must NOT appear duplicated in the metadata uppercase form.
+# (They still appear in the bow name title.)
+- assertNotVisible: "BAREBOW · BORDER HEX7"
+- assertNotVisible: "COMPOUND · MATHEWS TITLE 36"
+- assertNotVisible: "RECURVE · HOYT SATORI"

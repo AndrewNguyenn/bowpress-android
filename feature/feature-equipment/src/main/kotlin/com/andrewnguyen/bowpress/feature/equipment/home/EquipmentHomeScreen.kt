@@ -162,17 +162,7 @@ private fun BowRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    val spec = buildString {
-        append(bow.bowType.label.uppercase())
-        val brandModel = listOfNotNull(
-            bow.brand.takeIf(String::isNotBlank),
-            bow.model.takeIf(String::isNotBlank),
-        ).joinToString(" ")
-        if (brandModel.isNotBlank()) {
-            append(" · ")
-            append(brandModel.uppercase())
-        }
-    }
+    val spec = bow.bowType.label.uppercase()
 
     Row(
         modifier = Modifier
