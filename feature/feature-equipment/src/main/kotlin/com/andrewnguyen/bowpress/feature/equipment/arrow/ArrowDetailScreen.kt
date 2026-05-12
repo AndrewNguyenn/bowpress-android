@@ -112,9 +112,7 @@ fun ArrowDetailScreen(
                     fletchingLength = state.fletchingLength, onFletchingLength = viewModel::updateFletchingLength,
                     fletchingOffset = state.fletchingOffset, onFletchingOffset = viewModel::updateFletchingOffset,
                     nockType = state.nockType, onNockType = viewModel::updateNockType,
-                    totalWeightText = state.totalWeightText, onTotalWeight = viewModel::updateTotalWeight,
                     shaftDiameter = state.shaftDiameter, onShaftDiameter = viewModel::updateShaftDiameter,
-                    notes = state.notes, onNotes = viewModel::updateNotes,
                     unitSystem = unitSystem,
                 )
                 if (state.showSavedBanner) {

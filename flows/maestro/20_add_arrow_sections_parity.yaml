@@ -1,0 +1,61 @@
+# Iter 26: Add Arrow section parity. iOS AddArrowView splits the form into
+# Identity → Specs → Fletching → Shaft Diameter → Nock (AddArrowView.swift
+# 130-198). Android had Identity → Shaft (Diameter inside) → Fletching →
+# Nock & Weight → Notes — different naming, Diameter buried inside Shaft,
+# and two extra fields not on iOS.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Second ADD on Equipment home is the Arrows row.
+- tapOn:
+    text: "ADD"
+    index: 1
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Add Arrow"
+
+# Expected sections (mirror iOS exactly)
+- assertVisible:
+    text: ".*Identity.*"
+- scrollUntilVisible:
+    element:
+        text: "Specs"
+    direction: DOWN
+    timeout: 8000
+- scrollUntilVisible:
+    element:
+        text: "Fletching"
+    direction: DOWN
+    timeout: 8000
+- scrollUntilVisible:
+    element:
+        text: "Offset"
+    direction: DOWN
+    timeout: 8000
+- scrollUntilVisible:
+    element:
+        text: "Shaft Diameter"
+    direction: DOWN
+    timeout: 8000
+- scrollUntilVisible:
+    element:
+        text: "Nock"
+    direction: DOWN
+    timeout: 8000
+
+# Sections NOT on iOS — must not be visible
+- assertNotVisible:
+    text: ".*Total Weight.*"
+- assertNotVisible:
+    text: ".*Notes.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_add_arrow

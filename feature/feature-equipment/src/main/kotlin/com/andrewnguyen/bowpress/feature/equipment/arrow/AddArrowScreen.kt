@@ -108,9 +108,7 @@ fun AddArrowScreen(
                 fletchingLength = state.fletchingLength, onFletchingLength = viewModel::updateFletchingLength,
                 fletchingOffset = state.fletchingOffset, onFletchingOffset = viewModel::updateFletchingOffset,
                 nockType = state.nockType, onNockType = viewModel::updateNockType,
-                totalWeightText = state.totalWeightText, onTotalWeight = viewModel::updateTotalWeight,
                 shaftDiameter = state.shaftDiameter, onShaftDiameter = viewModel::updateShaftDiameter,
-                notes = state.notes, onNotes = viewModel::updateNotes,
                 unitSystem = unitSystem,
             )
             state.errorMessage?.let { msg ->
@@ -133,11 +131,13 @@ internal fun ArrowFormBody(
     fletchingLength: Double, onFletchingLength: (Double) -> Unit,
     fletchingOffset: Double, onFletchingOffset: (Double) -> Unit,
     nockType: String, onNockType: (String) -> Unit,
-    totalWeightText: String, onTotalWeight: (String) -> Unit,
     shaftDiameter: ShaftDiameter?, onShaftDiameter: (ShaftDiameter?) -> Unit,
-    notes: String, onNotes: (String) -> Unit,
     unitSystem: UnitSystem,
 ) {
+    // Mirrors iOS AddArrowView section structure (AddArrowView.swift:130-198):
+    // Identity → Specs → Fletching → Shaft Diameter → Nock. iOS does not surface
+    // a Total Weight field (the model has it but the form doesn't), and there's
+    // no Notes section on AddArrow.
     SectionHeader("Identity")
     OutlinedTextField(
         value = label, onValueChange = onLabel,
@@ -158,7 +158,7 @@ internal fun ArrowFormBody(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
 
-    SectionHeader("Shaft")
+    SectionHeader("Specs")
     LengthStepperRow(
         label = "Length",
         inches = length, onInchesChange = onLength,
@@ -169,7 +169,6 @@ internal fun ArrowFormBody(
         grains = pointWeight, onGrainsChange = onPointWeight,
         range = UnitRange.POINT_WEIGHT, unitSystem = unitSystem,
     )
-    ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
 
     SectionHeader("Fletching")
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -187,30 +186,20 @@ internal fun ArrowFormBody(
         range = UnitRange.FLETCHING_LENGTH, unitSystem = unitSystem,
     )
     DoubleStepperRow(
-        "Fletching Offset", fletchingOffset, onFletchingOffset,
+        "Offset", fletchingOffset, onFletchingOffset,
         UnitFormatting.degrees(fletchingOffset),
         min = 0.0, max = 10.0, step = 0.5,
     )
 
-    SectionHeader("Nock & Weight")
+    SectionHeader("Shaft Diameter")
+    ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
+
+    SectionHeader("Nock")
     OutlinedTextField(
         value = nockType, onValueChange = onNockType,
         label = { Text("Nock Type (optional)") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    )
-    OutlinedTextField(
-        value = totalWeightText, onValueChange = onTotalWeight,
-        label = { Text("Total Weight (${UnitFormatting.massSuffix(unitSystem)})") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    )
-
-    SectionHeader("Notes")
-    OutlinedTextField(
-        value = notes, onValueChange = onNotes,
-        label = { Text("Notes") },
-        modifier = Modifier.fillMaxWidth().height(120.dp).padding(vertical = 4.dp),
     )
 }
 
