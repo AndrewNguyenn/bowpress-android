@@ -1,0 +1,32 @@
+# Iter 30: in-session config banner shows the bow name. Android's previous
+# state was "— · — · <arrow>" because the ActiveSessionScreen ViewModel
+# instance never hydrated selectedBow from the persisted active session
+# (different Hilt scope from SessionHomeScreen).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Session"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scrollUntilVisible:
+    element:
+        text: "Begin session"
+    direction: DOWN
+    timeout: 8000
+- tapOn: "Begin session"
+- waitForAnimationToEnd:
+    timeout: 6000
+- assertVisible:
+    text: ".*IN SESSION.*"
+
+# The seeded barebow used for Begin session — bow name must appear in the
+# config banner row alongside CHANGE.
+- assertVisible:
+    text: ".*Border HEX7 Barebow.*"
+- assertVisible: "CHANGE"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_in_session_banner

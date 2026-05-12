@@ -68,13 +68,20 @@ class SessionViewModel @Inject constructor(
                 val previousId = _uiState.value.activeSession?.id
                 _uiState.update { it.copy(activeSession = active) }
                 if (active?.id != previousId && active != null) {
-                    // Hydrate active bow/arrow config whenever a new session becomes active.
+                    // Hydrate active bow/arrow config + the selected bow/arrow handles
+                    // whenever a new session becomes active. The selected* fields back
+                    // the in-session config banner ("<distance> · <bow> · <arrow>") —
+                    // without this hydration step, navigating into an active session
+                    // from a fresh VM instance would render "— · — · …".
                     val bowConfig = bowConfigRepo.getById(active.bowConfigId)
                     val arrowConfig = arrowConfigRepo.getById(active.arrowConfigId)
+                    val bow = bowRepo.getBow(active.bowId)
                     _uiState.update {
                         it.copy(
                             activeBowConfig = bowConfig,
                             activeArrowConfig = arrowConfig,
+                            selectedBow = bow ?: it.selectedBow,
+                            selectedArrow = arrowConfig ?: it.selectedArrow,
                         )
                     }
                 }
