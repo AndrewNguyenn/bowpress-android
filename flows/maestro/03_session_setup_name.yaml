@@ -1,0 +1,46 @@
+# Maestro flow: Session setup screen — assert NAME field renders and accepts input.
+#
+# iOS SessionView.sessionNameField (SessionView.swift:445-472) sits between the
+# "Set the stage" header and the BOW picker. iter 9 ports it to Android. This
+# flow exercises it from both platforms with the same YAML.
+#
+# Steps exercised:
+#   1. Launch + hydration wait
+#   2. Tap Session tab — screenshot the empty setup state
+#   3. Assert "NAME" label + the iOS placeholder copy is visible
+#   4. Tap the NAME field, type some text, screenshot
+#   5. Confirm the typed text replaced the placeholder
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-iter9-name     test flows/maestro/03_session_setup_name.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-iter9-name test flows/maestro/03_session_setup_name.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - interaction
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Session"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Set the stage"
+- assertVisible: "NAME"
+- assertVisible: "Tournament round, drill, or league night"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_01_empty
+# Focus the field via its id — `session_name_field` is set on iOS as the
+# TextField's accessibilityIdentifier (SessionView.swift:459) and on Android
+# as the BasicTextField's `Modifier.testTag`. MainActivity opts the Compose
+# tree into `testTagsAsResourceId = true` so Maestro's `id:` selector
+# resolves it on Android too.
+- tapOn:
+    id: "session_name_field"
+- inputText: "Practice ends"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: "Practice ends"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_02_filled

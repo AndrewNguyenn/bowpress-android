@@ -79,6 +79,12 @@ const val TARGET_FACE_PICKER_TEST_TAG = "target_face_picker"
 /** Test tag for the shooting-distance segmented control on the setup screen. */
 const val DISTANCE_PICKER_TEST_TAG = "distance_picker"
 
+/** Test tag for the session name text field. */
+const val SESSION_NAME_FIELD_TEST_TAG = "session_name_field"
+
+/** Mirrors iOS `sessionNameMaxLength` in SessionView.swift. */
+private const val SESSION_NAME_MAX_LENGTH = 60
+
 /**
  * Kenrokuen session-setup screen — BPNavHeader, bow/distance/target-face/intention
  * fields, and the BPPrimaryButton "Begin session" CTA. Mirrors the iOS port at
@@ -108,9 +114,11 @@ fun SessionHomeScreen(
         if (state.selectedArrow == null) state.arrowConfigs.firstOrNull()?.let(viewModel::selectArrow)
     }
 
-    // Intention note — ephemeral UI state. iOS keeps this on the view model, but
-    // the Android port's VM doesn't have the field and the brief forbids touching
-    // it. The note is purely decorative for now.
+    // Intention note + session name — ephemeral UI state. iOS keeps both on the
+    // view model (`sessionName`, `intentionNote`); the Android VM doesn't yet,
+    // so for now the inputs are purely decorative. Capped to match iOS's
+    // 60-char `sessionNameMaxLength` so the field can't grow unbounded.
+    var sessionName by remember { mutableStateOf("") }
     var intentionNote by remember { mutableStateOf("") }
     var showBowPicker by remember { mutableStateOf(false) }
 
@@ -127,6 +135,12 @@ fun SessionHomeScreen(
         )
 
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            NameField(
+                value = sessionName,
+                onValueChange = { sessionName = it.take(SESSION_NAME_MAX_LENGTH) },
+            )
+            HairlineDivider()
+
             BowField(
                 bow = state.selectedBow,
                 arrow = state.selectedArrow,
@@ -234,6 +248,48 @@ private fun timeLine(d: LocalDateTime): String {
         else -> "night"
     }
     return "%d:%02d · %s".format(h, d.minute, band)
+}
+
+// ---------------------------------------------------------------------------
+// Session name field — free-text label for the upcoming session.
+// Mirrors iOS `sessionNameField` in SessionView.swift; placeholder copy is
+// identical. State is local for now; iOS persists on its view model.
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun NameField(value: String, onValueChange: (String) -> Unit) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        FieldLabel("NAME", hint = "optional")
+        Spacer(Modifier.height(10.dp))
+        val inputStyle = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
+            .copy(color = AppInk)
+        val placeholderStyle = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Normal)
+            .copy(color = AppInk3)
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = inputStyle,
+            singleLine = true,
+            cursorBrush = SolidColor(AppPondDk),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(SESSION_NAME_FIELD_TEST_TAG),
+            // decorationBox places the placeholder *inside* the text field's own
+            // semantics node so Maestro sees it as part of the field, not a
+            // separate occluded Text overlay (previous version stacked them in a
+            // Box and Maestro reported "not visible" for the placeholder copy).
+            decorationBox = { innerTextField ->
+                if (value.isEmpty()) {
+                    Text(
+                        text = "Tournament round, drill, or league night",
+                        style = placeholderStyle,
+                        maxLines = 1,
+                    )
+                }
+                innerTextField()
+            },
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
