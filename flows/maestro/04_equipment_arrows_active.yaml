@@ -1,0 +1,36 @@
+# Maestro flow: Equipment tab — assert ACTIVE stamp renders on every arrow.
+#
+# iOS ConfigurationView.ArrowRow (ConfigurationView.swift:308-314) hardcodes
+# `BPStamp("ACTIVE", tone: .pond)` next to every arrow label — the comment
+# there reads "active = most recently used; simplified". Iter 10 ports that
+# to Android via the same BPStamp component.
+#
+# Steps:
+#   1. Launch + hydration wait
+#   2. Tap Equipment tab
+#   3. Assert both seed-data arrows are visible
+#   4. Assert "ACTIVE" stamp visible (substring matched against the BPStamp
+#      Text, which is the literal "ACTIVE" string on both platforms — Android
+#      uppercases at render time but the input string is already "ACTIVE")
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-iter10-arrows     test flows/maestro/04_equipment_arrows_active.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-iter10-arrows test flows/maestro/04_equipment_arrows_active.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - look
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Competition X10s"
+- assertVisible: "Practice Platinums"
+- assertVisible: "ACTIVE"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_arrows_active

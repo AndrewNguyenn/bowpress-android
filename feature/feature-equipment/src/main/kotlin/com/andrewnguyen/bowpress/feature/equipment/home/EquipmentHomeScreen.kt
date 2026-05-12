@@ -36,6 +36,8 @@ import com.andrewnguyen.bowpress.core.designsystem.bp.BPCard
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEditLink
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPNavHeader
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPStamp
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPStampTone
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
@@ -220,19 +222,31 @@ private fun ArrowRow(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .testTag("arrow_row_${arrow.id}"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text(
-                text = arrow.label,
-                style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // ACTIVE stamp inline next to the label — matches iOS
+            // ConfigurationView.swift:308-314. iOS hardcodes the stamp on
+            // every ArrowRow ("active = most recently used; simplified"); we
+            // do the same so the visual reads the same on both platforms.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = arrow.label,
+                    style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                BPStamp(text = "ACTIVE", tone = BPStampTone.Pond)
+            }
             Text(
                 text = arrow.specSummary(unitSystem).uppercase(),
                 style = jetbrainsMono(10.sp).copy(
