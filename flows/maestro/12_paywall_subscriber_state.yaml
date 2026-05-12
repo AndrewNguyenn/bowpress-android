@@ -1,0 +1,38 @@
+# Paywall subscriber-state parity. iOS branches the paywall on
+# entitlement.isActive: a Pro user sees "You're a BowPress Pro", a
+# SubscriptionStatusCard with plan name + renewal + auto-renew + Manage
+# Subscription button, plus the "To switch plans, cancel…" note. Android
+# previously showed the unsubscribed paywall (or its error state) to
+# active subscribers because PaywallViewModel didn't observe the billing
+# entitlement. Iter 18 wires the StateFlow + adds the subscriber branch.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Settings"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "View subscription plans"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Subscriber hero copy
+- assertVisible: "You're a BowPress Pro"
+- assertVisible: "Thanks for supporting BowPress. Your full tuning engine is active."
+
+# Subscription card: plan name + auto-renew indicator + Manage CTA
+- assertVisible: "BowPress Pro — Monthly"
+- assertVisible: "Auto-renew on"
+- assertVisible: "Manage Subscription"
+
+# Already-subscribed reminder note
+- assertVisible: "To switch plans, cancel, or change auto-renewal, tap Manage Subscription above."
+
+# Restore Purchases stays available; the unsubscribed-only CTA + tier UI is hidden
+- assertVisible: "Restore Purchases"
+- assertNotVisible: "Start free trial"
+- assertNotVisible: "Plans are unavailable right now. Try again shortly."

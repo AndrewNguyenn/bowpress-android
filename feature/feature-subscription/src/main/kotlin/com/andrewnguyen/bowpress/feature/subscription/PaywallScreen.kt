@@ -50,8 +50,14 @@ import com.andrewnguyen.bowpress.core.designsystem.bp.BPBigScore
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEditLink
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPNavHeader
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPrimaryButton
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPStamp
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPStampTone
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
+import com.andrewnguyen.bowpress.core.model.Entitlement
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private const val PLAY_REDEEM_URL = "https://play.google.com/redeem"
 private const val TERMS_URL = "https://andrewnguyenn.github.io/bowpress-web/terms.html"
@@ -129,6 +135,8 @@ private fun PaywallBody(
     }
     val selectedProduct = state.products.find { it.productId == selectedProductId }
 
+    val hasActiveSubscription = state.entitlement.isActive
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -149,39 +157,55 @@ private fun PaywallBody(
                 .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Intro copy
+            // Intro copy — branches on subscriber state
             Text(
-                text = "Unlock the full tuning engine.",
+                text = if (hasActiveSubscription) "You're a BowPress Pro"
+                    else "Unlock the full tuning engine.",
                 style = frauncesDisplay(20.sp, italic = true)
                     .copy(color = AppInk),
             )
+            if (hasActiveSubscription) {
+                Text(
+                    text = "Thanks for supporting BowPress. Your full tuning engine is active.",
+                    style = interUI(13.sp).copy(color = AppInk3),
+                )
+            }
 
-            // Product tier cards
-            when {
-                state.loading -> Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = AppPond)
-                }
-                state.products.isEmpty() -> ErrorCard(state.lastError, onRetry)
-                else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    state.products.forEach { product ->
-                        TierCard(
-                            product = product,
-                            isSelected = product.productId == selectedProductId,
-                            onTap = { selectedProductId = product.productId },
-                        )
+            if (hasActiveSubscription) {
+                SubscriptionStatusCard(entitlement = state.entitlement)
+                Text(
+                    text = "To switch plans, cancel, or change auto-renewal, tap Manage Subscription above.",
+                    style = interUI(11.sp).copy(color = AppInk3),
+                    modifier = Modifier.testTag("paywall_already_subscribed_note"),
+                )
+            } else {
+                // Product tier cards
+                when {
+                    state.loading -> Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = AppPond)
+                    }
+                    state.products.isEmpty() -> ErrorCard(state.lastError, onRetry)
+                    else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        state.products.forEach { product ->
+                            TierCard(
+                                product = product,
+                                isSelected = product.productId == selectedProductId,
+                                onTap = { selectedProductId = product.productId },
+                            )
+                        }
                     }
                 }
+
+                // Feature list
+                if (state.products.isNotEmpty()) {
+                    FeatureList()
+                }
             }
 
-            // Feature list
-            if (state.products.isNotEmpty()) {
-                FeatureList()
-            }
-
-            // Secondary actions
+            // Secondary actions — Restore always; Redeem only when not already Pro
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -195,22 +219,24 @@ private fun PaywallBody(
                         style = interUI(12.sp).copy(color = AppPond),
                     )
                 }
-                TextButton(
-                    onClick = onRedeemCode,
-                    modifier = Modifier.testTag("paywall_redeem_button"),
-                ) {
-                    Text(
-                        "Redeem Code",
-                        style = interUI(12.sp).copy(color = AppPond),
-                    )
+                if (!hasActiveSubscription) {
+                    TextButton(
+                        onClick = onRedeemCode,
+                        modifier = Modifier.testTag("paywall_redeem_button"),
+                    ) {
+                        Text(
+                            "Redeem Code",
+                            style = interUI(12.sp).copy(color = AppPond),
+                        )
+                    }
                 }
             }
 
             LegalFooter(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
         }
 
-        // Primary CTA pinned to bottom
-        if (state.products.isNotEmpty()) {
+        // Primary CTA pinned to bottom — only when not subscribed
+        if (!hasActiveSubscription && state.products.isNotEmpty()) {
             val offer = selectedProduct?.subscriptionOfferDetails?.firstOrNull()
             val lastPhase = offer?.pricingPhases?.pricingPhaseList?.lastOrNull()
             val price = lastPhase?.formattedPrice ?: ""
@@ -226,6 +252,74 @@ private fun PaywallBody(
                     .padding(horizontal = 18.dp, vertical = 12.dp),
             )
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Subscription status card (active-subscriber state, mirrors iOS)
+// ---------------------------------------------------------------------------
+
+private val SUBSCRIPTION_DATE_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+
+@Composable
+private fun SubscriptionStatusCard(entitlement: Entitlement) {
+    if (!entitlement.isActive) return
+
+    val planName = when {
+        entitlement.productId?.contains("monthly") == true -> "BowPress Pro — Monthly"
+        entitlement.productId?.contains("annual") == true -> "BowPress Pro — Annual"
+        else -> "BowPress Pro"
+    }
+    val renewalLine = entitlement.expiresAt?.let { instant ->
+        val local = instant.atZone(ZoneId.systemDefault()).toLocalDate()
+        val date = SUBSCRIPTION_DATE_FORMATTER.format(local)
+        if (entitlement.autoRenew) "Renews $date" else "Expires $date"
+    }
+    val autoRenewLine =
+        if (entitlement.autoRenew) "Auto-renew on" else "Auto-renew off"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AppPaper)
+            .border(1.dp, AppPondDk)
+            .padding(14.dp)
+            .testTag("paywall_subscription_status_card"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = planName,
+                style = frauncesDisplay(17.sp, italic = true).copy(color = AppInk),
+            )
+            if (entitlement.inTrial) {
+                BPStamp(text = "TRIAL", tone = BPStampTone.Pond)
+            }
+        }
+
+        if (renewalLine != null) {
+            Text(
+                text = renewalLine,
+                style = interUI(12.sp).copy(color = AppInk),
+            )
+        }
+        Text(
+            text = autoRenewLine,
+            style = interUI(12.sp).copy(color = AppInk),
+        )
+
+        BPPrimaryButton(
+            title = "Manage Subscription",
+            onClick = { /* hand-off to Google Play subscription management is OS-level */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("paywall_manage_subscription"),
+        )
     }
 }
 

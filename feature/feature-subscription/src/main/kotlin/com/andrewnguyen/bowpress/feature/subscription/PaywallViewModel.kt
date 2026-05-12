@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,11 +32,20 @@ class PaywallViewModel @Inject constructor(
     private val billing: PlayBillingManager,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(PaywallUiState())
+    private val _state = MutableStateFlow(
+        PaywallUiState(entitlement = billing.entitlement.value),
+    )
     val state: StateFlow<PaywallUiState> = _state.asStateFlow()
 
     init {
+        observeEntitlement()
         loadProducts()
+    }
+
+    private fun observeEntitlement() {
+        billing.entitlement
+            .onEach { ent -> _state.value = _state.value.copy(entitlement = ent) }
+            .launchIn(viewModelScope)
     }
 
     fun loadProducts() {
