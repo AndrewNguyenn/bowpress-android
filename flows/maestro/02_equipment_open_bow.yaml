@@ -1,0 +1,44 @@
+# Maestro flow: Equipment tab — open a bow detail.
+#
+# Goal: verify the Equipment tab → bow row tap → bow detail navigation
+# works identically on both platforms, and that a known-fixture bow's
+# detail view renders the same primary fields.
+#
+# Steps exercised:
+#   1. Launch + hydration wait
+#   2. Tap Equipment tab — screenshot equipment list (3 bows / 2 arrows)
+#   3. Tap "Mathews TITLE 36" row to open its detail
+#   4. Assert the detail screen is visible (by bow name) — screenshot
+#   5. Tap system back to return — screenshot equipment list again
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-iter7-equip     test flows/maestro/02_equipment_open_bow.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-iter7-equip test flows/maestro/02_equipment_open_bow.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - interaction
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Mathews TITLE 36"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_01_equipment_list
+- tapOn: "Mathews TITLE 36"
+- waitForAnimationToEnd:
+    timeout: 3000
+# Bow name is the detail screen's title — appears on every detail layout.
+# "Setup" and "Bow Info" are the two section headers that both platforms render.
+- assertVisible: "Mathews TITLE 36"
+- assertVisible: "Setup"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_02_bow_detail
+# Skip an explicit back navigation — Maestro's `back` command works on
+# Android (system back) but is a no-op on iOS navigation stacks without
+# a hardware key, so a single YAML can't cover the return. The detail
+# screenshot is the parity-load-bearing signal anyway.

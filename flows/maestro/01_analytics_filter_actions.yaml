@@ -1,0 +1,54 @@
+# Maestro flow: Analytics filter-sheet interactions.
+#
+# Goal: cross-platform parity for the interactive filter surface — taps,
+# modal open, period change, dismiss. The same YAML drives iOS sim and
+# Android emulator; screenshots after each step let us diff side-by-side.
+#
+# Steps exercised:
+#   1. Launch + hydration wait
+#   2. Tap Analytics tab — screenshot
+#   3. Tap "EDIT" on the filter pill — assert "Filters" sheet appears
+#   4. Tap "1 Week" period pill
+#   5. Tap "Done" to dismiss the sheet
+#
+# Assertion strategy: the filter-pill Row applies Modifier.clickable, which
+# merges its child Text nodes into one semantics node — Maestro's substring
+# matcher can't see the inner text on Android Compose. Anchor on standalone
+# elements ("Analytics" tab, "Filters" sheet title, "Score timeline" label)
+# instead, and rely on the per-step screenshot diff for the full parity
+# check.
+#
+# Run:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-iter7     test flows/maestro/01_analytics_filter_actions.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-iter7 test flows/maestro/01_analytics_filter_actions.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - interaction
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Analytics"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Score timeline"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_01_initial
+- tapOn: "EDIT"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Filters"
+- assertVisible: "Time range"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_02_sheet_open
+- tapOn: "1 Week"
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_03_week_selected
+- tapOn: "Done"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Score timeline"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_04_after_done
