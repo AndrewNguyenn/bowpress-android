@@ -187,15 +187,10 @@ private fun BowDetailBody(
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        // Header band — bow name (large), bow type, optional brand · model.
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(bow.name, style = MaterialTheme.typography.headlineSmall)
-            Text(bow.bowType.label, style = MaterialTheme.typography.bodyMedium, color = BowPressColors.Accent)
-            if (bow.brand.isNotEmpty() || bow.model.isNotEmpty()) {
-                val meta = listOf(bow.brand, bow.model).filter { it.isNotEmpty() }.joinToString(" · ")
-                Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        // iOS BowDetailView renders bow.name only via .navigationTitle — there's
+        // no separate header band repeating the name/type/brand. Android's
+        // TopAppBar already shows the name; the form body starts with the unit
+        // toggle, matching BowDetailView.swift:115-118.
 
         // iOS BowDetailView puts the unit toggle at the very top of the form,
         // above Bow Info (BowDetailView.swift:117). Render it here so the body

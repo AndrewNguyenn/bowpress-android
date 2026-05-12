@@ -1,0 +1,40 @@
+# Iter 25: BowDetail must not duplicate the bow name. iOS renders bow.name
+# exactly once via .navigationTitle (BowDetailView.swift:194). The Android
+# topbar already shows the name; there's no separate header band.
+#
+# Cross-platform: we assert that after opening detail, the bow's name
+# appears only once — using `assertVisible` with count: 1.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: "Recurve"
+- tapOn:
+    id: "bow_name_field"
+- inputText: "Iter25 Unique"
+- tapOn: "Save"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- tapOn:
+    text: ".*Iter25 Unique.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# The bow name should be present once (navigation title only).
+- assertVisible:
+    text: "Iter25 Unique"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_no_dup_title
