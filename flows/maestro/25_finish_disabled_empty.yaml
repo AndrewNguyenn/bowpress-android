@@ -1,0 +1,36 @@
+# Iter 31: Finish button disabled with "PLOT ARROWS TO CONTINUE" hint
+# when no arrows are plotted. Mirrors iOS finishEndBar
+# (SessionView.swift:1097-1126).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Session"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scrollUntilVisible:
+    element:
+        text: "Begin session"
+    direction: DOWN
+    timeout: 8000
+- tapOn: "Begin session"
+- waitForAnimationToEnd:
+    timeout: 6000
+- assertVisible:
+    text: ".*IN SESSION.*"
+
+# Subtitle on the Finish button: empty-state hint, not Android's old
+# "SAVE · SYNC · LOG".
+- scrollUntilVisible:
+    element:
+        text: ".*PLOT ARROWS TO CONTINUE.*"
+    direction: DOWN
+    timeout: 8000
+- assertNotVisible:
+    text: "SAVE · SYNC · LOG"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_finish_disabled

@@ -154,6 +154,7 @@ fun ActiveSessionScreen(
 
             ActionsRow(
                 canUndo = state.currentArrows.isNotEmpty(),
+                arrowCount = state.currentArrows.size,
                 onUndo = { scope.launch { viewModel.removeLastArrow() } },
                 onAddNote = { showEndSheet = true },
                 onFinish = { showEndSheet = true },
@@ -770,6 +771,7 @@ private fun bestStreak(arrows: List<ArrowPlot>): BestStreak {
 @Composable
 private fun ActionsRow(
     canUndo: Boolean,
+    arrowCount: Int,
     onUndo: () -> Unit,
     onAddNote: () -> Unit,
     onFinish: () -> Unit,
@@ -793,7 +795,11 @@ private fun ActionsRow(
             onClick = onAddNote,
             modifier = Modifier.weight(1f),
         )
-        FinishTile(onClick = onFinish, modifier = Modifier.weight(1f))
+        FinishTile(
+            arrowCount = arrowCount,
+            onClick = onFinish,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -831,12 +837,31 @@ private fun ActionTile(
 }
 
 @Composable
-private fun FinishTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun FinishTile(
+    arrowCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // iOS finishEndBar disables when currentEndArrows is empty and swaps
+    // the subtitle to "PLOT ARROWS TO CONTINUE" (SessionView.swift:1097-1126).
+    // Android keeps a single-end model so the title stays "✓ Finish" rather
+    // than iOS's per-end "Finish End N", but the enabled-state + subtitle
+    // mirror iOS's hint exactly.
+    val active = arrowCount > 0
+    val bg = if (active) AppPondDk else AppPaper2
+    val border = if (active) AppPondDk else AppLine
+    val title = if (active) AppPaper else AppInk3
+    val subtitle = if (active) AppPaper.copy(alpha = 0.72f) else AppInk3
+    val subtitleText = if (arrowCount == 0) {
+        "PLOT ARROWS TO CONTINUE"
+    } else {
+        "$arrowCount ARROW${if (arrowCount == 1) "" else "S"} LOGGED"
+    }
     Column(
         modifier = modifier
-            .background(AppPondDk)
-            .border(1.dp, AppPondDk)
-            .clickable(onClick = onClick)
+            .background(bg)
+            .border(1.dp, border)
+            .clickable(enabled = active, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -844,13 +869,13 @@ private fun FinishTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Text(
             text = "✓ Finish",
             style = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Medium)
-                .copy(color = AppPaper),
+                .copy(color = title),
         )
         Text(
-            text = "SAVE · SYNC · LOG",
+            text = subtitleText,
             style = interUI(10.sp, weight = FontWeight.SemiBold).copy(
                 letterSpacing = 0.18.em,
-                color = AppPaper.copy(alpha = 0.72f),
+                color = subtitle,
             ),
         )
     }
