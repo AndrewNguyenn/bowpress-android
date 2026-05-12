@@ -119,6 +119,18 @@ fun AddArrowScreen(
     }
 }
 
+/**
+ * iOS uses different section structures for AddArrow vs ArrowDetail; this
+ * enum lets callers pick the right one without duplicating the form body.
+ *
+ * - ADD: Identity → Specs → Fletching → Shaft Diameter → Nock
+ *   (mirrors iOS AddArrowView.swift:130-198 — no Total Weight, no Notes)
+ * - DETAIL: Identity → Shaft (Length+PointWeight+Diameter) → Fletching →
+ *   Nock & Weight → Notes
+ *   (mirrors iOS ArrowDetailView.swift:36-110)
+ */
+enum class ArrowFormStyle { ADD, DETAIL }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ArrowFormBody(
@@ -133,11 +145,12 @@ internal fun ArrowFormBody(
     nockType: String, onNockType: (String) -> Unit,
     shaftDiameter: ShaftDiameter?, onShaftDiameter: (ShaftDiameter?) -> Unit,
     unitSystem: UnitSystem,
+    style: ArrowFormStyle = ArrowFormStyle.ADD,
+    totalWeightText: String = "",
+    onTotalWeight: (String) -> Unit = {},
+    notes: String = "",
+    onNotes: (String) -> Unit = {},
 ) {
-    // Mirrors iOS AddArrowView section structure (AddArrowView.swift:130-198):
-    // Identity → Specs → Fletching → Shaft Diameter → Nock. iOS does not surface
-    // a Total Weight field (the model has it but the form doesn't), and there's
-    // no Notes section on AddArrow.
     SectionHeader("Identity")
     OutlinedTextField(
         value = label, onValueChange = onLabel,
@@ -158,7 +171,9 @@ internal fun ArrowFormBody(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
 
-    SectionHeader("Specs")
+    // iOS labels this section differently: AddArrow uses "Specs" (no diameter
+    // inside), ArrowDetail uses "Shaft" with diameter folded in.
+    SectionHeader(if (style == ArrowFormStyle.DETAIL) "Shaft" else "Specs")
     LengthStepperRow(
         label = "Length",
         inches = length, onInchesChange = onLength,
@@ -169,6 +184,9 @@ internal fun ArrowFormBody(
         grains = pointWeight, onGrainsChange = onPointWeight,
         range = UnitRange.POINT_WEIGHT, unitSystem = unitSystem,
     )
+    if (style == ArrowFormStyle.DETAIL) {
+        ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
+    }
 
     SectionHeader("Fletching")
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -191,16 +209,38 @@ internal fun ArrowFormBody(
         min = 0.0, max = 10.0, step = 0.5,
     )
 
-    SectionHeader("Shaft Diameter")
-    ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
-
-    SectionHeader("Nock")
-    OutlinedTextField(
-        value = nockType, onValueChange = onNockType,
-        label = { Text("Nock Type (optional)") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    )
+    if (style == ArrowFormStyle.ADD) {
+        // iOS AddArrowView has its own "Shaft Diameter" section after Fletching.
+        SectionHeader("Shaft Diameter")
+        ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
+        SectionHeader("Nock")
+        OutlinedTextField(
+            value = nockType, onValueChange = onNockType,
+            label = { Text("Nock Type (optional)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        )
+    } else {
+        SectionHeader("Nock & Weight")
+        OutlinedTextField(
+            value = nockType, onValueChange = onNockType,
+            label = { Text("Nock Type (optional)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        )
+        OutlinedTextField(
+            value = totalWeightText, onValueChange = onTotalWeight,
+            label = { Text("Total Weight (${UnitFormatting.massSuffix(unitSystem)})") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        )
+        SectionHeader("Notes")
+        OutlinedTextField(
+            value = notes, onValueChange = onNotes,
+            label = { Text("Notes") },
+            modifier = Modifier.fillMaxWidth().height(120.dp).padding(vertical = 4.dp),
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

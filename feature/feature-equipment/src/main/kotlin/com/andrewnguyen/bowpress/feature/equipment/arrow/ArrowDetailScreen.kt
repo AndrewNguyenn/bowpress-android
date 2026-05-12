@@ -114,6 +114,9 @@ fun ArrowDetailScreen(
                     nockType = state.nockType, onNockType = viewModel::updateNockType,
                     shaftDiameter = state.shaftDiameter, onShaftDiameter = viewModel::updateShaftDiameter,
                     unitSystem = unitSystem,
+                    style = ArrowFormStyle.DETAIL,
+                    totalWeightText = state.totalWeightText, onTotalWeight = viewModel::updateTotalWeight,
+                    notes = state.notes, onNotes = viewModel::updateNotes,
                 )
                 if (state.showSavedBanner) {
                     Text("Saved", color = BowPressColors.Accent, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))

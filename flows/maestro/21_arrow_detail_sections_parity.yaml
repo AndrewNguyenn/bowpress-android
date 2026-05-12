@@ -1,0 +1,63 @@
+# Iter 27: ArrowDetail section parity. iOS ArrowDetailView uses a DIFFERENT
+# section structure than AddArrowView: Identity → Shaft (Length + Point
+# Weight + Diameter combined) → Fletching → Nock & Weight (Nock Type +
+# Total Weight) → Notes (ArrowDetailView.swift:36-110). The Total Weight
+# and Notes fields ARE surfaced here (they're hidden on AddArrow).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scroll
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    text: ".*Competition X10s.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Identity is always at the top
+- assertVisible:
+    text: ".*Identity.*"
+
+# "Shaft" section visible (NOT "Specs", NOT "Shaft Diameter" as a separate row)
+- scrollUntilVisible:
+    element:
+        text: "Shaft"
+    direction: DOWN
+    timeout: 8000
+
+# Diameter row should be INSIDE Shaft (still visible after locating Shaft)
+- assertVisible:
+    text: ".*Diameter.*"
+
+# Fletching section
+- scrollUntilVisible:
+    element:
+        text: "Fletching"
+    direction: DOWN
+    timeout: 8000
+
+# "Nock & Weight" combined section with Total Weight field
+- scrollUntilVisible:
+    element:
+        text: ".*Nock & Weight.*"
+    direction: DOWN
+    timeout: 8000
+- assertVisible:
+    text: ".*Total Weight.*"
+
+# Notes section
+- scrollUntilVisible:
+    element:
+        text: "Notes"
+    direction: DOWN
+    timeout: 8000
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_arrow_detail
