@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+    stopApp: true
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_equipment
+- tapOn: "Border HEX7 Barebow"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_bowdetail

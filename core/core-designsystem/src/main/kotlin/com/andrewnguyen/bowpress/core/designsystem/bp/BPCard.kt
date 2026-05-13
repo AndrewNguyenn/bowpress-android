@@ -1,22 +1,21 @@
 package com.andrewnguyen.bowpress.core.designsystem.bp
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.andrewnguyen.bowpress.core.designsystem.AppLine
-import com.andrewnguyen.bowpress.core.designsystem.AppPaper
+import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 
 /**
- * Flat 1dp-hairline card — no rounded corners, no shadows, no elevation.
- * Inset variant swaps the paper fill for the darker AppPaper2 to nest
- * surfaces ledger-style.
+ * Flat borderless card — tonal contrast carries the containment, mirroring
+ * iOS GroupedListStyle. Inset variant nests with the darker AppPaper2 fill.
  */
 @Composable
 fun BPCard(
@@ -27,8 +26,8 @@ fun BPCard(
 ) {
     Column(
         modifier = modifier
-            .background(if (inset) AppPaper2 else AppPaper)
-            .border(1.dp, AppLine)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (inset) AppPaper2 else AppCream)
             .padding(padding),
         content = content,
     )

@@ -61,7 +61,6 @@ fun SectionCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = AppCream,
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
     ) {
         SubcomposeLayout(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
