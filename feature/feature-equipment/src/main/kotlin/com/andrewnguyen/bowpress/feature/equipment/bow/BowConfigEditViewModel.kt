@@ -104,17 +104,26 @@ class BowConfigEditViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     /**
+     * Shared upstream so `gripSuggestions` and `limbSuggestions` don't open
+     * two independent Room cursors over the same query. `WhileSubscribed`
+     * because the suggestions only matter while the form is on screen.
+     */
+    private val allConfigs: StateFlow<List<BowConfiguration>> =
+        bowConfigRepository.observeAll()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
      * De-duplicated catalog of previously-entered specific-grip values across
      * every bow's configs. Mirrors iOS `BowConfiguration.suggestions(from:keyPath:)`.
      */
-    val gripSuggestions: StateFlow<List<String>> = bowConfigRepository.observeAll()
+    val gripSuggestions: StateFlow<List<String>> = allConfigs
         .map { configs -> distinctNonEmpty(configs.map { it.specificGrip }) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** De-duplicated catalog of previously-entered specific-limb values. */
-    val limbSuggestions: StateFlow<List<String>> = bowConfigRepository.observeAll()
+    val limbSuggestions: StateFlow<List<String>> = allConfigs
         .map { configs -> distinctNonEmpty(configs.map { it.specificLimbs }) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private fun distinctNonEmpty(raw: List<String?>): List<String> {
         val seen = mutableSetOf<String>()

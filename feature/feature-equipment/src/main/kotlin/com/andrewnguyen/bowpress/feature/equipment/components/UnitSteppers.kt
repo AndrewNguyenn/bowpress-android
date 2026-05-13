@@ -27,19 +27,18 @@ fun LengthStepperRow(
     digits: Int = 2,
     modifier: Modifier = Modifier,
 ) {
-    val bounds = range.displayRange(unitSystem)
-    val displayValue = UnitScale.INCH_TO_CM.toDisplay(inches, unitSystem)
-    val step = range.displayStep(unitSystem)
+    // Step + bounds in canonical (inches) space so repeated nudges in metric
+    // don't accumulate the 1/2.54 round-trip error from re-deriving the
+    // display value on every tap.
+    val displayBounds = range.displayRange(unitSystem)
+    val minInches = UnitScale.INCH_TO_CM.toCanonical(displayBounds.start, unitSystem)
+    val maxInches = UnitScale.INCH_TO_CM.toCanonical(displayBounds.endInclusive, unitSystem)
+    val stepInches = UnitScale.INCH_TO_CM.toCanonical(range.displayStep(unitSystem), unitSystem) -
+        UnitScale.INCH_TO_CM.toCanonical(0.0, unitSystem)
     InterleavedStepperRow(
         label = label,
-        onDecrease = {
-            val nextDisplay = (displayValue - step).coerceAtLeast(bounds.start)
-            onInchesChange(UnitScale.INCH_TO_CM.toCanonical(nextDisplay, unitSystem))
-        },
-        onIncrease = {
-            val nextDisplay = (displayValue + step).coerceAtMost(bounds.endInclusive)
-            onInchesChange(UnitScale.INCH_TO_CM.toCanonical(nextDisplay, unitSystem))
-        },
+        onDecrease = { onInchesChange((inches - stepInches).coerceAtLeast(minInches)) },
+        onIncrease = { onInchesChange((inches + stepInches).coerceAtMost(maxInches)) },
         valueText = UnitFormatting.lengthValue(inches, unitSystem, digits),
         unitSuffix = UnitFormatting.lengthSuffix(unitSystem),
         modifier = modifier,

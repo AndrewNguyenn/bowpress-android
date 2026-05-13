@@ -27,23 +27,23 @@ import kotlinx.coroutines.launch
  * is the tab target — everything else is a child of the equipment stack.
  *
  *   equipment/home
- *   equipment/bow/add
  *   equipment/bow/{bowId}
  *   equipment/bow/{bowId}/config/{configId}
  *   equipment/bow/{bowId}/config/{configId}/edit
- *   equipment/arrow/add
  *   equipment/arrow/{arrowId}
+ *
+ * Add Bow and Add Arrow are presented as ModalBottomSheets from `home`
+ * (no dedicated route) so the spatial relationship to the Equipment list
+ * is preserved, matching iOS .sheet() presentation.
  *
  * Wire this into the root NavHost from the app module:
  *   `equipmentNavGraph(navController, currentUserId = { … })`
  */
 object EquipmentRoutes {
     const val HOME = "equipment/home"
-    const val BOW_ADD = "equipment/bow/add"
     const val BOW_DETAIL = "equipment/bow/{${EquipmentArgs.BOW_ID}}"
     const val BOW_CONFIG_DETAIL = "equipment/bow/{${EquipmentArgs.BOW_ID}}/config/{${EquipmentArgs.CONFIG_ID}}"
     const val BOW_CONFIG_EDIT = "equipment/bow/{${EquipmentArgs.BOW_ID}}/config/{${EquipmentArgs.CONFIG_ID}}/edit"
-    const val ARROW_ADD = "equipment/arrow/add"
     const val ARROW_DETAIL = "equipment/arrow/{${EquipmentArgs.ARROW_ID}}"
 
     fun bowDetail(bowId: String) = "equipment/bow/$bowId"
@@ -121,18 +121,6 @@ fun NavGraphBuilder.equipmentNavGraph(
         }
     }
 
-    composable(EquipmentRoutes.BOW_ADD) {
-        AddBowScreen(
-            userId = currentUserId(),
-            onBowCreated = { id ->
-                navController.navigate(EquipmentRoutes.bowDetail(id)) {
-                    popUpTo(EquipmentRoutes.HOME)
-                }
-            },
-            onCancel = { navController.popBackStack() },
-        )
-    }
-
     composable(
         route = EquipmentRoutes.BOW_DETAIL,
         arguments = listOf(navArgument(EquipmentArgs.BOW_ID) { type = NavType.StringType }),
@@ -172,18 +160,6 @@ fun NavGraphBuilder.equipmentNavGraph(
     ) {
         BowConfigEditScreen(
             onSaved = { navController.popBackStack() },
-            onCancel = { navController.popBackStack() },
-        )
-    }
-
-    composable(EquipmentRoutes.ARROW_ADD) {
-        AddArrowScreen(
-            userId = currentUserId(),
-            onCreated = { id ->
-                navController.navigate(EquipmentRoutes.arrowDetail(id)) {
-                    popUpTo(EquipmentRoutes.HOME)
-                }
-            },
             onCancel = { navController.popBackStack() },
         )
     }

@@ -218,6 +218,8 @@ private fun BowDetailBody(
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             ),
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
         )
 

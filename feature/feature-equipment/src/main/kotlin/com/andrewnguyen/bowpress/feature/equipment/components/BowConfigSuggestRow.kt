@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -157,7 +157,7 @@ private fun SuggestPickerSheetBody(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(suggestions) { name ->
+                    itemsIndexed(suggestions) { index, name ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -166,7 +166,7 @@ private fun SuggestPickerSheetBody(
                                     onDismiss()
                                 }
                                 .padding(horizontal = 12.dp, vertical = 12.dp)
-                                .testTag("${accessibilityKey}_picker_row_${suggestions.indexOf(name)}"),
+                                .testTag("${accessibilityKey}_picker_row_$index"),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -180,7 +180,7 @@ private fun SuggestPickerSheetBody(
                                 )
                             }
                         }
-                        if (name != suggestions.last()) HorizontalDivider(
+                        if (index != suggestions.lastIndex) HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant,
                             thickness = 0.5.dp,
                         )
