@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -296,7 +297,7 @@ private fun SettingsValueRow(
     ) {
         Text(
             text = label,
-            style = interUI(14.sp).copy(color = AppInk),
+            style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -329,7 +330,7 @@ private fun NotificationsRow(
     ) {
         Text(
             text = "Push notifications",
-            style = interUI(14.sp).copy(color = AppInk),
+            style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -361,7 +362,7 @@ private fun UnitsRow(
     ) {
         Text(
             text = "Units",
-            style = interUI(14.sp).copy(color = AppInk),
+            style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -431,7 +432,7 @@ private fun SettingsLinkRow(
     ) {
         Text(
             text = label,
-            style = interUI(14.sp).copy(color = labelColor),
+            style = frauncesDisplay(15.sp, italic = true).copy(color = labelColor),
         )
         Text(
             text = "›",
@@ -461,7 +462,12 @@ private fun Colophon() {
             ),
         )
         Spacer(Modifier.width(8.dp))
-        Box(Modifier.size(5.dp).background(AppPond))
+        Box(
+            Modifier
+                .size(5.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(AppPond),
+        )
         Spacer(Modifier.width(8.dp))
         Text(
             text = "kanazawa",

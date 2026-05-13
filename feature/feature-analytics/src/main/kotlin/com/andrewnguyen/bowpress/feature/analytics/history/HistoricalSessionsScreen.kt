@@ -59,6 +59,11 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPond
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.AppPondLt
+import com.andrewnguyen.bowpress.core.designsystem.AppWABlackFill
+import com.andrewnguyen.bowpress.core.designsystem.AppWABlueFill
+import com.andrewnguyen.bowpress.core.designsystem.AppWAGoldFill
+import com.andrewnguyen.bowpress.core.designsystem.AppWARedFill
+import com.andrewnguyen.bowpress.core.designsystem.AppWAWhiteFill
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPBigScore
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
@@ -480,12 +485,15 @@ private fun ArrowBars(rings: List<Int>, arrowCount: Int) {
     ) {
         val segWeight = 1f
         slots.forEach { ring ->
+            // Mirror iOS HistoricalSessionsView.barFill — WA target palette
+            // so the bar reads gold/red/blue/black/white without a legend.
             val color = when {
-                ring < 0 -> AppLine2
-                ring <= 7 -> AppPondLt
-                ring == 8 -> AppPond
-                ring in 9..10 -> AppPondDk
-                else -> AppPine // X
+                ring < 0 -> AppLine2 // unfilled / hydrating
+                ring in 9..11 -> AppWAGoldFill // 11 = X
+                ring in 7..8 -> AppWARedFill
+                ring in 5..6 -> AppWABlueFill
+                ring in 3..4 -> AppWABlackFill
+                else -> AppWAWhiteFill // 1, 2, miss
             }
             Box(
                 modifier = Modifier

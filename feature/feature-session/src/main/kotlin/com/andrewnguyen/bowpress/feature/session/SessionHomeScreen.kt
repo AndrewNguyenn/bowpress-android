@@ -491,7 +491,7 @@ private fun FaceTile(
             .padding(horizontal = 8.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        BPTargetFace(size = 42.dp, style = BPTargetStyle.WA)
+        BPTargetFace(size = 72.dp, style = BPTargetStyle.WA)
         Spacer(Modifier.height(8.dp))
         Text(
             text = if (face == TargetFaceType.TEN_RING) "10-ring" else "6-ring",
@@ -589,7 +589,7 @@ private fun ctaSubtitle(state: SessionUiState): String {
     val distance = state.selectedDistance?.label?.uppercase() ?: "DISTANCE"
     val bow = state.selectedBow?.name?.uppercase() ?: "BOW"
     val face = if (state.selectedFaceType == TargetFaceType.TEN_RING) "10-RING" else "6-RING"
-    return "$distance · $bow · $face FACE"
+    return "$distance · $bow · $face"
 }
 
 // ---------------------------------------------------------------------------

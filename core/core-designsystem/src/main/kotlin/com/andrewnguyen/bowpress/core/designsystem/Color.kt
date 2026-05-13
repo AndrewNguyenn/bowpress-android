@@ -38,6 +38,15 @@ val AppTgtBlue   = Color(0xFF4EA8C9)
 val AppTgtRed    = Color(0xFFD94B3B)
 val AppTgtYellow = Color(0xFFF0D04A)
 
+// WA bar-fill palette — slightly muted variants used by analytics rows
+// (Log row arrow strip etc.). Matches iOS appWA*Fill tokens 1:1 so the
+// per-ring color reads the same on both platforms.
+val AppWAGoldFill  = Color(0xFFD8A23A)
+val AppWARedFill   = Color(0xFFB04A3A)
+val AppWABlueFill  = Color(0xFF3A6F8A)
+val AppWABlackFill = Color(0xFF2A2A28)
+val AppWAWhiteFill = Color(0xFFF4F1EA)
+
 // Semantic
 val AppSuccess = AppPine
 val AppWarning = AppMaple

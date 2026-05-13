@@ -1,0 +1,38 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+    stopApp: true
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_analytics
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_log
+- tapOn: "Session"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_session
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_equipment
+- tapOn: "Border HEX7 Barebow"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_bowdetail
+- tapOn:
+    text: "Back"
+    optional: true
+- back
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn: "Settings"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_settings

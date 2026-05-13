@@ -105,12 +105,12 @@ fun NavGraphBuilder.equipmentNavGraph(
             ) {
                 AddArrowScreen(
                     userId = currentUserId(),
-                    onCreated = { id ->
+                    onCreated = { _ ->
+                        // iOS AddArrowView.save() just dismisses — no nav to detail
+                        // (unlike AddBow which DOES nav). Mirror iOS so the user
+                        // lands back on the Equipment list to confirm the new row.
                         scope.launch { addArrowSheetState.hide() }
-                            .invokeOnCompletion {
-                                addArrowSheetOpen = false
-                                navController.navigate(EquipmentRoutes.arrowDetail(id))
-                            }
+                            .invokeOnCompletion { addArrowSheetOpen = false }
                     },
                     onCancel = {
                         scope.launch { addArrowSheetState.hide() }
