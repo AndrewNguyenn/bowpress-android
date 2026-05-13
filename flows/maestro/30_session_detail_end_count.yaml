@@ -1,0 +1,26 @@
+# Iter 36: with SessionEnd rows seeded (every 3 arrows = 1 end), Android
+# now matches iOS's "6 ends" caption for the seeded 18-arrow "Pre-comp
+# tune check" session. This tightens the looser assertion iter 35 had
+# to settle for.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: ".*Pre-comp tune check.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Session Detail"
+- assertVisible:
+    text: ".*18 arrows.*"
+- assertVisible:
+    text: ".*6 ends.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_session_detail

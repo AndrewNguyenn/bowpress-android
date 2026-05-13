@@ -15,6 +15,7 @@ import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.FletchingType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
@@ -50,6 +51,7 @@ class DevMockDataSeeder @Inject constructor(
     private val arrowConfigDao: ArrowConfigDao,
     private val sessionDao: SessionDao,
     private val plotDao: ArrowPlotDao,
+    private val sessionEndDao: com.andrewnguyen.bowpress.core.database.dao.SessionEndDao,
     private val suggestionDao: SuggestionDao,
 ) {
 
@@ -59,6 +61,7 @@ class DevMockDataSeeder @Inject constructor(
         bowConfigDao.upsertAll(DevMockData.bowConfigs.map { it.toEntity(pendingSync = false) })
         arrowConfigDao.upsertAll(DevMockData.arrowConfigs.map { it.toEntity(pendingSync = false) })
         sessionDao.upsertAll(DevMockData.sessions.map { it.toEntity(pendingSync = false) })
+        sessionEndDao.upsertAll(DevMockData.sessionEnds.map { it.toEntity(pendingSync = false) })
         plotDao.upsertAll(DevMockData.arrowPlots.map { it.toEntity(pendingSync = false) })
         suggestionDao.upsertAll(DevMockData.suggestions.map { it.toEntity() })
     }
@@ -358,6 +361,10 @@ private object DevMockData {
         rings: List<Int>,
         zones: List<Zone>,
     ): List<ArrowPlot> = (0 until count).map { i ->
+        // Olympic-style: every 3 arrows = one end. Link via the seeded
+        // SessionEnd IDs below so SessionDetail can show real end counts
+        // and so the X·10 ring detail can group by end (future iter).
+        val endIndex = i / 3
         ArrowPlot(
             id = "${sessionId}_p${i + 1}",
             sessionId = sessionId,
@@ -366,8 +373,44 @@ private object DevMockData {
             ring = rings[i % rings.size],
             zone = zones[i % zones.size],
             shotAt = startedAt.plus((i * 4L), ChronoUnit.MINUTES),
+            endId = "${sessionId}_e${endIndex + 1}",
             excluded = false,
         )
+    }
+
+    // --- Session ends -----------------------------------------------------
+    // One end per 3 arrows for each seeded session — matches the Olympic
+    // round structure iOS seeds. Without these, SessionDetail falls back
+    // to "1 end" and analytics that group by end can't render.
+    val sessionEnds: List<SessionEnd> = buildList {
+        addAll(makeEnds("dev_s1_8", daysAgo(0), arrowCount = 18))
+        addAll(makeEnds("dev_s1_7", daysAgo(1), arrowCount = 18))
+        addAll(makeEnds("dev_s1_6", daysAgo(2), arrowCount = 18))
+        addAll(makeEnds("dev_s1_5", daysAgo(18), arrowCount = 12))
+        addAll(makeEnds("dev_s1_4", daysAgo(23), arrowCount = 16))
+        addAll(makeEnds("dev_s2_5", daysAgo(12), arrowCount = 15))
+    }
+
+    private fun makeEnds(
+        sessionId: String,
+        startedAt: Instant,
+        arrowCount: Int,
+        arrowsPerEnd: Int = 3,
+    ): List<SessionEnd> {
+        val endCount = (arrowCount + arrowsPerEnd - 1) / arrowsPerEnd
+        return (0 until endCount).map { idx ->
+            // Each end completes after its three arrows + a brief pause.
+            val completedAt = startedAt.plus(
+                (idx * arrowsPerEnd * 4L + arrowsPerEnd * 4L).toLong(),
+                ChronoUnit.MINUTES,
+            )
+            SessionEnd(
+                id = "${sessionId}_e${idx + 1}",
+                sessionId = sessionId,
+                endNumber = idx + 1,
+                completedAt = completedAt,
+            )
+        }
     }
 
     // --- Suggestions ------------------------------------------------------
