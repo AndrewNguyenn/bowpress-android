@@ -256,7 +256,9 @@ internal fun BowConfigEditFormBody(
                         UnitRange.PEEP_HEIGHT, unitSystem)
                 }
                 if (EquipmentFieldRules.isVisible(Field.D_LOOP_LENGTH, bowType, isSetup, state.rearStabSide)) {
-                    LengthStepperRow("D-Loop Length", state.dLoopLength, callbacks::updateDLoop,
+                    // iOS BowDetailView labels this row just "D-Loop"
+                    // (BowDetailView.swift dLoopLengthRow).
+                    LengthStepperRow("D-Loop", state.dLoopLength, callbacks::updateDLoop,
                         UnitRange.D_LOOP_LENGTH, unitSystem, digits = 3)
                 }
                 if (EquipmentFieldRules.isVisible(Field.BRACE_HEIGHT, bowType, isSetup, state.rearStabSide)) {

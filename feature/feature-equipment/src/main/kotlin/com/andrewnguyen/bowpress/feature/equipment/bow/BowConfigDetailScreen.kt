@@ -151,7 +151,7 @@ private fun ReadOnlyBody(
         if (bowType == BowType.COMPOUND) {
             config.letOffPct?.let { LabeledValueRow("Let-off", UnitFormatting.percent(it)) }
             config.peepHeight?.let { LabeledValueRow("Peep Height", UnitFormatting.length(it, unitSystem)) }
-            config.dLoopLength?.let { LabeledValueRow("D-Loop Length", UnitFormatting.length(it, unitSystem, digits = 3)) }
+            config.dLoopLength?.let { LabeledValueRow("D-Loop", UnitFormatting.length(it, unitSystem, digits = 3)) }
         }
         if (EquipmentFieldRules.isVisible(Field.BRACE_HEIGHT, bowType, isSetup, rearStabSide)) {
             config.braceHeight?.let { LabeledValueRow("Brace Height", UnitFormatting.length(it, unitSystem, digits = 3)) }

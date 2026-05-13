@@ -1,0 +1,29 @@
+# Iter 40: Compound BowDetail labels its D-Loop row just "D-Loop"
+# (iOS BowDetailView dLoopLengthRow). Android was using "D-Loop Length".
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: ".*Mathews TITLE 36.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# The standalone "D-Loop" row label must be present; the older
+# "D-Loop Length" wording must be gone.
+- scrollUntilVisible:
+    element:
+        text: "D-Loop"
+    direction: DOWN
+    timeout: 8000
+- assertNotVisible:
+    text: ".*D-Loop Length.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_compound_dloop
