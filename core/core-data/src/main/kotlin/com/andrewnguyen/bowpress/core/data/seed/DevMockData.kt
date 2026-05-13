@@ -365,17 +365,73 @@ private object DevMockData {
         // SessionEnd IDs below so SessionDetail can show real end counts
         // and so the X·10 ring detail can group by end (future iter).
         val endIndex = i / 3
+        val ring = rings[i % rings.size]
+        val zone = zones[i % zones.size]
+        val coords = syntheticPlotCoords(ring, zone, seed = i)
         ArrowPlot(
             id = "${sessionId}_p${i + 1}",
             sessionId = sessionId,
             bowConfigId = bowConfigId,
             arrowConfigId = arrowConfigId,
-            ring = rings[i % rings.size],
-            zone = zones[i % zones.size],
+            ring = ring,
+            zone = zone,
+            plotX = coords.first,
+            plotY = coords.second,
             shotAt = startedAt.plus((i * 4L), ChronoUnit.MINUTES),
             endId = "${sessionId}_e${endIndex + 1}",
             excluded = false,
         )
+    }
+
+    /**
+     * Synthesise a plausible (plotX, plotY) for a seeded plot given its
+     * scored ring + zone. The real client writes coords directly when the
+     * user taps; the dev seed only carries ring+zone, so SessionDetail's
+     * target would be empty without this. Coordinates follow the iOS
+     * convention: east-positive X, south-positive Y, normalised to [-1, 1].
+     *
+     * The radius for each ring is chosen mid-band so the dot sits visibly
+     * inside the scored ring. The angle is the centre bearing of the
+     * compass zone (CENTER → near origin, with a tiny offset varied by the
+     * arrow index so dots don't pile up perfectly).
+     */
+    private fun syntheticPlotCoords(ring: Int, zone: Zone, seed: Int): Pair<Double, Double> {
+        // Ring radii — mid-band of each scoring ring's outer edge.
+        // X is the centre dot; 10..1 step outward in 0.1 increments.
+        val radius = when (ring) {
+            11 -> 0.02   // X — extremely close to centre
+            10 -> 0.08
+            9 -> 0.15
+            8 -> 0.25
+            7 -> 0.35
+            6 -> 0.45
+            5 -> 0.55
+            4 -> 0.65
+            3 -> 0.75
+            2 -> 0.85
+            1 -> 0.92
+            else -> 0.50
+        }
+        // Compass bearings → math angles (0° east, CCW). Plot uses
+        // east-positive X and south-positive Y, so we flip the y-component.
+        val angleDeg = when (zone) {
+            Zone.E -> 0.0
+            Zone.NE -> 45.0
+            Zone.N -> 90.0
+            Zone.NW -> 135.0
+            Zone.W -> 180.0
+            Zone.SW -> 225.0
+            Zone.S -> 270.0
+            Zone.SE -> 315.0
+            Zone.CENTER -> (seed * 47.0) % 360.0
+        }
+        // Small jitter so consecutive dots don't overlap exactly.
+        val jitter = 0.02 * ((seed % 5) - 2)
+        val finalRadius = (radius + jitter).coerceIn(0.0, 0.97)
+        val rad = Math.toRadians(angleDeg)
+        val px = finalRadius * kotlin.math.cos(rad)
+        val py = -finalRadius * kotlin.math.sin(rad) // flip y so south-positive matches storage
+        return px to py
     }
 
     // --- Session ends -----------------------------------------------------
