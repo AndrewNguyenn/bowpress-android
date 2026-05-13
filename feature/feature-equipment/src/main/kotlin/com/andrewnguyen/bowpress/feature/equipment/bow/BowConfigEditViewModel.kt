@@ -137,6 +137,31 @@ class BowConfigEditViewModel @Inject constructor(
         return out
     }
 
+    /**
+     * Remove a saved-grip entry from the catalog. Mirrors iOS
+     * clearCatalogValue(.specificGrip): nulls the field on every config
+     * referencing the name so it disappears from the suggestions feed.
+     */
+    fun deleteGripFromCatalog(name: String) {
+        viewModelScope.launch {
+            bowConfigRepository.clearConfigSpecificGrip(name)
+            // Local: if the form is currently displaying this value, clear it.
+            if (_state.value.specificGrip.equals(name.trim(), ignoreCase = true)) {
+                _state.update { it.copy(specificGrip = "") }
+            }
+        }
+    }
+
+    /** Same as `deleteGripFromCatalog`, different field. */
+    fun deleteLimbsFromCatalog(name: String) {
+        viewModelScope.launch {
+            bowConfigRepository.clearConfigSpecificLimbs(name)
+            if (_state.value.specificLimbs.equals(name.trim(), ignoreCase = true)) {
+                _state.update { it.copy(specificLimbs = "") }
+            }
+        }
+    }
+
     init {
         viewModelScope.launch {
             val bow = bowRepository.getBow(bowId)

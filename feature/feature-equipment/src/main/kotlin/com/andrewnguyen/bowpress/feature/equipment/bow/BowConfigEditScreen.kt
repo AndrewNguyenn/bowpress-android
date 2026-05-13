@@ -169,6 +169,8 @@ fun BowConfigEditScreen(
                 onUnitSystemChange = LocalUnitSystemSetter.current,
                 gripSuggestions = gripSuggestions,
                 limbSuggestions = limbSuggestions,
+                onDeleteGripSuggestion = viewModel::deleteGripFromCatalog,
+                onDeleteLimbSuggestion = viewModel::deleteLimbsFromCatalog,
                 modifier = Modifier
                     .padding(padding)
                     .verticalScroll(rememberScrollState()),
@@ -204,6 +206,8 @@ internal fun BowConfigEditFormBody(
     showLabel: Boolean = true,
     gripSuggestions: List<String> = emptyList(),
     limbSuggestions: List<String> = emptyList(),
+    onDeleteGripSuggestion: (String) -> Unit = {},
+    onDeleteLimbSuggestion: (String) -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -305,6 +309,7 @@ internal fun BowConfigEditFormBody(
                             value = state.specificLimbs,
                             onValueChange = callbacks::updateSpecificLimbs,
                             suggestions = limbSuggestions,
+                            onDeleteSuggestion = onDeleteLimbSuggestion,
                             accessibilityKey = "specific_limbs",
                         )
                     }
@@ -368,6 +373,7 @@ internal fun BowConfigEditFormBody(
                     value = state.specificGrip,
                     onValueChange = callbacks::updateSpecificGrip,
                     suggestions = gripSuggestions,
+                    onDeleteSuggestion = onDeleteGripSuggestion,
                     accessibilityKey = "specific_grip",
                 )
                 IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,

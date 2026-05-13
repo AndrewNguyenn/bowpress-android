@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.network.BowPressApi
 import com.andrewnguyen.bowpress.core.network.UpdateBowConfigRequest
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,6 +34,37 @@ class BowConfigRepository @Inject constructor(
 
     suspend fun saveConfig(config: BowConfiguration) {
         dao.upsert(config.toEntity(pendingSync = true))
+        syncService.enqueueSync()
+    }
+
+    /**
+     * Catalog clear: null out `specificGrip` on every config whose value
+     * matches [name] case-insensitively. Mirrors iOS clearCatalogValue —
+     * removing an entry from the de-duped catalog the picker sheet sources
+     * from. Past history rows are left alone; only current configs reset.
+     */
+    suspend fun clearConfigSpecificGrip(name: String) {
+        val target = name.trim()
+        val all = dao.observeAll().firstOrNull().orEmpty()
+        for (entity in all) {
+            val current = entity.specificGrip?.trim().orEmpty()
+            if (current.equals(target, ignoreCase = true)) {
+                dao.upsert(entity.copy(specificGrip = null, pendingSync = true))
+            }
+        }
+        syncService.enqueueSync()
+    }
+
+    /** See `clearConfigSpecificGrip`. Same shape, different field. */
+    suspend fun clearConfigSpecificLimbs(name: String) {
+        val target = name.trim()
+        val all = dao.observeAll().firstOrNull().orEmpty()
+        for (entity in all) {
+            val current = entity.specificLimbs?.trim().orEmpty()
+            if (current.equals(target, ignoreCase = true)) {
+                dao.upsert(entity.copy(specificLimbs = null, pendingSync = true))
+            }
+        }
         syncService.enqueueSync()
     }
 

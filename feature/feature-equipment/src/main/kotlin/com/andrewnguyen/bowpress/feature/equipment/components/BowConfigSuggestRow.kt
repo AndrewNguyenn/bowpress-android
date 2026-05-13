@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,6 +68,7 @@ fun BowConfigSuggestRow(
     onValueChange: (String) -> Unit,
     suggestions: List<String>,
     accessibilityKey: String,
+    onDeleteSuggestion: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var isPickerOpen by remember { mutableStateOf(false) }
@@ -114,6 +116,7 @@ fun BowConfigSuggestRow(
                 onValueChange = onValueChange,
                 suggestions = suggestions,
                 accessibilityKey = accessibilityKey,
+                onDeleteSuggestion = onDeleteSuggestion,
                 onDismiss = {
                     scope.launch { sheetState.hide() }
                         .invokeOnCompletion { isPickerOpen = false }
@@ -131,9 +134,11 @@ private fun SuggestPickerSheetBody(
     onValueChange: (String) -> Unit,
     suggestions: List<String>,
     accessibilityKey: String,
+    onDeleteSuggestion: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var newEntry by remember { mutableStateOf("") }
+    var pendingDelete by remember { mutableStateOf<String?>(null) }
     val canAddNew = newEntry.trim().isNotEmpty() &&
         suggestions.none { it.equals(newEntry.trim(), ignoreCase = true) }
 
@@ -161,21 +166,45 @@ private fun SuggestPickerSheetBody(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    onValueChange(name)
-                                    onDismiss()
-                                }
-                                .padding(horizontal = 12.dp, vertical = 12.dp)
+                                .padding(horizontal = 12.dp)
                                 .testTag("${accessibilityKey}_picker_row_$index"),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text(name, style = MaterialTheme.typography.bodyMedium)
-                            if (name.equals(value.trim(), ignoreCase = true)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        onValueChange(name)
+                                        onDismiss()
+                                    }
+                                    .padding(vertical = 12.dp),
+                            ) {
+                                Text(
+                                    name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (name.equals(value.trim(), ignoreCase = true)) {
+                                    Icon(
+                                        Icons.Filled.Check,
+                                        contentDescription = "Selected",
+                                        tint = BowPressColors.Accent,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = { pendingDelete = name },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("${accessibilityKey}_picker_delete_$index"),
+                            ) {
                                 Icon(
-                                    Icons.Filled.Check,
-                                    contentDescription = "Selected",
-                                    tint = BowPressColors.Accent,
+                                    Icons.Filled.Delete,
+                                    contentDescription = "Delete $name from catalog",
+                                    tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(18.dp),
                                 )
                             }
@@ -245,5 +274,24 @@ private fun SuggestPickerSheetBody(
             TextButton(onClick = onDismiss) { Text("Done") }
         }
         Spacer(Modifier.height(16.dp))
+    }
+
+    pendingDelete?.let { name ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete $name?") },
+            text = {
+                Text("Removes this entry from your saved list and clears it from any bow configs that referenced it. Past tuning history isn't changed.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteSuggestion(name)
+                    pendingDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+            },
+        )
     }
 }

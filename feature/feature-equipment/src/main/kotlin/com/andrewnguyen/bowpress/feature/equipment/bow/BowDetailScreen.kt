@@ -188,6 +188,8 @@ fun BowDetailScreen(
                 editCallbacks = editViewModel.asCallbacks(),
                 gripSuggestions = gripSuggestions,
                 limbSuggestions = limbSuggestions,
+                onDeleteGripSuggestion = editViewModel::deleteGripFromCatalog,
+                onDeleteLimbSuggestion = editViewModel::deleteLimbsFromCatalog,
                 onOpenConfig = onOpenConfig,
                 onToggleReference = viewModel::setReference,
                 onDeleteRequested = { showDeleteConfirm = true },
@@ -230,6 +232,8 @@ private fun BowDetailBody(
     editCallbacks: BowConfigEditCallbacks,
     gripSuggestions: List<String>,
     limbSuggestions: List<String>,
+    onDeleteGripSuggestion: (String) -> Unit,
+    onDeleteLimbSuggestion: (String) -> Unit,
     onOpenConfig: (String) -> Unit,
     onToggleReference: (configId: String, pinned: Boolean) -> Unit,
     onDeleteRequested: () -> Unit,
@@ -298,6 +302,8 @@ private fun BowDetailBody(
             showLabel = false,
             gripSuggestions = gripSuggestions,
             limbSuggestions = limbSuggestions,
+            onDeleteGripSuggestion = onDeleteGripSuggestion,
+            onDeleteLimbSuggestion = onDeleteLimbSuggestion,
         )
 
         Spacer(Modifier.height(16.dp))
