@@ -6,7 +6,35 @@ unblocks each one. Items needing human credentials or a backend
 deployment land in the **External** section; items that can be closed
 purely with code land in **Code**.
 
-Last updated: 2026-05-10 by the firebase-wireup work.
+Last updated: 2026-05-13 by the release-prep work.
+
+---
+
+## Release pipeline state (Play Store readiness)
+
+**Repo-side: ✅ Ready to upload an AAB.**
+- Upload keystore: `~/.bowpress-secrets/bowpress-upload.keystore` (mode 600)
+- Release SHA-1: `BE:F3:E2:AB:C7:1C:DC:56:DD:E8:E8:53:BC:B4:3B:EC:00:C4:9C:F4`
+- Signing wired in `app/build.gradle.kts` (reads credentials from
+  gitignored `local.properties`). `./gradlew :app:bundleRelease`
+  produces `app/build/outputs/bundle/release/app-release.aab` (8.0M).
+- R8 + resource shrinking pass cleanly; release APK smoke-tested on
+  emulator (renders auth screen, no crash).
+
+**Still needed before submitting (external actions):**
+1. Play Console developer account ($25 one-time)
+2. Register release SHA-1 with both Firebase apps (curl snippet
+   under "External § 2" below)
+3. Wire `GOOGLE_CLIENT_ID` Worker secret to include Android client ID
+   (External § 1)
+4. Backend `/subscription/verify-google` endpoint (External § 3 — blocks
+   subscription verify on Android)
+5. Google Play RTDN webhook receiver in `bowpress-api`
+6. Privacy policy URL on the Play listing + Data Safety form
+7. App icon at Play Store sizes (512×512 + 1024×500 feature graphic)
+8. Listing copy + ≥4 screenshots
+9. New personal-account requirement: 12 testers × 14 days closed test
+   before production graduation
 
 ---
 
@@ -32,7 +60,7 @@ The Worker reads `GOOGLE_CLIENT_ID` and splits on comma
 (`authController.ts:443-450`), so both iOS and Android audiences are
 honored.
 
-### 2. ~~Real `app/google-services.json`~~ ✅ (release SHA-1 remaining)
+### 2. ~~Real `app/google-services.json`~~ ✅ (release SHA-1 registration is the last step)
 
 Firebase added to `bowpress-ios` GCP project on 2026-05-10. Two Android
 apps registered (release `1:516990179779:android:538f20eaa89edef3f44576`,
@@ -41,9 +69,36 @@ SHA-1 `7A:0E:6D:F8:80:0C:47:6E:50:2A:71:36:14:F8:BA:A8:44:54:8A:52`
 registered on both apps. `app/google-services.json` replaced with the
 real config — FCM functional in debug builds.
 
-**Remaining:** when the upload (release) keystore exists, register its
-SHA-1 with both Firebase apps via the curl snippet documented in
-`README.md` "Firebase / FCM setup" section.
+**Remaining:** register the upload (release) keystore SHA-1 with both
+Firebase apps. The upload keystore was generated on 2026-05-13 and lives
+at `~/.bowpress-secrets/bowpress-upload.keystore` (mode 600). Credentials
+are in `local.properties` (gitignored). Fingerprints:
+
+```
+SHA-1:   BE:F3:E2:AB:C7:1C:DC:56:DD:E8:E8:53:BC:B4:3B:EC:00:C4:9C:F4
+SHA-256: F4:C8:9F:9E:CB:83:8A:CE:A7:B6:5E:F9:1C:E8:8F:08:A8:54:04:E6:1E:BA:1A:F7:B0:B0:B3:37:E9:CD:12:58
+```
+
+Register both apps via the Firebase REST API (gcloud creds required):
+
+```sh
+PROJECT=bowpress-ios
+SHA1=BEF3E2ABC71CDC56DDE8E853BCB43BEC00C49CF4
+# Release app:
+curl -X POST "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/androidApps/538f20eaa89edef3f44576/sha:create" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d "{\"shaHash\":\"${SHA1}\",\"certType\":\"SHA_1\"}"
+# Debug app (so Play App Signing's eventual key matches too):
+curl -X POST "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/androidApps/438afb3b5471233bf44576/sha:create" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d "{\"shaHash\":\"${SHA1}\",\"certType\":\"SHA_1\"}"
+```
+
+After Play Console enrollment, also register the Play App Signing SHA-1
+(Play holds the actual signing key for production; the upload key only
+authenticates uploads).
 
 ### 3. Backend `/subscription/verify-google` endpoint — blocked on Play Console
 
@@ -76,13 +131,19 @@ Play permissions — calls to the Play Developer API would 401.
    cd bowpress-api
    wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_JSON --env production < ~/.bowpress-secrets/play-billing-key.json
    ```
-6. Update `feature-subscription/SubscriptionVerifier.kt` to call
+6. ~~Update `feature-subscription/SubscriptionVerifier.kt` to call
    `/subscription/verify-google` with `{purchaseToken, productId,
-   packageName}` and propagate the returned `Entitlement`.
+   packageName}`~~ ✅ Wired on 2026-05-13. The client posts to
+   `/subscription/verify-google`; until the backend goes live it returns
+   501 and the client falls back to `Entitlement.Inactive` with a logged
+   warning. The local Play Billing ack/acknowledge flow still completes
+   so the user's purchase isn't lost — the next launch's
+   `GET /subscription` resync picks it up once the server flow exists.
 7. Add a webhook receiver for Google Play Real-Time Developer
    Notifications (RTDN) so server-side state stays in sync between
    client verifies (mirrors the existing Apple webhook in
-   `bowpress-api/src/routes/appleWebhookRoutes.ts`).
+   `bowpress-api/src/routes/appleWebhookRoutes.ts`). **Backend repo
+   work, not in this repo.**
 
 ---
 
