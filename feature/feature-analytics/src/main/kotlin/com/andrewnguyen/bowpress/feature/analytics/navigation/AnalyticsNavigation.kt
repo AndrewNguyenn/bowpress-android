@@ -10,6 +10,7 @@ import androidx.navigation.navDeepLink
 import com.andrewnguyen.bowpress.core.model.TrendFinding
 import com.andrewnguyen.bowpress.feature.analytics.dashboard.AnalyticsDashboardScreen
 import com.andrewnguyen.bowpress.feature.analytics.history.HistoricalSessionsScreen
+import com.andrewnguyen.bowpress.feature.analytics.sessiondetail.SessionDetailScreen
 import com.andrewnguyen.bowpress.feature.analytics.suggestion.SuggestionDetailScreen
 import com.andrewnguyen.bowpress.feature.analytics.timeline.ScoreTimelineScreen
 import com.andrewnguyen.bowpress.feature.analytics.trend.TrendFindingDetailScreen
@@ -35,6 +36,11 @@ object AnalyticsRoutes {
     /** Pattern: `analytics/timeline/{bowId}`. */
     const val TimelinePattern: String = "analytics/timeline/{bowId}"
 
+    /** Pattern: `analytics/session/{sessionId}`. */
+    const val SessionDetailPattern: String = "analytics/session/{sessionId}"
+
+    fun sessionDetail(sessionId: String): String = "analytics/session/$sessionId"
+
     /** Pattern: `analytics/trend/{findingJson}`. */
     const val TrendDetailPattern: String = "analytics/trend/{findingJson}"
 
@@ -54,6 +60,7 @@ object AnalyticsRoutes {
         const val BowId: String = "bowId"
         const val SuggestionId: String = "suggestionId"
         const val FindingJson: String = "findingJson"
+        const val SessionId: String = "sessionId"
     }
 }
 
@@ -130,6 +137,22 @@ fun NavGraphBuilder.analyticsNavGraph(navController: NavController) {
 
         composable(AnalyticsRoutes.History) {
             HistoricalSessionsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSession = { sessionId ->
+                    navController.navigate(AnalyticsRoutes.sessionDetail(sessionId))
+                },
+            )
+        }
+
+        composable(
+            route = AnalyticsRoutes.SessionDetailPattern,
+            arguments = listOf(
+                navArgument(AnalyticsRoutes.Args.SessionId) { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val sessionId = entry.arguments?.getString(AnalyticsRoutes.Args.SessionId).orEmpty()
+            SessionDetailScreen(
+                sessionId = sessionId,
                 onBack = { navController.popBackStack() },
             )
         }

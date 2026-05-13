@@ -83,12 +83,14 @@ import kotlin.math.roundToInt
 @Composable
 fun HistoricalSessionsScreen(
     onBack: () -> Unit,
+    onOpenSession: (String) -> Unit = {},
     viewModel: HistoricalSessionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     HistoricalSessionsContent(
         state = state,
         onBack = onBack,
+        onOpenSession = onOpenSession,
         onBowFilter = viewModel::setBowFilter,
         onDeleteSession = viewModel::deleteSession,
         onUpdateSession = viewModel::updateSession,
@@ -101,6 +103,7 @@ internal fun HistoricalSessionsContent(
     state: HistoricalSessionsUiState,
     onBack: () -> Unit,
     onBowFilter: (String?) -> Unit,
+    onOpenSession: (String) -> Unit = {},
     onDeleteSession: (String) -> Unit = {},
     onUpdateSession: (String, String, List<String>) -> Unit = { _, _, _ -> },
 ) {
@@ -176,7 +179,7 @@ internal fun HistoricalSessionsContent(
                         SessionLogRow(
                             row = row,
                             isLast = isLast,
-                            onTap = { /* TODO: navigate to session detail */ },
+                            onTap = { onOpenSession(row.id) },
                             onEdit = { pendingEdit = row.id },
                             onDelete = { pendingDelete = row.id },
                         )

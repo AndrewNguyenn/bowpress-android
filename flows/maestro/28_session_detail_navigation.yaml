@@ -1,0 +1,27 @@
+# Iter 34: tapping a session log row must navigate to a Session Detail
+# screen on both platforms. iOS opens SessionDetailSheet
+# (HistoricalSessionsView.swift:248) — shot distribution heatmap, end
+# selector, X·10 ring detail, etc. Android lands on a scaffolded stub
+# for now (back arrow + "Session Detail" title + "Shot distribution"
+# header); full heatmap port is a follow-up iter.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: ".*Pre-comp tune check.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+- assertVisible: "Session Detail"
+- assertVisible:
+    text: ".*Shot distribution.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_session_detail

@@ -33,10 +33,12 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
@@ -45,6 +47,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.feature.analytics.history.HistoricalSessionsScreen
+import com.andrewnguyen.bowpress.feature.analytics.sessiondetail.SessionDetailScreen
 import com.andrewnguyen.bowpress.feature.analytics.navigation.AnalyticsRoutes
 import com.andrewnguyen.bowpress.feature.analytics.navigation.analyticsNavGraph
 import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentRoutes
@@ -165,6 +168,19 @@ fun MainScaffold(
                     HistoricalSessionsScreen(
                         // Log is a top-level tab — there is no nav back from the root.
                         onBack = { /* no-op at tab root */ },
+                        onOpenSession = { sessionId ->
+                            navController.navigate("tab/log/session/$sessionId")
+                        },
+                    )
+                }
+                composable(
+                    route = "tab/log/session/{sessionId}",
+                    arguments = listOf(navArgument("sessionId") { type = NavType.StringType }),
+                ) { entry ->
+                    val sessionId = entry.arguments?.getString("sessionId").orEmpty()
+                    SessionDetailScreen(
+                        sessionId = sessionId,
+                        onBack = { navController.popBackStack() },
                     )
                 }
             }
