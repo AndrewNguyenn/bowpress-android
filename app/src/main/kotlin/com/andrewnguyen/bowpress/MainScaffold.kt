@@ -8,11 +8,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -224,8 +224,8 @@ private enum class TopTab(
 ) {
     // Order mirrors iOS MainTabView: Analytics, Log, Session, Equipment, Settings.
     Analytics("tab/analytics", "Analytics", Icons.Filled.BarChart),
-    Log("tab/log", "Log", Icons.Filled.History),
-    Session("tab/session", "Session", Icons.Filled.Whatshot),
-    Equipment("tab/equipment", "Equipment", Icons.Filled.Build),
-    Settings("tab/settings", "Settings", Icons.Filled.Settings),
+    Log("tab/log", "Log", Icons.Filled.Assignment),
+    Session("tab/session", "Session", Icons.Filled.TrackChanges),
+    Equipment("tab/equipment", "Equipment", Icons.Filled.Tune),
+    Settings("tab/settings", "Settings", Icons.Filled.AccountCircle),
 }
