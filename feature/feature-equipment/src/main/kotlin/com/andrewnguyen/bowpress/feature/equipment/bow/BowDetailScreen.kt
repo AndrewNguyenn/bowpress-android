@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,8 +21,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +45,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrewnguyen.bowpress.core.designsystem.AppCream
+import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
@@ -109,11 +114,22 @@ fun BowDetailScreen(
                             modifier = Modifier.size(24.dp).padding(end = 12.dp),
                         )
                     } else {
-                        TextButton(
+                        FilledTonalButton(
                             onClick = editViewModel::save,
                             enabled = !editState.isLoading && editState.bow != null,
-                            modifier = Modifier.testTag("save_bow_button"),
-                        ) { Text("Save") }
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = AppCream,
+                                contentColor = AppPondDk,
+                            ),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = 14.dp,
+                                vertical = 6.dp,
+                            ),
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .testTag("save_bow_button"),
+                        ) { Text("Save", style = MaterialTheme.typography.labelLarge) }
                     }
                     // iOS BowDetailView surfaces deletion as a destructive button at
                     // the bottom of the form (BowDetailView.swift:181-191), not a
