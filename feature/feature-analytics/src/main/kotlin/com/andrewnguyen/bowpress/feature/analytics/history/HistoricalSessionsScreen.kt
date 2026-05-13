@@ -61,7 +61,6 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.AppPondLt
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPBigScore
-import com.andrewnguyen.bowpress.core.designsystem.bp.BPDelta
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPFilterSummary
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPHairlineButton
@@ -403,16 +402,40 @@ private fun SessionLogRow(
             }
         }
 
-        // Col 3: Right rail.
+        // Col 3: Right rail. iOS SessionLogRow shows total score "180 /180" +
+        // X count + BEST tag (SessionLogRow.swift). Earlier Android rendered
+        // avgRing here; switching to total to match the iOS oracle.
         Column(
             modifier = Modifier.padding(top = 2.dp),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            val scoreStr = if (row.avgRing > 0.0) "%.1f".format(row.avgRing) else "—"
-            BPBigScore(value = scoreStr, size = 22.sp)
-            val delta = row.previousAvg?.let { row.avgRing - it } ?: 0.0
-            BPDelta(value = delta)
+            val totalScore = row.rings.sumOf { minOf(it, 10) }
+            val maxScore = row.arrowCount * 10
+            val hasArrows = row.arrowCount > 0 && row.rings.isNotEmpty()
+            BPBigScore(value = if (hasArrows) totalScore.toString() else "—", size = 22.sp)
+            if (hasArrows && maxScore > 0) {
+                Text(
+                    text = "/$maxScore",
+                    style = jetbrainsMono(10.sp).copy(color = AppInk3),
+                )
+                Text(
+                    text = "${row.xCount}X",
+                    style = interUI(10.sp, weight = FontWeight.SemiBold).copy(
+                        letterSpacing = 0.18.em,
+                        color = AppInk3,
+                    ),
+                )
+            }
+            if (row.isBest) {
+                Text(
+                    text = "BEST",
+                    style = interUI(9.sp, weight = FontWeight.SemiBold).copy(
+                        letterSpacing = 0.18.em,
+                        color = AppPine,
+                    ),
+                )
+            }
             Row {
                 Text(
                     text = "›",

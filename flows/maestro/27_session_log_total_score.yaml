@@ -1,0 +1,30 @@
+# Iter 33: Session log right rail shows total score (e.g. 180 /180) +
+# X count, mirroring iOS SessionLogRow. Android previously showed
+# per-arrow avg "10.0". The seeded sessions in the dev data total 180
+# for the 18-arrow "Pre-comp tune check" run.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible:
+    text: ".*Session log.*"
+
+# "Pre-comp tune check" has 18 arrows at 10.0 avg = 180 total.
+# Maestro can't reliably assert "180 /180" as one node (denominator is a
+# separate Text), but "/180" + "18 arrows" + "Pre-comp" together prove
+# the new right rail is in place.
+- assertVisible:
+    text: ".*Pre-comp tune check.*"
+- assertVisible:
+    text: ".*/180.*"
+- assertVisible:
+    text: ".*11X.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_session_log
