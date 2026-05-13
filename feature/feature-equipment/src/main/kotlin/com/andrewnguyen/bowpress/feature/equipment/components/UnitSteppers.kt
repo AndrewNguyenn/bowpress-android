@@ -6,6 +6,7 @@ import com.andrewnguyen.bowpress.core.model.UnitFormatting
 import com.andrewnguyen.bowpress.core.model.UnitRange
 import com.andrewnguyen.bowpress.core.model.UnitScale
 import com.andrewnguyen.bowpress.core.model.UnitSystem
+// InterleavedStepperRow lives in this same package (components/EquipmentComponents.kt)
 
 /**
  * Stepper rows that bind to canonical-unit state but present and nudge in the
@@ -27,14 +28,20 @@ fun LengthStepperRow(
     modifier: Modifier = Modifier,
 ) {
     val bounds = range.displayRange(unitSystem)
-    DoubleStepperRow(
+    val displayValue = UnitScale.INCH_TO_CM.toDisplay(inches, unitSystem)
+    val step = range.displayStep(unitSystem)
+    InterleavedStepperRow(
         label = label,
-        value = UnitScale.INCH_TO_CM.toDisplay(inches, unitSystem),
-        onChange = { onInchesChange(UnitScale.INCH_TO_CM.toCanonical(it, unitSystem)) },
-        valueLabel = UnitFormatting.length(inches, unitSystem, digits),
-        min = bounds.start,
-        max = bounds.endInclusive,
-        step = range.displayStep(unitSystem),
+        onDecrease = {
+            val nextDisplay = (displayValue - step).coerceAtLeast(bounds.start)
+            onInchesChange(UnitScale.INCH_TO_CM.toCanonical(nextDisplay, unitSystem))
+        },
+        onIncrease = {
+            val nextDisplay = (displayValue + step).coerceAtMost(bounds.endInclusive)
+            onInchesChange(UnitScale.INCH_TO_CM.toCanonical(nextDisplay, unitSystem))
+        },
+        valueText = UnitFormatting.lengthValue(inches, unitSystem, digits),
+        unitSuffix = UnitFormatting.lengthSuffix(unitSystem),
         modifier = modifier,
     )
 }

@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.outlined.AddCircle
+import androidx.compose.material.icons.outlined.RemoveCircle
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -214,6 +216,59 @@ fun DoubleStepperRow(
                 decreaseDescription = "Decrease $label",
                 increaseDescription = "Increase $label",
             )
+        }
+    }
+}
+
+/**
+ * Interleaved stepper row — mirrors iOS BowConfigEditView.lengthRow:
+ * `Label … [⊖] value unit [⊕]` with circle-outline icons. The value and
+ * unit suffix render as separate text columns so the unit aligns rather
+ * than being concatenated into one token. Used by LengthStepperRow for
+ * imperial / metric length scalars (Draw Length, Brace Height, etc).
+ */
+@Composable
+fun InterleavedStepperRow(
+    label: String,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    valueText: String,
+    unitSuffix: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDecrease, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Outlined.RemoveCircle,
+                    contentDescription = "Decrease $label",
+                    tint = BowPressColors.Accent,
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(56.dp).padding(end = 2.dp),
+            )
+            Text(
+                text = unitSuffix,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(16.dp),
+            )
+            IconButton(onClick = onIncrease, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Outlined.AddCircle,
+                    contentDescription = "Increase $label",
+                    tint = BowPressColors.Accent,
+                )
+            }
         }
     }
 }
