@@ -26,7 +26,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,7 +48,9 @@ import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
 import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.feature.equipment.components.LabeledValueRow
 import com.andrewnguyen.bowpress.feature.equipment.components.ScoreBadge
+import com.andrewnguyen.bowpress.feature.equipment.components.SectionCard
 import com.andrewnguyen.bowpress.feature.equipment.components.SectionHeader
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -280,38 +281,20 @@ private fun BowDetailBody(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BowInfoSection(
     bow: Bow,
     modifier: Modifier = Modifier,
 ) {
-    var name by remember(bow.id) { mutableStateOf(bow.name) }
     Column(modifier = modifier) {
         SectionHeader("Bow Info")
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name") },
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .testTag("bow_info_name_field"),
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Type", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.weight(1f))
-            Text(
-                bow.bowType.label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        SectionCard {
+            LabeledValueRow(
+                label = "Name",
+                value = bow.name,
+                modifier = Modifier.testTag("bow_info_name_field"),
             )
+            LabeledValueRow(label = "Type", value = bow.bowType.label)
         }
     }
 }
@@ -384,74 +367,78 @@ private fun ReferenceSection(
     Column(modifier = modifier) {
         if (pinned != null) {
             SectionHeader("Reference")
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = BowPressColors.Accent,
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = pinned.label ?: "Pinned configuration",
-                        style = MaterialTheme.typography.bodyLarge,
+            SectionCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = BowPressColors.Accent,
                     )
-                    val source = if (pinned.referenceManuallyPinned == true) {
-                        "Manually pinned"
-                    } else {
-                        "Auto-selected by analytics"
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = pinned.label ?: "Pinned configuration",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        val source = if (pinned.referenceManuallyPinned == true) {
+                            "Manually pinned"
+                        } else {
+                            "Auto-selected by analytics"
+                        }
+                        val subtitle = pinned.avgArrowScore?.let { score ->
+                            "Score ${score.toInt()} / 100 · $source"
+                        } ?: source
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                    val subtitle = pinned.avgArrowScore?.let { score ->
-                        "Score ${score.toInt()} / 100 · $source"
-                    } ?: source
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (pinned.referenceManuallyPinned == true) {
-                    TextButton(
-                        onClick = { onToggleReference(pinned.id, false) },
-                        modifier = Modifier.testTag("unpin_reference_button"),
-                    ) {
-                        Text("Unpin", color = MaterialTheme.colorScheme.error)
+                    if (pinned.referenceManuallyPinned == true) {
+                        TextButton(
+                            onClick = { onToggleReference(pinned.id, false) },
+                            modifier = Modifier.testTag("unpin_reference_button"),
+                        ) {
+                            Text("Unpin", color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
             }
         }
 
         if (canOfferPin && current != null) {
-            Spacer(Modifier.height(4.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleReference(current.id, true) }
-                    .padding(vertical = 12.dp)
-                    .testTag("pin_current_button"),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.StarBorder,
-                    contentDescription = null,
-                    tint = BowPressColors.Accent,
-                )
-                Text(
-                    text = "Pin current config as reference",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            Spacer(Modifier.height(8.dp))
+            SectionCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleReference(current.id, true) }
+                        .padding(vertical = 12.dp)
+                        .testTag("pin_current_button"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.StarBorder,
+                        contentDescription = null,
+                        tint = BowPressColors.Accent,
+                    )
+                    Text(
+                        text = "Pin current config as reference",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
             Text(
                 text = "Analytics comparisons anchor to your reference. Unpinning lets the pipeline auto-select the highest-scoring config after each session.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp),
+                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp),
             )
         }
     }
