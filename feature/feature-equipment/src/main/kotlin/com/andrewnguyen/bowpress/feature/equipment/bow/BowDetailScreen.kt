@@ -103,7 +103,7 @@ fun BowDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(state.bow?.name.orEmpty()) },
+                title = { /* iOS renders the title as a large heading inside the body, not in the topbar */ },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -204,14 +204,17 @@ private fun BowDetailBody(
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        // iOS BowDetailView renders bow.name only via .navigationTitle — there's
-        // no separate header band repeating the name/type/brand. Android's
-        // TopAppBar already shows the name; the form body starts with the unit
-        // toggle, matching BowDetailView.swift:115-118.
+        // Large-title nav style — iOS BowDetailView uses .navigationBarTitleDisplayMode(.large)
+        // which renders the bow name as a big bold heading below the back/Save
+        // row, not inside the topbar. Mirror that here.
+        Text(
+            text = bow.name,
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            ),
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+        )
 
-        // iOS BowDetailView puts the unit toggle at the very top of the form,
-        // above Bow Info (BowDetailView.swift:117). Render it here so the body
-        // can suppress its own.
         UnitToggle(
             system = LocalUnitSystem.current,
             onSystemChange = LocalUnitSystemSetter.current,
