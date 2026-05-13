@@ -1,10 +1,13 @@
 package com.andrewnguyen.bowpress.push
 
+import android.util.Log
 import com.andrewnguyen.bowpress.BuildConfig
 import com.andrewnguyen.bowpress.core.data.push.DeviceTokenRegistrar
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -23,14 +26,33 @@ import javax.inject.Singleton
 class PushInitializer @Inject constructor(
     private val registrar: DeviceTokenRegistrar,
 ) {
-    private val scope = CoroutineScope(Dispatchers.IO)
+    // SupervisorJob so a token-fetch failure doesn't cancel the scope; the
+    // CoroutineExceptionHandler is a backstop so an uncaught 401 (e.g. the
+    // backend rejecting the bearer-less /push/register call before sign-in)
+    // never propagates to the default thread-group handler and kills the
+    // process. iOS PushRegistrar runs after the user is signed in; the
+    // Android entry point fires earlier, so it must tolerate auth-less
+    // failures.
+    private val scope = CoroutineScope(
+        Dispatchers.IO +
+            SupervisorJob() +
+            CoroutineExceptionHandler { _, t ->
+                Log.w(TAG, "Push registration failed; will retry on next launch", t)
+            },
+    )
 
     fun start() {
         registrar.environmentOverride =
             if (BuildConfig.DEBUG) "development" else "production"
         scope.launch {
-            runCatching { FirebaseMessaging.getInstance().token.await() }
-                .onSuccess { token -> registrar.register(token) }
+            runCatching {
+                val token = FirebaseMessaging.getInstance().token.await()
+                registrar.register(token)
+            }.onFailure { Log.w(TAG, "Push registration failed", it) }
         }
+    }
+
+    private companion object {
+        const val TAG = "PushInitializer"
     }
 }

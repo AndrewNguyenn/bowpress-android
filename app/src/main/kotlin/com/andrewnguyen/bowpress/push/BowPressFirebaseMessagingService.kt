@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -20,6 +21,7 @@ import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,11 +50,25 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
     @Inject lateinit var deviceTokenRegistrar: DeviceTokenRegistrar
     @Inject lateinit var analyticsRefreshBus: AnalyticsRefreshBus
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Backstop CoroutineExceptionHandler so a 401 from the bearer-less
+    // /push/register call (FCM fires onNewToken before the user signs in)
+    // doesn't crash the process. iOS PushRegistrar runs after sign-in;
+    // Android FCM token delivery is async, so tolerate auth-less failures
+    // and retry on the next launch via PushInitializer.
+    private val scope = CoroutineScope(
+        SupervisorJob() +
+            Dispatchers.IO +
+            CoroutineExceptionHandler { _, t ->
+                Log.w("BowPressFCM", "Token registration failed", t)
+            },
+    )
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        scope.launch { deviceTokenRegistrar.register(token) }
+        scope.launch {
+            runCatching { deviceTokenRegistrar.register(token) }
+                .onFailure { Log.w("BowPressFCM", "Token registration failed", it) }
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
