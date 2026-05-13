@@ -1,0 +1,30 @@
+# Iter 37: SessionDetail renders the WA 10-ring target + arrow dots.
+# This proves the canvas mounts and the placeholder text is gone.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: ".*Pre-comp tune check.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Session Detail"
+- assertVisible:
+    text: ".*Shot distribution.*"
+- assertVisible:
+    text: ".*18 arrows.*"
+- assertVisible:
+    text: ".*6 ends.*"
+
+# Heatmap placeholder must be gone — the canvas is now drawing the target.
+- assertNotVisible:
+    text: ".*coming soon.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_target

@@ -101,16 +101,11 @@ fun SessionDetailScreen(
                         text = "All $arrowLabel · $endLabel",
                         style = jetbrainsMono(11.sp).copy(letterSpacing = 0.04.em, color = AppInk3),
                     )
+                    ShotDistributionTarget(
+                        arrows = state.arrows,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
-            }
-            Box(
-                modifier = Modifier.align(Alignment.Center),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Shot distribution heatmap coming soon",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = AppInk3),
-                )
             }
         }
     }
