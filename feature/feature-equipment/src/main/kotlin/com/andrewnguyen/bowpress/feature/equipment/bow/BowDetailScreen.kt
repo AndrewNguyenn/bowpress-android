@@ -86,6 +86,8 @@ fun BowDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editState by editViewModel.state.collectAsStateWithLifecycle()
+    val gripSuggestions by editViewModel.gripSuggestions.collectAsStateWithLifecycle()
+    val limbSuggestions by editViewModel.limbSuggestions.collectAsStateWithLifecycle()
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // After a Save round-trip the edit VM stamps savedConfigId. Acknowledge it so
@@ -154,6 +156,8 @@ fun BowDetailScreen(
                 configurations = state.configurations,
                 editState = editState,
                 editCallbacks = editViewModel.asCallbacks(),
+                gripSuggestions = gripSuggestions,
+                limbSuggestions = limbSuggestions,
                 onOpenConfig = onOpenConfig,
                 onToggleReference = viewModel::setReference,
                 onDeleteRequested = { showDeleteConfirm = true },
@@ -194,6 +198,8 @@ private fun BowDetailBody(
     configurations: List<BowConfiguration>,
     editState: BowConfigEditViewModel.UiState,
     editCallbacks: BowConfigEditCallbacks,
+    gripSuggestions: List<String>,
+    limbSuggestions: List<String>,
     onOpenConfig: (String) -> Unit,
     onToggleReference: (configId: String, pinned: Boolean) -> Unit,
     onDeleteRequested: () -> Unit,
@@ -258,6 +264,8 @@ private fun BowDetailBody(
             // dedicated "Log Tuning" flow.
             showUnitToggle = false,
             showLabel = false,
+            gripSuggestions = gripSuggestions,
+            limbSuggestions = limbSuggestions,
         )
 
         Spacer(Modifier.height(16.dp))

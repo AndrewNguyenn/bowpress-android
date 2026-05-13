@@ -22,6 +22,9 @@ class BowConfigRepository @Inject constructor(
     fun observeByBow(bowId: String): Flow<List<BowConfiguration>> =
         dao.observeByBow(bowId).map { rows -> rows.map { it.toDto() } }
 
+    fun observeAll(): Flow<List<BowConfiguration>> =
+        dao.observeAll().map { rows -> rows.map { it.toDto() } }
+
     suspend fun getByBow(bowId: String): List<BowConfiguration> =
         dao.findByBow(bowId).map { it.toDto() }
 

@@ -46,6 +46,7 @@ import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules.Field
 import com.andrewnguyen.bowpress.feature.equipment.EquipmentFieldRules.Section
+import com.andrewnguyen.bowpress.feature.equipment.components.BowConfigSuggestRow
 import com.andrewnguyen.bowpress.feature.equipment.components.DoubleStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.IntStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.LengthStepperRow
@@ -115,6 +116,8 @@ fun BowConfigEditScreen(
     viewModel: BowConfigEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val gripSuggestions by viewModel.gripSuggestions.collectAsStateWithLifecycle()
+    val limbSuggestions by viewModel.limbSuggestions.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.savedConfigId) {
         state.savedConfigId?.let(onSaved)
@@ -164,6 +167,8 @@ fun BowConfigEditScreen(
                 callbacks = viewModel.asCallbacks(),
                 unitSystem = LocalUnitSystem.current,
                 onUnitSystemChange = LocalUnitSystemSetter.current,
+                gripSuggestions = gripSuggestions,
+                limbSuggestions = limbSuggestions,
                 modifier = Modifier
                     .padding(padding)
                     .verticalScroll(rememberScrollState()),
@@ -197,6 +202,8 @@ internal fun BowConfigEditFormBody(
     // so let the caller suppress both.
     showUnitToggle: Boolean = true,
     showLabel: Boolean = true,
+    gripSuggestions: List<String> = emptyList(),
+    limbSuggestions: List<String> = emptyList(),
 ) {
     Column(
         modifier = modifier
@@ -292,16 +299,13 @@ internal fun BowConfigEditFormBody(
                         DoubleStepperRow("Bottom Limb", state.bottomLimbTurns, callbacks::updateBottomLimb, limbTurnsLabel(state.bottomLimbTurns), -10.0, 10.0, 0.5)
                     }
                     BowType.RECURVE, BowType.BAREBOW -> {
-                        OutlinedTextField(
+                        BowConfigSuggestRow(
+                            label = "Specific Limbs",
+                            placeholder = "e.g. Hoyt 970 Velos 36# medium",
                             value = state.specificLimbs,
                             onValueChange = callbacks::updateSpecificLimbs,
-                            label = { Text("Specific Limbs") },
-                            placeholder = { Text("e.g. Hoyt 970 Velos 36# medium") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .testTag("specific_limbs_field"),
+                            suggestions = limbSuggestions,
+                            accessibilityKey = "specific_limbs",
                         )
                     }
                 }
@@ -356,18 +360,15 @@ internal fun BowConfigEditFormBody(
             SectionCard {
                 DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
                     UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
-                // iOS renders the Specific Grip text field between Grip Angle and
+                // iOS renders the Specific Grip picker row between Grip Angle and
                 // Nocking Height (BowDetailView.swift recurveSections / barebowSections).
-                OutlinedTextField(
+                BowConfigSuggestRow(
+                    label = "Specific Grip",
+                    placeholder = "e.g. Jager Hunter",
                     value = state.specificGrip,
                     onValueChange = callbacks::updateSpecificGrip,
-                    label = { Text("Specific Grip") },
-                    placeholder = { Text("e.g. Jager Hunter") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .testTag("specific_grip_field"),
+                    suggestions = gripSuggestions,
+                    accessibilityKey = "specific_grip",
                 )
                 IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
                     UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)

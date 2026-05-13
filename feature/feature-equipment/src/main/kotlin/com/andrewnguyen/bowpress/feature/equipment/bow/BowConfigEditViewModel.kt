@@ -12,9 +12,12 @@ import com.andrewnguyen.bowpress.core.model.RearStabSide
 import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentArgs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -99,6 +102,31 @@ class BowConfigEditViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    /**
+     * De-duplicated catalog of previously-entered specific-grip values across
+     * every bow's configs. Mirrors iOS `BowConfiguration.suggestions(from:keyPath:)`.
+     */
+    val gripSuggestions: StateFlow<List<String>> = bowConfigRepository.observeAll()
+        .map { configs -> distinctNonEmpty(configs.map { it.specificGrip }) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** De-duplicated catalog of previously-entered specific-limb values. */
+    val limbSuggestions: StateFlow<List<String>> = bowConfigRepository.observeAll()
+        .map { configs -> distinctNonEmpty(configs.map { it.specificLimbs }) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private fun distinctNonEmpty(raw: List<String?>): List<String> {
+        val seen = mutableSetOf<String>()
+        val out = mutableListOf<String>()
+        for (value in raw) {
+            val trimmed = value?.trim().orEmpty()
+            if (trimmed.isEmpty()) continue
+            val key = trimmed.lowercase()
+            if (seen.add(key)) out += trimmed
+        }
+        return out
+    }
 
     init {
         viewModelScope.launch {
