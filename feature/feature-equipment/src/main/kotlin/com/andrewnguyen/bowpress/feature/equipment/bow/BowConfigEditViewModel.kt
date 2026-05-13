@@ -146,7 +146,10 @@ class BowConfigEditViewModel @Inject constructor(
         viewModelScope.launch {
             bowConfigRepository.clearConfigSpecificGrip(name)
             // Local: if the form is currently displaying this value, clear it.
-            if (_state.value.specificGrip.equals(name.trim(), ignoreCase = true)) {
+            // Trim both sides to match the repo's case-insensitive trim
+            // comparison — otherwise stray whitespace leaves the form with
+            // an orphaned value that the next Save would re-introduce.
+            if (_state.value.specificGrip.trim().equals(name.trim(), ignoreCase = true)) {
                 _state.update { it.copy(specificGrip = "") }
             }
         }
@@ -156,7 +159,7 @@ class BowConfigEditViewModel @Inject constructor(
     fun deleteLimbsFromCatalog(name: String) {
         viewModelScope.launch {
             bowConfigRepository.clearConfigSpecificLimbs(name)
-            if (_state.value.specificLimbs.equals(name.trim(), ignoreCase = true)) {
+            if (_state.value.specificLimbs.trim().equals(name.trim(), ignoreCase = true)) {
                 _state.update { it.copy(specificLimbs = "") }
             }
         }

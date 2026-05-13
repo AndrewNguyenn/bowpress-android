@@ -105,8 +105,11 @@ fun BowDetailScreen(
         modifier = modifier,
         // iOS BowDetail uses the system grouped background — a slightly darker
         // tone than the cards so AppCream sections pop forward. AppPaper2 is the
-        // closest token to that "page is darker than card" relationship. The
-        // explicit contentColor prevents Material from deriving a warm-red
+        // closest token to that "page is darker than card" relationship.
+        // BowDetailBody (below) does NOT paint its own background, so the
+        // Scaffold containerColor is what actually shows between the AppCream
+        // cards — pinning it here is load-bearing.
+        // The explicit contentColor prevents Material from deriving a warm-red
         // tone via contentColorFor(unknownColor).
         containerColor = com.andrewnguyen.bowpress.core.designsystem.AppPaper2,
         contentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
@@ -120,22 +123,27 @@ fun BowDetailScreen(
                 ),
                 title = { /* iOS renders the title as a large heading inside the body, not in the topbar */ },
                 navigationIcon = {
-                    // iOS 26 back affordance: small chevron inside a circular surface.
-                    androidx.compose.material3.Surface(
+                    // iOS 26 back affordance: a small chevron inside a circular
+                    // surface. Keep IconButton on the outside so the touch target
+                    // stays at the M3 48dp minimum + we still get a ripple; the
+                    // 36dp Surface is purely the visual chrome.
+                    IconButton(
                         onClick = onBack,
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        color = AppCream,
-                        modifier = Modifier
-                            .padding(start = 12.dp)
-                            .size(36.dp),
+                        modifier = Modifier.padding(start = 4.dp),
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = AppPondDk,
-                                modifier = Modifier.size(20.dp),
-                            )
+                        androidx.compose.material3.Surface(
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = AppCream,
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = AppPondDk,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
                         }
                     }
                 },

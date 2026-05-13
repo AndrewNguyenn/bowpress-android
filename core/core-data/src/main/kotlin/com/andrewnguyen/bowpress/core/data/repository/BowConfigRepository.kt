@@ -42,15 +42,21 @@ class BowConfigRepository @Inject constructor(
      * matches [name] case-insensitively. Mirrors iOS clearCatalogValue —
      * removing an entry from the de-duped catalog the picker sheet sources
      * from. Past history rows are left alone; only current configs reset.
+     *
+     * Implementation: snapshot the candidates, then re-read each row via
+     * `findById` before writing so concurrent edits (sync worker, user
+     * Save) aren't silently reverted to the snapshot's other fields.
      */
     suspend fun clearConfigSpecificGrip(name: String) {
         val target = name.trim()
-        val all = dao.observeAll().firstOrNull().orEmpty()
-        for (entity in all) {
-            val current = entity.specificGrip?.trim().orEmpty()
-            if (current.equals(target, ignoreCase = true)) {
-                dao.upsert(entity.copy(specificGrip = null, pendingSync = true))
-            }
+        val candidates = dao.observeAll().firstOrNull().orEmpty()
+            .filter { it.specificGrip?.trim().orEmpty().equals(target, ignoreCase = true) }
+        for (stale in candidates) {
+            val fresh = dao.findById(stale.id) ?: continue
+            // Re-check the predicate on the *fresh* row — a concurrent edit
+            // may have changed `specificGrip` since the snapshot.
+            if (!fresh.specificGrip?.trim().orEmpty().equals(target, ignoreCase = true)) continue
+            dao.upsert(fresh.copy(specificGrip = null, pendingSync = true))
         }
         syncService.enqueueSync()
     }
@@ -58,12 +64,12 @@ class BowConfigRepository @Inject constructor(
     /** See `clearConfigSpecificGrip`. Same shape, different field. */
     suspend fun clearConfigSpecificLimbs(name: String) {
         val target = name.trim()
-        val all = dao.observeAll().firstOrNull().orEmpty()
-        for (entity in all) {
-            val current = entity.specificLimbs?.trim().orEmpty()
-            if (current.equals(target, ignoreCase = true)) {
-                dao.upsert(entity.copy(specificLimbs = null, pendingSync = true))
-            }
+        val candidates = dao.observeAll().firstOrNull().orEmpty()
+            .filter { it.specificLimbs?.trim().orEmpty().equals(target, ignoreCase = true) }
+        for (stale in candidates) {
+            val fresh = dao.findById(stale.id) ?: continue
+            if (!fresh.specificLimbs?.trim().orEmpty().equals(target, ignoreCase = true)) continue
+            dao.upsert(fresh.copy(specificLimbs = null, pendingSync = true))
         }
         syncService.enqueueSync()
     }
