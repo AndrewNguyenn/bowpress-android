@@ -120,8 +120,8 @@ class UserRepository @Inject constructor(
         if (current == null) tokenStore.setToken(DEV_DEBUG_TOKEN)
         _currentUser.value = User(
             id = "dev-user",
-            email = "dev@bowpress.local",
-            name = "Dev User",
+            email = "dev@bowpress.app",
+            name = "Dev Archer",
             createdAt = Instant.parse("2025-01-01T00:00:00Z"),
             emailVerified = true,
             authProvider = AuthProvider.EMAIL,
