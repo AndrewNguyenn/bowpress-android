@@ -1,5 +1,13 @@
 package com.andrewnguyen.bowpress.feature.equipment.nav
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -12,6 +20,7 @@ import com.andrewnguyen.bowpress.feature.equipment.bow.BowConfigDetailScreen
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowConfigEditScreen
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowDetailScreen
 import com.andrewnguyen.bowpress.feature.equipment.home.EquipmentHomeScreen
+import kotlinx.coroutines.launch
 
 /**
  * Routes owned by the equipment feature. The top-level `equipment/home` route
@@ -48,17 +57,68 @@ object EquipmentRoutes {
  * [currentUserId] provider so creation flows can stamp a userId on new rows —
  * the equipment feature itself doesn't own the auth session.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.equipmentNavGraph(
     navController: NavHostController,
     currentUserId: () -> String,
 ) {
     composable(EquipmentRoutes.HOME) {
+        var addBowSheetOpen by remember { mutableStateOf(false) }
+        var addArrowSheetOpen by remember { mutableStateOf(false) }
+        val addBowSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val addArrowSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = rememberCoroutineScope()
+
         EquipmentHomeScreen(
-            onAddBow = { navController.navigate(EquipmentRoutes.BOW_ADD) },
+            onAddBow = { addBowSheetOpen = true },
             onOpenBow = { id -> navController.navigate(EquipmentRoutes.bowDetail(id)) },
-            onAddArrow = { navController.navigate(EquipmentRoutes.ARROW_ADD) },
+            onAddArrow = { addArrowSheetOpen = true },
             onOpenArrow = { id -> navController.navigate(EquipmentRoutes.arrowDetail(id)) },
         )
+
+        if (addBowSheetOpen) {
+            ModalBottomSheet(
+                onDismissRequest = { addBowSheetOpen = false },
+                sheetState = addBowSheetState,
+            ) {
+                AddBowScreen(
+                    userId = currentUserId(),
+                    onBowCreated = { id ->
+                        scope.launch { addBowSheetState.hide() }
+                            .invokeOnCompletion {
+                                addBowSheetOpen = false
+                                navController.navigate(EquipmentRoutes.bowDetail(id))
+                            }
+                    },
+                    onCancel = {
+                        scope.launch { addBowSheetState.hide() }
+                            .invokeOnCompletion { addBowSheetOpen = false }
+                    },
+                )
+            }
+        }
+
+        if (addArrowSheetOpen) {
+            ModalBottomSheet(
+                onDismissRequest = { addArrowSheetOpen = false },
+                sheetState = addArrowSheetState,
+            ) {
+                AddArrowScreen(
+                    userId = currentUserId(),
+                    onCreated = { id ->
+                        scope.launch { addArrowSheetState.hide() }
+                            .invokeOnCompletion {
+                                addArrowSheetOpen = false
+                                navController.navigate(EquipmentRoutes.arrowDetail(id))
+                            }
+                    },
+                    onCancel = {
+                        scope.launch { addArrowSheetState.hide() }
+                            .invokeOnCompletion { addArrowSheetOpen = false }
+                    },
+                )
+            }
+        }
     }
 
     composable(EquipmentRoutes.BOW_ADD) {

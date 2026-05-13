@@ -1,0 +1,27 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+    stopApp: true
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_addbow_sheet
+- tapOn: "Cancel"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: "ADD"
+    index: 1
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_addarrow_sheet
