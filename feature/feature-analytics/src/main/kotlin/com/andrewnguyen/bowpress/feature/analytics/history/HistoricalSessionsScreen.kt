@@ -793,7 +793,7 @@ private fun HistoricalSessionsPreview() {
                 ),
                 totalArrows = 128,
                 totalSessions = 8,
-                sinceLabel = "March 2026",
+                sinceLabel = "2026 · 03",
                 groups = listOf(
                     SessionGroup(
                         header = "THIS WEEK",

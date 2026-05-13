@@ -269,8 +269,9 @@ class HistoricalSessionsViewModel @Inject constructor(
         }
 
         val sinceDate = sessions.minOfOrNull { it.startedAt }
+        // iOS Session log subtitle: "since 2026 · 04" (BowPress house format).
         val sinceLabel = sinceDate?.atZone(zoneId)?.toLocalDate()
-            ?.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US))
+            ?.format(DateTimeFormatter.ofPattern("yyyy · MM", Locale.US))
             ?: "—"
 
         return HistoricalSessionsUiState(
