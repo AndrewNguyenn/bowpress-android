@@ -72,9 +72,24 @@ data class UpdateSessionRequest(
     val feelTags: List<String>,
 )
 
-/** Body for `POST /subscription/verify`. */
+/** Body for `POST /subscription/verify` (Apple). */
 @Serializable
 data class VerifySubscriptionRequest(val jws: String)
+
+/**
+ * Body for `POST /subscription/verify-google`. The backend resolves
+ * `purchaseToken` against the Play Developer API using the stored service
+ * account, then maps the response into an [Entitlement]. While the backend
+ * endpoint returns 501 (no Play Console account yet — see BLOCKERS.md #3),
+ * the client still POSTs so the call lights up automatically once the
+ * server side ships.
+ */
+@Serializable
+data class VerifyGoogleSubscriptionRequest(
+    val purchaseToken: String,
+    val productId: String,
+    val packageName: String,
+)
 
 /** Body for `POST /device-tokens`. */
 @Serializable

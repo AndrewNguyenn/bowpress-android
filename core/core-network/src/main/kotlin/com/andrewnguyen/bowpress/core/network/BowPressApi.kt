@@ -282,6 +282,9 @@ interface BowPressApi {
     @POST("subscription/verify")
     suspend fun verifySubscription(@Body body: VerifySubscriptionRequest): Entitlement
 
+    @POST("subscription/verify-google")
+    suspend fun verifyGoogleSubscription(@Body body: VerifyGoogleSubscriptionRequest): Entitlement
+
     // ---- Device tokens --------------------------------------------------------
 
     @POST("device-tokens")

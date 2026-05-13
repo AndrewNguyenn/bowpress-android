@@ -1,30 +1,28 @@
 package com.andrewnguyen.bowpress.feature.subscription
 
+import android.util.Log
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.network.BowPressApi
-import com.andrewnguyen.bowpress.core.network.VerifySubscriptionRequest
+import com.andrewnguyen.bowpress.core.network.VerifyGoogleSubscriptionRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Contract for verifying a Play Billing purchase with the BowPress API and
- * returning the resulting [Entitlement].
+ * returning the resulting [Entitlement]. Mirrors the iOS Apple JWS verify
+ * path via the Apple-specific `POST /subscription/verify`.
  *
- * **Backend gap (platform-dev → backend):** The API currently only exposes
- * `POST /subscription/verify` for Apple JWS. There is no Google equivalent.
- * Once the backend adds `POST /subscription/verify-google` (accepting
- * `{ purchaseToken, productId, packageName }`), swap [HttpSubscriptionVerifier]
- * to call it. Until then, we stub the call: purchases succeed locally and are
- * acknowledged via Play Billing, but the server-side entitlement is not
- * persisted — the user sees a temporary optimistic `Inactive` entitlement and
- * a logged warning.
- *
- * TODO(platform-dev): backend endpoint pending — `/subscription/verify-google`.
+ * The Android counterpart hits `POST /subscription/verify-google` with
+ * `{ purchaseToken, productId, packageName }`. The endpoint currently returns
+ * 501 in production because the Play Console developer account hasn't been
+ * provisioned yet (see BLOCKERS.md #3). The client still POSTs so the moment
+ * the backend goes live — no client release is required.
  */
 interface SubscriptionVerifier {
     /**
      * Send [token] (the Play Billing purchase token) along with metadata to the
-     * backend for receipt validation. Returns the server-issued [Entitlement].
+     * backend for receipt validation. Returns the server-issued [Entitlement],
+     * or [Entitlement.Inactive] if the server can't validate (e.g. still 501).
      */
     suspend fun verifyGooglePurchase(
         token: String,
@@ -34,40 +32,35 @@ interface SubscriptionVerifier {
 }
 
 /**
- * HTTP-backed implementation. While the server endpoint is pending, this
- * implementation logs the intent and returns [Entitlement.Inactive] as a
- * placeholder so the paywall UI doesn't deadlock waiting for verification.
- *
- * Once the backend lands, replace the body with:
- * ```
- * api.verifyGoogleSubscription(VerifyGoogleRequest(token, productId, packageName))
- * ```
- * and add the corresponding Retrofit method + request DTO to core-network.
+ * HTTP-backed implementation. Posts to `/subscription/verify-google`. If the
+ * server returns an error (network, 501 while the endpoint is unprovisioned,
+ * 4xx for malformed payloads), the caller sees `Entitlement.Inactive` and a
+ * logged warning — the local Play Billing ack/acknowledge flow still
+ * completes, so the user's purchase isn't lost; subsequent app launches will
+ * re-fetch via `GET /subscription` once the server-side flow exists.
  */
 @Singleton
 class HttpSubscriptionVerifier @Inject constructor(
-    @Suppress("unused") private val api: BowPressApi,
+    private val api: BowPressApi,
 ) : SubscriptionVerifier {
 
     override suspend fun verifyGooglePurchase(
         token: String,
         productId: String,
         packageName: String,
-    ): Entitlement {
-        // TODO(platform-dev): backend endpoint pending — `/subscription/verify-google`.
-        // When ready, call:
-        //   return api.verifyGoogleSubscription(
-        //       VerifyGoogleSubscriptionRequest(
-        //           purchaseToken = token,
-        //           productId = productId,
-        //           packageName = packageName,
-        //       ),
-        //   )
-        //
-        // For now we reuse the Apple endpoint with the raw token so integration
-        // tests have an observable side effect, and fall back to Inactive.
-        return runCatching {
-            api.verifySubscription(VerifySubscriptionRequest(jws = token))
-        }.getOrElse { Entitlement.Inactive }
+    ): Entitlement = runCatching {
+        api.verifyGoogleSubscription(
+            VerifyGoogleSubscriptionRequest(
+                purchaseToken = token,
+                productId = productId,
+                packageName = packageName,
+            ),
+        )
+    }.onFailure {
+        Log.w(TAG, "verify-google failed; client will retry on next launch", it)
+    }.getOrElse { Entitlement.Inactive }
+
+    private companion object {
+        const val TAG = "SubscriptionVerifier"
     }
 }
