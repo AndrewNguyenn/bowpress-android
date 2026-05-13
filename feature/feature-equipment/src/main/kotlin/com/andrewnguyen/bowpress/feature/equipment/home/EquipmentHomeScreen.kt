@@ -12,11 +12,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -60,6 +65,10 @@ fun EquipmentHomeScreen(
     viewModel: EquipmentHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Confirmation gate — iOS context-menu → AlertDialog. Long-press sets the
+    // pending target; the dialog drives the actual viewModel.deleteX call.
+    var pendingBowDelete by remember { mutableStateOf<Bow?>(null) }
+    var pendingArrowDelete by remember { mutableStateOf<ArrowConfiguration?>(null) }
 
     Column(
         modifier = modifier
@@ -93,7 +102,7 @@ fun EquipmentHomeScreen(
                             BowRow(
                                 bow = bow,
                                 onClick = { onOpenBow(bow.id) },
-                                onLongClick = { viewModel.deleteBow(bow.id) },
+                                onLongClick = { pendingBowDelete = bow },
                             )
                             if (index < state.bows.lastIndex) {
                                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
@@ -113,7 +122,7 @@ fun EquipmentHomeScreen(
                             ArrowRow(
                                 arrow = arrow,
                                 onClick = { onOpenArrow(arrow.id) },
-                                onLongClick = { viewModel.deleteArrow(arrow.id) },
+                                onLongClick = { pendingArrowDelete = arrow },
                             )
                             if (index < state.arrows.lastIndex) {
                                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
@@ -123,6 +132,44 @@ fun EquipmentHomeScreen(
                 }
             }
         }
+    }
+
+    pendingBowDelete?.let { bow ->
+        AlertDialog(
+            onDismissRequest = { pendingBowDelete = null },
+            title = { Text("Delete ${bow.name}?") },
+            text = {
+                Text("This permanently removes this bow along with its tuning history and shooting sessions. This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteBow(bow.id)
+                    pendingBowDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingBowDelete = null }) { Text("Cancel") }
+            },
+        )
+    }
+
+    pendingArrowDelete?.let { arrow ->
+        AlertDialog(
+            onDismissRequest = { pendingArrowDelete = null },
+            title = { Text("Delete ${arrow.label}?") },
+            text = {
+                Text("This permanently removes this arrow setup. Past tuning history isn't affected.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteArrow(arrow.id)
+                    pendingArrowDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingArrowDelete = null }) { Text("Cancel") }
+            },
+        )
     }
 }
 
