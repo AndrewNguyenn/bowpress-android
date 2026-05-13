@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.outlined.AddCircle
-import androidx.compose.material.icons.outlined.RemoveCircle
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -245,7 +245,7 @@ fun InterleavedStepperRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onDecrease, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    Icons.Outlined.RemoveCircle,
+                    Icons.Filled.RemoveCircleOutline,
                     contentDescription = "Decrease $label",
                     tint = BowPressColors.Accent,
                 )
@@ -264,7 +264,7 @@ fun InterleavedStepperRow(
             )
             IconButton(onClick = onIncrease, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    Icons.Outlined.AddCircle,
+                    Icons.Filled.AddCircleOutline,
                     contentDescription = "Increase $label",
                     tint = BowPressColors.Accent,
                 )

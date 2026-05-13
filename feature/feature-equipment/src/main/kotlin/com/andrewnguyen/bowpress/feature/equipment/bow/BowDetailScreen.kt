@@ -103,11 +103,41 @@ fun BowDetailScreen(
 
     Scaffold(
         modifier = modifier,
+        // iOS BowDetail uses the system grouped background — a slightly darker
+        // tone than the cards so AppCream sections pop forward. AppPaper2 is the
+        // closest token to that "page is darker than card" relationship. The
+        // explicit contentColor prevents Material from deriving a warm-red
+        // tone via contentColorFor(unknownColor).
+        containerColor = com.andrewnguyen.bowpress.core.designsystem.AppPaper2,
+        contentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
         topBar = {
             TopAppBar(
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = com.andrewnguyen.bowpress.core.designsystem.AppPaper2,
+                    titleContentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
+                    navigationIconContentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
+                    actionIconContentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
+                ),
                 title = { /* iOS renders the title as a large heading inside the body, not in the topbar */ },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    // iOS 26 back affordance: small chevron inside a circular surface.
+                    androidx.compose.material3.Surface(
+                        onClick = onBack,
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = AppCream,
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .size(36.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = AppPondDk,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
                 },
                 actions = {
                     if (editState.isSaving) {
