@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +33,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppLine2
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 
 @Composable
@@ -109,8 +112,40 @@ fun LabeledValueRow(
 }
 
 /**
+ * Joined stepper chip — two icon buttons sharing a rounded outline with a
+ * vertical hairline between them. Mirrors the SwiftUI Stepper assembly used
+ * on iOS BowDetail rows.
+ */
+@Composable
+fun StepperChip(
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    decreaseDescription: String,
+    increaseDescription: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = AppPaper,
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDecrease, modifier = Modifier.size(width = 44.dp, height = 32.dp)) {
+                Icon(Icons.Default.Remove, contentDescription = decreaseDescription, tint = BowPressColors.Accent)
+            }
+            VerticalDivider(modifier = Modifier.height(20.dp), thickness = 1.dp, color = AppLine)
+            IconButton(onClick = onIncrease, modifier = Modifier.size(width = 44.dp, height = 32.dp)) {
+                Icon(Icons.Default.Add, contentDescription = increaseDescription, tint = BowPressColors.Accent)
+            }
+        }
+    }
+}
+
+/**
  * Numeric stepper with a `−`/`+` pair around a value label. Clamps to
- * `[min, max]` and nudges by `step` on each tap.
+ * `[min, max]` and nudges by `step` on each tap. Value sits to the left of
+ * the joined StepperChip — iOS layout.
  */
 @Composable
 fun IntStepperRow(
@@ -125,24 +160,25 @@ fun IntStepperRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onChange((value - step).coerceAtLeast(min)) }) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease $label", tint = BowPressColors.Accent)
-            }
             Text(
                 text = valueLabel,
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(96.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                modifier = Modifier.padding(end = 8.dp),
             )
-            IconButton(onClick = { onChange((value + step).coerceAtMost(max)) }) {
-                Icon(Icons.Default.Add, contentDescription = "Increase $label", tint = BowPressColors.Accent)
-            }
+            StepperChip(
+                onDecrease = { onChange((value - step).coerceAtLeast(min)) },
+                onIncrease = { onChange((value + step).coerceAtMost(max)) },
+                decreaseDescription = "Decrease $label",
+                increaseDescription = "Increase $label",
+            )
         }
     }
 }
@@ -160,24 +196,25 @@ fun DoubleStepperRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onChange((value - step).coerceAtLeast(min)) }) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease $label", tint = BowPressColors.Accent)
-            }
             Text(
                 text = valueLabel,
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(96.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                modifier = Modifier.padding(end = 8.dp),
             )
-            IconButton(onClick = { onChange((value + step).coerceAtMost(max)) }) {
-                Icon(Icons.Default.Add, contentDescription = "Increase $label", tint = BowPressColors.Accent)
-            }
+            StepperChip(
+                onDecrease = { onChange((value - step).coerceAtLeast(min)) },
+                onIncrease = { onChange((value + step).coerceAtMost(max)) },
+                decreaseDescription = "Decrease $label",
+                increaseDescription = "Increase $label",
+            )
         }
     }
 }
