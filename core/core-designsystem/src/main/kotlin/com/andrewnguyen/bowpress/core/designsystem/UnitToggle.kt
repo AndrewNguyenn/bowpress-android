@@ -1,7 +1,11 @@
 package com.andrewnguyen.bowpress.core.designsystem
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -10,9 +14,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import com.andrewnguyen.bowpress.core.model.UnitSystem
 
 /**
@@ -35,7 +42,9 @@ val LocalUnitSystemSetter: ProvidableCompositionLocal<(UnitSystem) -> Unit> =
 
 /**
  * Segmented control for swapping imperial ↔ metric. Sits at the top of every
- * configuration surface; mirrors iOS `UnitToggle`.
+ * configuration surface; mirrors iOS `Picker(.segmented)`: rounded tray with
+ * a lighter pill behind the selected option, no check icon, dark ink for
+ * both states.
  */
 @Composable
 fun UnitToggle(
@@ -49,15 +58,26 @@ fun UnitToggle(
             .testTag("unit_system_toggle")
             .semantics { contentDescription = "Unit system toggle" },
     ) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+                .background(AppLine2)
+                .padding(2.dp),
+        ) {
             UnitSystem.entries.forEachIndexed { index, option ->
                 SegmentedButton(
                     selected = system == option,
                     onClick = { onSystemChange(option) },
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = index,
-                        count = UnitSystem.entries.size,
+                    shape = RoundedCornerShape(50),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = AppCream,
+                        activeContentColor = AppInk,
+                        inactiveContainerColor = Color.Transparent,
+                        inactiveContentColor = AppInk,
                     ),
+                    border = BorderStroke(0.dp, Color.Transparent),
+                    icon = {},
                 ) { Text(option.label) }
             }
         }
