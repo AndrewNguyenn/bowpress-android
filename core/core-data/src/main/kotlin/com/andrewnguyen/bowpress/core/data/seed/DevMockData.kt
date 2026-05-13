@@ -282,9 +282,12 @@ private object DevMockData {
         // (14 sessions / 206 arrows). Earlier bc1b sessions sit further
         // from the centre so the "tightening over time" pattern reads
         // clearly across the Score timeline + ImpactMap views.
+        // LAST WEEK bucket — one session at day 6 to match iOS's
+        // "may 6 · 1 session" layout. The other two early-window sessions
+        // push into APRIL so bucket counts read 3 / 1 / 10, not 3 / 3 / 8.
         session(
             id = "dev_s1_3a", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
-            arrowConfigId = "dev_arrow1", startedAt = daysAgo(3),
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(6),
             durationMin = 60, arrowCount = 12, distance = ShootingDistance.METERS_50,
             title = "Tune confirmation",
             notes = "Quick tune confirmation after rest change.",
@@ -292,7 +295,7 @@ private object DevMockData {
         ),
         session(
             id = "dev_s1_3b", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
-            arrowConfigId = "dev_arrow1", startedAt = daysAgo(5),
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(16),
             durationMin = 85, arrowCount = 18, distance = ShootingDistance.METERS_70,
             title = "Long-range groups",
             notes = "70m groups holding through finals prep.",
@@ -300,7 +303,7 @@ private object DevMockData {
         ),
         session(
             id = "dev_s1_3c", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
-            arrowConfigId = "dev_arrow1", startedAt = daysAgo(9),
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(25),
             durationMin = 90, arrowCount = 18, distance = ShootingDistance.METERS_50,
             title = "Cadence work",
             notes = "Worked on shot cadence under timer.",
@@ -421,18 +424,18 @@ private object DevMockData {
         // Backfill plots for the 8 historical sessions added above. Older
         // bc1b sessions favour cardinal-zone bias at rings 8-10; the bc1c
         // mid-range sessions stay tight at 10-11.
-        addAll(makePlots("dev_s1_3a", "dev_bc1c", "dev_arrow1", daysAgo(3), 12,
+        addAll(makePlots("dev_s1_3a", "dev_bc1c", "dev_arrow1", daysAgo(6), 12,
             rings = listOf(10, 11, 10, 11, 11, 10, 11, 10, 11, 10, 11, 10),
             zones = listOf(Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER,
                 Zone.N, Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER),
         ))
-        addAll(makePlots("dev_s1_3b", "dev_bc1c", "dev_arrow1", daysAgo(5), 18,
+        addAll(makePlots("dev_s1_3b", "dev_bc1c", "dev_arrow1", daysAgo(16), 18,
             rings = listOf(10, 11, 10, 11, 10, 10, 11, 11, 10, 11, 10, 10, 11, 10, 11, 10, 11, 10),
             zones = listOf(Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER,
                 Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER,
                 Zone.CENTER, Zone.N, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER),
         ))
-        addAll(makePlots("dev_s1_3c", "dev_bc1c", "dev_arrow1", daysAgo(9), 18,
+        addAll(makePlots("dev_s1_3c", "dev_bc1c", "dev_arrow1", daysAgo(25), 18,
             rings = listOf(10, 10, 11, 10, 11, 10, 10, 11, 10, 10, 11, 10, 10, 11, 10, 10, 11, 10),
             zones = listOf(Zone.CENTER, Zone.N, Zone.CENTER, Zone.NE, Zone.CENTER, Zone.N,
                 Zone.CENTER, Zone.CENTER, Zone.N, Zone.NE, Zone.CENTER, Zone.N,
@@ -559,9 +562,9 @@ private object DevMockData {
         addAll(makeEnds("dev_s1_5", daysAgo(18), arrowCount = 12))
         addAll(makeEnds("dev_s1_4", daysAgo(23), arrowCount = 16))
         addAll(makeEnds("dev_s2_5", daysAgo(12), arrowCount = 15))
-        addAll(makeEnds("dev_s1_3a", daysAgo(3), arrowCount = 12))
-        addAll(makeEnds("dev_s1_3b", daysAgo(5), arrowCount = 18))
-        addAll(makeEnds("dev_s1_3c", daysAgo(9), arrowCount = 18))
+        addAll(makeEnds("dev_s1_3a", daysAgo(6), arrowCount = 12))
+        addAll(makeEnds("dev_s1_3b", daysAgo(16), arrowCount = 18))
+        addAll(makeEnds("dev_s1_3c", daysAgo(25), arrowCount = 18))
         addAll(makeEnds("dev_s1_3d", daysAgo(14), arrowCount = 15))
         addAll(makeEnds("dev_s1_3e", daysAgo(20), arrowCount = 12))
         addAll(makeEnds("dev_s1_3f", daysAgo(26), arrowCount = 12))
