@@ -278,6 +278,74 @@ private object DevMockData {
             notes = "Strong session. Release timing syncing.",
             feelTags = listOf("back_tension", "clean_release"),
         ),
+        // Fill out the historical trend to match iOS DevMockData
+        // (14 sessions / 206 arrows). Earlier bc1b sessions sit further
+        // from the centre so the "tightening over time" pattern reads
+        // clearly across the Score timeline + ImpactMap views.
+        session(
+            id = "dev_s1_3a", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(3),
+            durationMin = 60, arrowCount = 12, distance = ShootingDistance.METERS_50,
+            title = "Tune confirmation",
+            notes = "Quick tune confirmation after rest change.",
+            feelTags = listOf("consistent", "clean_release"),
+        ),
+        session(
+            id = "dev_s1_3b", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(5),
+            durationMin = 85, arrowCount = 18, distance = ShootingDistance.METERS_70,
+            title = "Long-range groups",
+            notes = "70m groups holding through finals prep.",
+            feelTags = listOf("back_tension", "consistent"),
+        ),
+        session(
+            id = "dev_s1_3c", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(9),
+            durationMin = 90, arrowCount = 18, distance = ShootingDistance.METERS_50,
+            title = "Cadence work",
+            notes = "Worked on shot cadence under timer.",
+            feelTags = listOf("back_tension", "clean_release"),
+        ),
+        session(
+            id = "dev_s1_3d", bowId = "dev_bow1", bowConfigId = "dev_bc1b",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(14),
+            durationMin = 70, arrowCount = 15, distance = ShootingDistance.METERS_50,
+            title = "Indoor finals tune-up",
+            notes = "Indoor tune-up — mostly center misses.",
+            feelTags = listOf("consistent"),
+        ),
+        session(
+            id = "dev_s1_3e", bowId = "dev_bow1", bowConfigId = "dev_bc1b",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(20),
+            durationMin = 60, arrowCount = 12, distance = ShootingDistance.YARDS_20,
+            title = "Light practice",
+            notes = "Light practice between competitions.",
+            feelTags = listOf("fatigue"),
+        ),
+        session(
+            id = "dev_s1_3f", bowId = "dev_bow1", bowConfigId = "dev_bc1b",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(26),
+            durationMin = 60, arrowCount = 12, distance = ShootingDistance.YARDS_20,
+            title = "Rest baseline",
+            notes = "Pre-tune baseline at 20yd.",
+            feelTags = listOf("consistent"),
+        ),
+        session(
+            id = "dev_s1_3g", bowId = "dev_bow1", bowConfigId = "dev_bc1b",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(30),
+            durationMin = 75, arrowCount = 12, distance = ShootingDistance.METERS_50,
+            title = "Form review",
+            notes = "Coach review session — focus on anchor.",
+            feelTags = listOf("back_tension"),
+        ),
+        session(
+            id = "dev_s1_3h", bowId = "dev_bow1", bowConfigId = "dev_bc1b",
+            arrowConfigId = "dev_arrow1", startedAt = daysAgo(34),
+            durationMin = 50, arrowCount = 10, distance = ShootingDistance.YARDS_20,
+            title = "Short tune block",
+            notes = "Short blocks while diagnosing nocking-point drift.",
+            feelTags = listOf("fatigue"),
+        ),
     )
 
     private fun session(
@@ -349,6 +417,52 @@ private object DevMockData {
             zones = listOf(Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER,
                 Zone.NE, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.N,
                 Zone.CENTER, Zone.CENTER, Zone.N),
+        ))
+        // Backfill plots for the 8 historical sessions added above. Older
+        // bc1b sessions favour cardinal-zone bias at rings 8-10; the bc1c
+        // mid-range sessions stay tight at 10-11.
+        addAll(makePlots("dev_s1_3a", "dev_bc1c", "dev_arrow1", daysAgo(3), 12,
+            rings = listOf(10, 11, 10, 11, 11, 10, 11, 10, 11, 10, 11, 10),
+            zones = listOf(Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER,
+                Zone.N, Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER),
+        ))
+        addAll(makePlots("dev_s1_3b", "dev_bc1c", "dev_arrow1", daysAgo(5), 18,
+            rings = listOf(10, 11, 10, 11, 10, 10, 11, 11, 10, 11, 10, 10, 11, 10, 11, 10, 11, 10),
+            zones = listOf(Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER,
+                Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER,
+                Zone.CENTER, Zone.N, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER),
+        ))
+        addAll(makePlots("dev_s1_3c", "dev_bc1c", "dev_arrow1", daysAgo(9), 18,
+            rings = listOf(10, 10, 11, 10, 11, 10, 10, 11, 10, 10, 11, 10, 10, 11, 10, 10, 11, 10),
+            zones = listOf(Zone.CENTER, Zone.N, Zone.CENTER, Zone.NE, Zone.CENTER, Zone.N,
+                Zone.CENTER, Zone.CENTER, Zone.N, Zone.NE, Zone.CENTER, Zone.N,
+                Zone.CENTER, Zone.CENTER, Zone.N, Zone.NE, Zone.CENTER, Zone.N),
+        ))
+        addAll(makePlots("dev_s1_3d", "dev_bc1b", "dev_arrow1", daysAgo(14), 15,
+            rings = listOf(9, 10, 10, 9, 10, 9, 10, 10, 9, 10, 9, 10, 9, 10, 10),
+            zones = listOf(Zone.N, Zone.CENTER, Zone.N, Zone.NE, Zone.N, Zone.CENTER,
+                Zone.NE, Zone.N, Zone.CENTER, Zone.N, Zone.NE, Zone.CENTER,
+                Zone.N, Zone.CENTER, Zone.N),
+        ))
+        addAll(makePlots("dev_s1_3e", "dev_bc1b", "dev_arrow1", daysAgo(20), 12,
+            rings = listOf(8, 9, 9, 10, 9, 8, 9, 10, 9, 8, 9, 9),
+            zones = listOf(Zone.NE, Zone.N, Zone.NE, Zone.CENTER, Zone.N, Zone.NE,
+                Zone.N, Zone.CENTER, Zone.NE, Zone.N, Zone.NE, Zone.N),
+        ))
+        addAll(makePlots("dev_s1_3f", "dev_bc1b", "dev_arrow1", daysAgo(26), 12,
+            rings = listOf(9, 8, 9, 9, 8, 9, 10, 8, 9, 9, 8, 9),
+            zones = listOf(Zone.N, Zone.NE, Zone.N, Zone.NW, Zone.NE, Zone.N,
+                Zone.CENTER, Zone.NE, Zone.N, Zone.NW, Zone.NE, Zone.N),
+        ))
+        addAll(makePlots("dev_s1_3g", "dev_bc1b", "dev_arrow1", daysAgo(30), 12,
+            rings = listOf(8, 9, 8, 9, 8, 9, 9, 8, 9, 8, 9, 8),
+            zones = listOf(Zone.NE, Zone.N, Zone.NE, Zone.N, Zone.NE, Zone.N,
+                Zone.NE, Zone.N, Zone.NE, Zone.N, Zone.NE, Zone.N),
+        ))
+        addAll(makePlots("dev_s1_3h", "dev_bc1b", "dev_arrow1", daysAgo(34), 10,
+            rings = listOf(8, 8, 9, 8, 9, 8, 8, 9, 8, 9),
+            zones = listOf(Zone.NE, Zone.N, Zone.NE, Zone.N, Zone.NE, Zone.NW,
+                Zone.N, Zone.NE, Zone.N, Zone.NE),
         ))
     }
 
@@ -445,6 +559,14 @@ private object DevMockData {
         addAll(makeEnds("dev_s1_5", daysAgo(18), arrowCount = 12))
         addAll(makeEnds("dev_s1_4", daysAgo(23), arrowCount = 16))
         addAll(makeEnds("dev_s2_5", daysAgo(12), arrowCount = 15))
+        addAll(makeEnds("dev_s1_3a", daysAgo(3), arrowCount = 12))
+        addAll(makeEnds("dev_s1_3b", daysAgo(5), arrowCount = 18))
+        addAll(makeEnds("dev_s1_3c", daysAgo(9), arrowCount = 18))
+        addAll(makeEnds("dev_s1_3d", daysAgo(14), arrowCount = 15))
+        addAll(makeEnds("dev_s1_3e", daysAgo(20), arrowCount = 12))
+        addAll(makeEnds("dev_s1_3f", daysAgo(26), arrowCount = 12))
+        addAll(makeEnds("dev_s1_3g", daysAgo(30), arrowCount = 12))
+        addAll(makeEnds("dev_s1_3h", daysAgo(34), arrowCount = 10))
     }
 
     private fun makeEnds(
