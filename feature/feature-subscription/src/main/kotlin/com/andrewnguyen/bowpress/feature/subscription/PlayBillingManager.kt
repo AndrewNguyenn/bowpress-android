@@ -13,9 +13,11 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import android.util.Log
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -83,8 +85,22 @@ class PlayBillingManager @Inject constructor(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
-    /** Long-running scope used for listener-driven ack/verify work. */
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /**
+     * Long-running scope used for listener-driven ack/verify work. Includes
+     * a CoroutineExceptionHandler backstop so a network failure inside
+     * onPurchasesUpdated's launched coroutine can't crash the process —
+     * the pending CompletableDeferred is resolved with an Error outcome
+     * instead so the paywall UI surfaces the failure cleanly.
+     */
+    private val scope = CoroutineScope(
+        SupervisorJob() +
+            Dispatchers.IO +
+            CoroutineExceptionHandler { _, t ->
+                Log.w("PlayBilling", "Uncaught error in billing scope", t)
+                pendingPurchase?.complete(PurchaseOutcome.Error(t.message))
+                pendingPurchase = null
+            },
+    )
 
     /**
      * `CompletableDeferred` resolved by [onPurchasesUpdated] so the VM can
