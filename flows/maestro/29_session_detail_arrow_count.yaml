@@ -1,0 +1,32 @@
+# Iter 35: Session Detail shows the iOS-matching "All <n> arrows · <m>
+# ends" caption under the Shot distribution header. Seeded "Pre-comp
+# tune check" session has 18 arrows across 6 ends.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: ".*Pre-comp tune check.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Session Detail"
+- assertVisible:
+    text: ".*Shot distribution.*"
+# Arrow count must match the seed (18). End count differs between
+# platforms because Android's DevMockData doesn't seed SessionEnd rows
+# yet (tracked separately), so iOS shows "6 ends" while Android shows
+# "1 end". Assert presence of an end word (matches both "1 end" and
+# "6 ends") rather than a specific count.
+- assertVisible:
+    text: ".*18 arrows.*"
+- assertVisible:
+    text: ".*1 end.*|.*[0-9]+ ends.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_session_detail
