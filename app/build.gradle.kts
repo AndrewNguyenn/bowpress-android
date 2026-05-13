@@ -33,9 +33,9 @@ android {
     val hasReleaseSigning = releaseKeystorePath != null && file(releaseKeystorePath).exists()
 
     signingConfigs {
-        if (hasReleaseSigning) {
+        if (releaseKeystorePath != null && hasReleaseSigning) {
             create("release") {
-                storeFile = file(releaseKeystorePath!!)
+                storeFile = file(releaseKeystorePath)
                 storePassword = localProps.getProperty("RELEASE_KEYSTORE_PASSWORD")
                 keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
                 keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")

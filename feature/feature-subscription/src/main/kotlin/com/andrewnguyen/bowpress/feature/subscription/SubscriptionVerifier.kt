@@ -4,6 +4,7 @@ import android.util.Log
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.network.BowPressApi
 import com.andrewnguyen.bowpress.core.network.VerifyGoogleSubscriptionRequest
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -57,6 +58,11 @@ class HttpSubscriptionVerifier @Inject constructor(
             ),
         )
     }.onFailure {
+        // Never swallow CancellationException — that breaks structured
+        // cancellation when the caller scope (paywall VM) is cancelled
+        // mid-flight, which would otherwise flip an active entitlement
+        // to Inactive on a background backgrounding.
+        if (it is CancellationException) throw it
         Log.w(TAG, "verify-google failed; client will retry on next launch", it)
     }.getOrElse { Entitlement.Inactive }
 

@@ -21,6 +21,7 @@ import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +68,10 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
         scope.launch {
             runCatching { deviceTokenRegistrar.register(token) }
-                .onFailure { Log.w("BowPressFCM", "Token registration failed", it) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    Log.w("BowPressFCM", "Token registration failed", it)
+                }
         }
     }
 

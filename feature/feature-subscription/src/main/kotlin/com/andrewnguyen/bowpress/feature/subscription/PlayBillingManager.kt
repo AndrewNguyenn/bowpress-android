@@ -90,15 +90,19 @@ class PlayBillingManager @Inject constructor(
      * a CoroutineExceptionHandler backstop so a network failure inside
      * onPurchasesUpdated's launched coroutine can't crash the process —
      * the pending CompletableDeferred is resolved with an Error outcome
-     * instead so the paywall UI surfaces the failure cleanly.
+     * instead so the paywall UI surfaces the failure cleanly. Reads
+     * pendingPurchase via the same atomic read-then-null dance as the
+     * Billing listener so writes from the caller thread, the listener,
+     * and this handler don't lose each other.
      */
     private val scope = CoroutineScope(
         SupervisorJob() +
             Dispatchers.IO +
             CoroutineExceptionHandler { _, t ->
                 Log.w("PlayBilling", "Uncaught error in billing scope", t)
-                pendingPurchase?.complete(PurchaseOutcome.Error(t.message))
+                val p = pendingPurchase
                 pendingPurchase = null
+                p?.complete(PurchaseOutcome.Error(t.message))
             },
     )
 
@@ -107,6 +111,12 @@ class PlayBillingManager @Inject constructor(
      * `await()` the purchase flow result. Reset each time [launchPurchaseFlow]
      * fires.
      */
+    // @Volatile because three threads write here: caller (launchPurchaseFlow),
+    // Play Billing listener (onPurchasesUpdated), and the scope's exception
+    // handler. Play Billing serialises its own callbacks so a Mutex would be
+    // overkill, but the JVM needs the explicit happens-before to forbid a
+    // stale read from a different thread's cache.
+    @Volatile
     private var pendingPurchase: CompletableDeferred<PurchaseOutcome>? = null
 
     private val billingClient: BillingClient = BillingClient.newBuilder(context)

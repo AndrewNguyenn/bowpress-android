@@ -4,6 +4,7 @@ import android.util.Log
 import com.andrewnguyen.bowpress.BuildConfig
 import com.andrewnguyen.bowpress.core.data.push.DeviceTokenRegistrar
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +49,10 @@ class PushInitializer @Inject constructor(
             runCatching {
                 val token = FirebaseMessaging.getInstance().token.await()
                 registrar.register(token)
-            }.onFailure { Log.w(TAG, "Push registration failed", it) }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                Log.w(TAG, "Push registration failed", it)
+            }
         }
     }
 
