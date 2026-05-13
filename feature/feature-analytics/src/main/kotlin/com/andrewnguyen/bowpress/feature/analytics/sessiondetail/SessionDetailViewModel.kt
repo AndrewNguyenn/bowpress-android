@@ -28,6 +28,75 @@ data class SessionDetailUiState(
 ) {
     val arrowCount: Int get() = arrows.size
     val endCount: Int get() = ends.size.coerceAtLeast(1)
+
+    /**
+     * Precision stats over the session's plotted arrows. Mirrors iOS
+     * `PrecisionStats.compute` in HistoricalSessionsView.swift:
+     *   meanDistMM = mean(sqrt(x² + y²)) × mmPerNorm
+     *   groupSigmaMM = sqrt(mean((x - cx)² + (y - cy)²)) × mmPerNorm
+     * where mmPerNorm = 20 / (119 / 735) ≈ 123.53 for the WA 40cm indoor face.
+     */
+    val precision: PrecisionStats?
+        get() = PrecisionStats.from(arrows)
+}
+
+data class PrecisionStats(
+    val centroidX: Double,
+    val centroidY: Double,
+    val meanDistMm: Double,
+    val groupSigmaMm: Double,
+) {
+    /**
+     * Compass arrow pointing from origin to centroid, matching iOS
+     * `directionArrow`. plotY is screen-positive (south), so a positive
+     * centroidY means the grouping sits low → ↓.
+     */
+    val directionArrow: String
+        get() {
+            val dist = kotlin.math.hypot(centroidX, centroidY)
+            if (dist < 0.01) return "⊙"
+            val adx = kotlin.math.abs(centroidX)
+            val ady = kotlin.math.abs(centroidY)
+            if (ady > adx * 2) return if (centroidY > 0) "↓" else "↑"
+            if (adx > ady * 2) return if (centroidX > 0) "→" else "←"
+            return when {
+                centroidX > 0 && centroidY > 0 -> "↘"
+                centroidX > 0 && centroidY < 0 -> "↗"
+                centroidX < 0 && centroidY > 0 -> "↙"
+                else -> "↖"
+            }
+        }
+
+    companion object {
+        const val MM_PER_NORM: Double = 20.0 / (119.0 / 735.0)
+
+        fun from(arrows: List<ArrowPlot>): PrecisionStats? {
+            val pts = arrows.mapNotNull { p ->
+                val x = p.plotX
+                val y = p.plotY
+                if (x == null || y == null) null else x to y
+            }
+            if (pts.isEmpty()) return null
+            val cx = pts.sumOf { it.first } / pts.size
+            val cy = pts.sumOf { it.second } / pts.size
+            val meanDist = kotlin.math.sqrt(
+                pts.sumOf { it.first * it.first + it.second * it.second } / pts.size,
+            )
+            val sigma = kotlin.math.sqrt(
+                pts.sumOf {
+                    val dx = it.first - cx
+                    val dy = it.second - cy
+                    dx * dx + dy * dy
+                } / pts.size,
+            )
+            return PrecisionStats(
+                centroidX = cx,
+                centroidY = cy,
+                meanDistMm = meanDist * MM_PER_NORM,
+                groupSigmaMm = sigma * MM_PER_NORM,
+            )
+        }
+    }
 }
 
 @HiltViewModel

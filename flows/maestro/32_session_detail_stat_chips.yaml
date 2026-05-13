@@ -1,0 +1,24 @@
+# Iter 39: SessionDetail surfaces iOS-matching precision stat chips
+# under the target — "↓ N.NMM FROM CENTER" and "± N.NMM GROUP σ".
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Log"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: ".*Pre-comp tune check.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+- assertVisible:
+    text: ".*FROM CENTER.*"
+- assertVisible:
+    text: ".*GROUP.*"
+
+- takeScreenshot: ${SCREENSHOT_PREFIX}_chips

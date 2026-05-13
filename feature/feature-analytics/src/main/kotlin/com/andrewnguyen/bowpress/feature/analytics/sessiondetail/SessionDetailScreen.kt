@@ -1,9 +1,11 @@
 package com.andrewnguyen.bowpress.feature.analytics.sessiondetail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -105,8 +107,55 @@ fun SessionDetailScreen(
                         arrows = state.arrows,
                         modifier = Modifier.padding(top = 8.dp),
                     )
+                    PrecisionStatsRow(stats = state.precision)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PrecisionStatsRow(stats: PrecisionStats?) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        val centerChip = if (stats != null) {
+            "${stats.directionArrow} ${"%.1f".format(stats.meanDistMm)}MM FROM CENTER"
+        } else {
+            "— MM FROM CENTER"
+        }
+        val sigmaChip = if (stats != null) {
+            "± ${"%.1f".format(stats.groupSigmaMm)}MM GROUP σ"
+        } else {
+            "± — MM GROUP σ"
+        }
+        StatChip(text = centerChip)
+        StatChip(text = sigmaChip)
+    }
+}
+
+@Composable
+private fun StatChip(text: String) {
+    Box(
+        modifier = Modifier
+            .border(
+                width = 1.dp,
+                color = com.andrewnguyen.bowpress.core.designsystem.AppPondDk,
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = text,
+            style = com.andrewnguyen.bowpress.core.designsystem.interUI(
+                11.sp,
+                weight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            ).copy(
+                letterSpacing = 0.18.em,
+                color = com.andrewnguyen.bowpress.core.designsystem.AppPondDk,
+            ),
+        )
     }
 }
