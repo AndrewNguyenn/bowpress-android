@@ -246,7 +246,7 @@ private fun ProfileBlock(user: User?, onEdit: () -> Unit) {
                         .copy(color = AppInk),
                 )
                 Text(
-                    text = (user?.email ?: "Not signed in").uppercase(),
+                    text = user?.email ?: "Not signed in",
                     style = jetbrainsMono(10.sp).copy(
                         color = AppInk3,
                         letterSpacing = 0.04.em,

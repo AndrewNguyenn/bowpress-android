@@ -1,0 +1,68 @@
+# Behavior parity: Add Bow Save-button enable/disable gating.
+#
+# iOS AddBowView.canSave = `!customName.trimmingCharacters(in: .whitespaces).isEmpty`
+# (lines 15-17 + .disabled(!canSave) at line 47). Trailing/leading
+# whitespace alone does NOT enable Save.
+#
+# Android AddBowViewModel.canSave: confirm same semantics — Save disabled
+# when name is empty OR all-whitespace. AddBowScreen passes
+# `enabled = state.canSave` to the TextButton.
+#
+# Probe sequence:
+#   1) Open Add Bow → Save should be disabled (empty name).
+#   2) Type whitespace only → Save still disabled.
+#   3) Type real text → Save enabled.
+#   4) Clear the field → Save disabled again.
+#
+# Disabled-state introspection in Maestro is limited; we compare
+# screenshots at each step. Both platforms should look identical at each.
+#
+# Run sequentially (port 7001):
+#   maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-behavior-savegate     test flows/maestro/behavior_add_bow_save_gating.yaml
+#   maestro -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-behavior-savegate test flows/maestro/behavior_add_bow_save_gating.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - behavior
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# First ADD button = Bows row.
+- tapOn:
+    text: "ADD"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 4000
+- assertVisible: "Add Bow"
+
+# Step 1: blank name. Both Save buttons should look disabled (greyed).
+- takeScreenshot: ${SCREENSHOT_PREFIX}_01_blank_name
+
+# Step 2: whitespace-only. iOS .trimmingCharacters(.whitespaces) drops
+# it, so canSave stays false. Confirm Android mirrors.
+- tapOn:
+    id: "bow_name_field"
+- inputText: "   "
+- waitForAnimationToEnd:
+    timeout: 1500
+- takeScreenshot: ${SCREENSHOT_PREFIX}_02_whitespace_only
+
+# Step 3: real name → Save enabled.
+- inputText: "Probe"
+- waitForAnimationToEnd:
+    timeout: 1500
+- takeScreenshot: ${SCREENSHOT_PREFIX}_03_real_name
+
+# Step 4: cancel out — we don't actually want to persist this bow.
+- tapOn: "Cancel"
+- waitForAnimationToEnd:
+    timeout: 2500
+- takeScreenshot: ${SCREENSHOT_PREFIX}_04_back_on_list

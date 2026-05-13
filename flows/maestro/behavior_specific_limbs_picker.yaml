@@ -1,0 +1,60 @@
+# Behavior parity: tapping "Specific Limbs" / "Specific Grip" rows.
+#
+# iOS BowDetailView renders both fields via `BowConfigSuggestRow`
+# (Configuration/SpecificGripRow.swift): a tappable `Button` whose label
+# is `LabeledContent("Specific Limbs") { Text(value or "None") + chevron }`.
+# Tapping presents `BowConfigSuggestPickerSheet` — a modal listing the
+# de-duped catalog of values previously entered across all bow configs,
+# with Add / Pick / Delete / Clear actions.
+#
+# Android BowConfigEditScreen.kt renders both fields via `OutlinedTextField`
+# (lines 295-305 + 361-371) — a plain inline text field with no sheet,
+# no catalog, no add/delete UI. The Maestro tap on this row simply focuses
+# the field and pops the soft keyboard.
+#
+# Run sequentially (port 7001 conflict):
+#   maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-behavior-limbs     test flows/maestro/behavior_specific_limbs_picker.yaml
+#   maestro -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-behavior-limbs test flows/maestro/behavior_specific_limbs_picker.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - behavior
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Open the existing Recurve (Border HEX7 Barebow is barebow; we need a
+# recurve/barebow bow detail. Border HEX7 is the barebow seed which
+# renders the same `Specific Limbs` row + `Specific Grip` row.)
+- tapOn: "Border HEX7 Barebow"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Scroll the Limbs section into view and screenshot the pre-tap state.
+- scrollUntilVisible:
+    element:
+        text: "Specific Limbs"
+    direction: DOWN
+    timeout: 8000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_01_pre_tap
+
+# Tap the row. On iOS this presents a modal sheet titled "Specific Limbs"
+# with "Saved specific limbs" / "Add new" / "Clear selection" sections.
+# On Android this just focuses the inline OutlinedTextField — no sheet,
+# no "Add new" button, no "Saved" list.
+- tapOn: "Specific Limbs"
+- waitForAnimationToEnd:
+    timeout: 2500
+- takeScreenshot: ${SCREENSHOT_PREFIX}_02_after_tap_limbs
+
+# Sheet-presence probe via screenshot only. iOS sheet shows
+# "Add new" / "Done" / "Saved specific limbs". Android shows the inline
+# OutlinedTextField + soft keyboard. Divergence is visible in the
+# 02_after_tap_limbs.png comparison.
