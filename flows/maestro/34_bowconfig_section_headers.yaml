@@ -1,0 +1,43 @@
+# BowConfig section headers render as the Title-Case strings iOS uses —
+# "Rest", "Sight, Grip & Nock", "Front Stabilizer", "Rear Stabilizer". The
+# Maestro matcher is case-insensitive so exact-case is verified by the
+# screenshot; the assertions here just guarantee the strings are present.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+- tapOn: "Equipment"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: ".*Mathews TITLE 36.*"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scrollUntilVisible:
+    element:
+        text: "Rest"
+    direction: DOWN
+    timeout: 6000
+- assertVisible: "Rest"
+- scrollUntilVisible:
+    element:
+        text: "Sight, Grip & Nock"
+    direction: DOWN
+    timeout: 6000
+- assertVisible: "Sight, Grip & Nock"
+- scrollUntilVisible:
+    element:
+        text: "Front Stabilizer"
+    direction: DOWN
+    timeout: 6000
+- assertVisible: "Front Stabilizer"
+- scrollUntilVisible:
+    element:
+        text: "Rear Stabilizer"
+    direction: DOWN
+    timeout: 6000
+- assertVisible: "Rear Stabilizer"

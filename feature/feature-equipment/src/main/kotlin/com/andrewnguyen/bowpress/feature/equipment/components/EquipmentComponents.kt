@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,22 +24,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 
-/**
- * Uniform "section header" row — bold, tinted title followed by a rule. Section
- * content is laid out underneath in the calling Column.
- */
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp)) {
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = BowPressColors.Accent,
-        )
-        HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
-    }
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = AppInk3,
+        modifier = modifier.fillMaxWidth().padding(top = 20.dp, bottom = 6.dp, start = 4.dp),
+    )
 }
 
 /**
