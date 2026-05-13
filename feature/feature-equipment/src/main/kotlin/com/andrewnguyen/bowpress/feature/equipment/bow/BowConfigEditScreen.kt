@@ -50,6 +50,7 @@ import com.andrewnguyen.bowpress.feature.equipment.components.DoubleStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.IntStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.LengthStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.MmLengthStepperRow
+import com.andrewnguyen.bowpress.feature.equipment.components.SectionCard
 import com.andrewnguyen.bowpress.feature.equipment.components.SectionHeader
 import com.andrewnguyen.bowpress.feature.equipment.components.StabWeightStepperRow
 import com.andrewnguyen.bowpress.feature.equipment.components.halfTwistLabel
@@ -212,16 +213,18 @@ internal fun BowConfigEditFormBody(
 
         if (showLabel && EquipmentFieldRules.sectionVisible(Section.LABEL, bowType, isSetup)) {
             SectionHeader("Label")
-            OutlinedTextField(
-                value = state.label,
-                onValueChange = callbacks::updateLabel,
-                label = { Text("Optional label") },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .testTag("bow_config_label_field"),
-            )
+            SectionCard {
+                OutlinedTextField(
+                    value = state.label,
+                    onValueChange = callbacks::updateLabel,
+                    label = { Text("Optional label") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .testTag("bow_config_label_field"),
+                )
+            }
         }
 
         // Bow setup — type-specific.
@@ -229,178 +232,203 @@ internal fun BowConfigEditFormBody(
         // Android-only — the read-only summary shown when logging a new tuning
         // entry against an existing snapshot.
         SectionHeader(if (EquipmentFieldRules.sectionVisible(Section.BASE_SETUP, bowType, isSetup)) "Base Setup" else "Setup")
-        when {
-            EquipmentFieldRules.sectionVisible(Section.BASE_SETUP, bowType, isSetup) -> {
-                // Compound non-setup: read-only summary row (matches iOS text block).
-                val summary = state.baseConfig?.compactSetupLine(unitSystem).orEmpty()
-                Text(
-                    summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            else -> {
-                if (EquipmentFieldRules.isVisible(Field.DRAW_LENGTH, bowType, isSetup, state.rearStabSide)) {
-                    LengthStepperRow("Draw Length", state.drawLength, callbacks::updateDrawLength,
-                        UnitRange.DRAW_LENGTH, unitSystem, digits = 1)
-                }
-                if (EquipmentFieldRules.isVisible(Field.LET_OFF_PCT, bowType, isSetup, state.rearStabSide)) {
-                    DoubleStepperRow(
-                        "Let-off", state.letOffPct, callbacks::updateLetOff,
-                        UnitFormatting.percent(state.letOffPct),
-                        min = 40.0, max = 99.0, step = 1.0,
+        SectionCard {
+            when {
+                EquipmentFieldRules.sectionVisible(Section.BASE_SETUP, bowType, isSetup) -> {
+                    // Compound non-setup: read-only summary row (matches iOS text block).
+                    val summary = state.baseConfig?.compactSetupLine(unitSystem).orEmpty()
+                    Text(
+                        summary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                if (EquipmentFieldRules.isVisible(Field.PEEP_HEIGHT, bowType, isSetup, state.rearStabSide)) {
-                    LengthStepperRow("Peep Height", state.peepHeight, callbacks::updatePeepHeight,
-                        UnitRange.PEEP_HEIGHT, unitSystem)
-                }
-                if (EquipmentFieldRules.isVisible(Field.D_LOOP_LENGTH, bowType, isSetup, state.rearStabSide)) {
-                    // iOS BowDetailView labels this row just "D-Loop"
-                    // (BowDetailView.swift dLoopLengthRow).
-                    LengthStepperRow("D-Loop", state.dLoopLength, callbacks::updateDLoop,
-                        UnitRange.D_LOOP_LENGTH, unitSystem, digits = 3)
-                }
-                if (EquipmentFieldRules.isVisible(Field.BRACE_HEIGHT, bowType, isSetup, state.rearStabSide)) {
-                    LengthStepperRow("Brace Height", state.braceHeight, callbacks::updateBraceHeight,
-                        UnitRange.BRACE_HEIGHT, unitSystem, digits = 3)
+                else -> {
+                    if (EquipmentFieldRules.isVisible(Field.DRAW_LENGTH, bowType, isSetup, state.rearStabSide)) {
+                        LengthStepperRow("Draw Length", state.drawLength, callbacks::updateDrawLength,
+                            UnitRange.DRAW_LENGTH, unitSystem, digits = 1)
+                    }
+                    if (EquipmentFieldRules.isVisible(Field.LET_OFF_PCT, bowType, isSetup, state.rearStabSide)) {
+                        DoubleStepperRow(
+                            "Let-off", state.letOffPct, callbacks::updateLetOff,
+                            UnitFormatting.percent(state.letOffPct),
+                            min = 40.0, max = 99.0, step = 1.0,
+                        )
+                    }
+                    if (EquipmentFieldRules.isVisible(Field.PEEP_HEIGHT, bowType, isSetup, state.rearStabSide)) {
+                        LengthStepperRow("Peep Height", state.peepHeight, callbacks::updatePeepHeight,
+                            UnitRange.PEEP_HEIGHT, unitSystem)
+                    }
+                    if (EquipmentFieldRules.isVisible(Field.D_LOOP_LENGTH, bowType, isSetup, state.rearStabSide)) {
+                        // iOS BowDetailView labels this row just "D-Loop"
+                        // (BowDetailView.swift dLoopLengthRow).
+                        LengthStepperRow("D-Loop", state.dLoopLength, callbacks::updateDLoop,
+                            UnitRange.D_LOOP_LENGTH, unitSystem, digits = 3)
+                    }
+                    if (EquipmentFieldRules.isVisible(Field.BRACE_HEIGHT, bowType, isSetup, state.rearStabSide)) {
+                        LengthStepperRow("Brace Height", state.braceHeight, callbacks::updateBraceHeight,
+                            UnitRange.BRACE_HEIGHT, unitSystem, digits = 3)
+                    }
                 }
             }
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.STRING_AND_CABLE, bowType, isSetup)) {
             SectionHeader("String & Cable")
-            IntStepperRow("Top Cable", state.topCableTwists, callbacks::updateTopCable, halfTwistLabel(state.topCableTwists), -10, 10)
-            IntStepperRow("Bottom Cable", state.bottomCableTwists, callbacks::updateBottomCable, halfTwistLabel(state.bottomCableTwists), -10, 10)
-            IntStepperRow("Main String Top", state.mainStringTopTwists, callbacks::updateMainStringTop, halfTwistLabel(state.mainStringTopTwists), -10, 10)
-            IntStepperRow("Main String Bottom", state.mainStringBottomTwists, callbacks::updateMainStringBottom, halfTwistLabel(state.mainStringBottomTwists), -10, 10)
+            SectionCard {
+                IntStepperRow("Top Cable", state.topCableTwists, callbacks::updateTopCable, halfTwistLabel(state.topCableTwists), -10, 10)
+                IntStepperRow("Bottom Cable", state.bottomCableTwists, callbacks::updateBottomCable, halfTwistLabel(state.bottomCableTwists), -10, 10)
+                IntStepperRow("Main String Top", state.mainStringTopTwists, callbacks::updateMainStringTop, halfTwistLabel(state.mainStringTopTwists), -10, 10)
+                IntStepperRow("Main String Bottom", state.mainStringBottomTwists, callbacks::updateMainStringBottom, halfTwistLabel(state.mainStringBottomTwists), -10, 10)
+            }
         }
         if (EquipmentFieldRules.sectionVisible(Section.LIMBS, bowType, isSetup)) {
             SectionHeader("Limbs")
-            when (bowType) {
-                BowType.COMPOUND -> {
-                    DoubleStepperRow("Top Limb", state.topLimbTurns, callbacks::updateTopLimb, limbTurnsLabel(state.topLimbTurns), -10.0, 10.0, 0.5)
-                    DoubleStepperRow("Bottom Limb", state.bottomLimbTurns, callbacks::updateBottomLimb, limbTurnsLabel(state.bottomLimbTurns), -10.0, 10.0, 0.5)
-                }
-                BowType.RECURVE, BowType.BAREBOW -> {
-                    OutlinedTextField(
-                        value = state.specificLimbs,
-                        onValueChange = callbacks::updateSpecificLimbs,
-                        label = { Text("Specific Limbs") },
-                        placeholder = { Text("e.g. Hoyt 970 Velos 36# medium") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .testTag("specific_limbs_field"),
-                    )
+            SectionCard {
+                when (bowType) {
+                    BowType.COMPOUND -> {
+                        DoubleStepperRow("Top Limb", state.topLimbTurns, callbacks::updateTopLimb, limbTurnsLabel(state.topLimbTurns), -10.0, 10.0, 0.5)
+                        DoubleStepperRow("Bottom Limb", state.bottomLimbTurns, callbacks::updateBottomLimb, limbTurnsLabel(state.bottomLimbTurns), -10.0, 10.0, 0.5)
+                    }
+                    BowType.RECURVE, BowType.BAREBOW -> {
+                        OutlinedTextField(
+                            value = state.specificLimbs,
+                            onValueChange = callbacks::updateSpecificLimbs,
+                            label = { Text("Specific Limbs") },
+                            placeholder = { Text("e.g. Hoyt 970 Velos 36# medium") },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .testTag("specific_limbs_field"),
+                        )
+                    }
                 }
             }
         }
         if (EquipmentFieldRules.sectionVisible(Section.REST, bowType, isSetup)) {
             SectionHeader("Rest")
-            IntStepperRow("Vertical", state.restVertical, callbacks::updateRestVertical,
-                UnitFormatting.sixteenths(state.restVertical, unitSystem), -16, 16)
-            IntStepperRow("Horizontal", state.restHorizontal, callbacks::updateRestHorizontal,
-                UnitFormatting.sixteenths(state.restHorizontal, unitSystem), -16, 16)
-            LengthStepperRow("Depth", state.restDepth, callbacks::updateRestDepth,
-                UnitRange.REST_DEPTH, unitSystem)
+            SectionCard {
+                IntStepperRow("Vertical", state.restVertical, callbacks::updateRestVertical,
+                    UnitFormatting.sixteenths(state.restVertical, unitSystem), -16, 16)
+                IntStepperRow("Horizontal", state.restHorizontal, callbacks::updateRestHorizontal,
+                    UnitFormatting.sixteenths(state.restHorizontal, unitSystem), -16, 16)
+                LengthStepperRow("Depth", state.restDepth, callbacks::updateRestDepth,
+                    UnitRange.REST_DEPTH, unitSystem)
+            }
         }
         if (EquipmentFieldRules.sectionVisible(Section.SIGHT_GRIP_NOCK, bowType, isSetup)) {
             SectionHeader("Sight, Grip & Nock")
-            IntStepperRow("Sight Position", state.sightPosition, callbacks::updateSightPosition, sightPositionLabel(state.sightPosition), -15, 15)
-            DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
-                UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
-            IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
-                UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
+            SectionCard {
+                IntStepperRow("Sight Position", state.sightPosition, callbacks::updateSightPosition, sightPositionLabel(state.sightPosition), -15, 15)
+                DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
+                    UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
+                IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
+                    UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
+            }
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.TILLER, bowType, isSetup)) {
             SectionHeader("Tiller")
-            MmLengthStepperRow("Top Tiller", state.tillerTop, callbacks::updateTillerTop,
-                UnitRange.TILLER, unitSystem)
-            MmLengthStepperRow("Bottom Tiller", state.tillerBottom, callbacks::updateTillerBottom,
-                UnitRange.TILLER, unitSystem)
+            SectionCard {
+                MmLengthStepperRow("Top Tiller", state.tillerTop, callbacks::updateTillerTop,
+                    UnitRange.TILLER, unitSystem)
+                MmLengthStepperRow("Bottom Tiller", state.tillerBottom, callbacks::updateTillerBottom,
+                    UnitRange.TILLER, unitSystem)
+            }
         }
         if (EquipmentFieldRules.sectionVisible(Section.PLUNGER, bowType, isSetup)) {
             SectionHeader("Plunger")
-            IntStepperRow("Tension", state.plungerTension, callbacks::updatePlungerTension, "${state.plungerTension} clicks", 0, 30)
+            SectionCard {
+                IntStepperRow("Tension", state.plungerTension, callbacks::updatePlungerTension, "${state.plungerTension} clicks", 0, 30)
+            }
         }
         if (EquipmentFieldRules.sectionVisible(Section.CLICKER, bowType, isSetup)) {
             SectionHeader("Clicker")
-            MmLengthStepperRow("Position", state.clickerPosition, callbacks::updateClickerPosition,
-                UnitRange.CLICKER, unitSystem, digits = 0)
+            SectionCard {
+                MmLengthStepperRow("Position", state.clickerPosition, callbacks::updateClickerPosition,
+                    UnitRange.CLICKER, unitSystem, digits = 0)
+            }
         }
         if (EquipmentFieldRules.sectionVisible(Section.GRIP_AND_NOCK, bowType, isSetup)) {
             SectionHeader("Grip & Nock")
-            DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
-                UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
-            // iOS renders the Specific Grip text field between Grip Angle and
-            // Nocking Height (BowDetailView.swift recurveSections / barebowSections).
-            OutlinedTextField(
-                value = state.specificGrip,
-                onValueChange = callbacks::updateSpecificGrip,
-                label = { Text("Specific Grip") },
-                placeholder = { Text("e.g. Jager Hunter") },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .testTag("specific_grip_field"),
-            )
-            IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
-                UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
+            SectionCard {
+                DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
+                    UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
+                // iOS renders the Specific Grip text field between Grip Angle and
+                // Nocking Height (BowDetailView.swift recurveSections / barebowSections).
+                OutlinedTextField(
+                    value = state.specificGrip,
+                    onValueChange = callbacks::updateSpecificGrip,
+                    label = { Text("Specific Grip") },
+                    placeholder = { Text("e.g. Jager Hunter") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .testTag("specific_grip_field"),
+                )
+                IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
+                    UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
+            }
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.FRONT_STAB, bowType, isSetup)) {
             SectionHeader("Front Stabilizer")
-            val weightRange = if (bowType == BowType.COMPOUND) UnitRange.FRONT_STAB_WEIGHT else UnitRange.VBAR_WEIGHT
-            val weightOverride = if (state.frontStabWeight == 0.0 && bowType == BowType.COMPOUND) "None" else null
-            StabWeightStepperRow("Weight", state.frontStabWeight, callbacks::updateFrontStabWeight,
-                weightRange, unitSystem, valueLabelOverride = weightOverride)
-            DoubleStepperRow("Angle", state.frontStabAngle, callbacks::updateFrontStabAngle,
-                UnitFormatting.degrees(state.frontStabAngle, digits = 0), 0.0, 10.0, 1.0)
+            SectionCard {
+                val weightRange = if (bowType == BowType.COMPOUND) UnitRange.FRONT_STAB_WEIGHT else UnitRange.VBAR_WEIGHT
+                val weightOverride = if (state.frontStabWeight == 0.0 && bowType == BowType.COMPOUND) "None" else null
+                StabWeightStepperRow("Weight", state.frontStabWeight, callbacks::updateFrontStabWeight,
+                    weightRange, unitSystem, valueLabelOverride = weightOverride)
+                DoubleStepperRow("Angle", state.frontStabAngle, callbacks::updateFrontStabAngle,
+                    UnitFormatting.degrees(state.frontStabAngle, digits = 0), 0.0, 10.0, 1.0)
+            }
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.REAR_STAB, bowType, isSetup)) {
             SectionHeader("Rear Stabilizer")
-            RearStabSidePicker(selected = state.rearStabSide, onSelect = callbacks::updateRearStabSide)
-            if (EquipmentFieldRules.isVisible(Field.REAR_STAB_WEIGHT, bowType, isSetup, state.rearStabSide)) {
-                StabWeightStepperRow("Weight", state.rearStabWeight, callbacks::updateRearStabWeight,
-                    UnitRange.REAR_STAB_WEIGHT, unitSystem)
-            }
-            if (EquipmentFieldRules.isVisible(Field.REAR_STAB_LEFT_WEIGHT, bowType, isSetup, state.rearStabSide)) {
-                StabWeightStepperRow("Left Weight", state.rearStabLeftWeight, callbacks::updateRearStabLeftWeight,
-                    UnitRange.REAR_STAB_WEIGHT, unitSystem)
-            }
-            if (EquipmentFieldRules.isVisible(Field.REAR_STAB_RIGHT_WEIGHT, bowType, isSetup, state.rearStabSide)) {
-                StabWeightStepperRow("Right Weight", state.rearStabRightWeight, callbacks::updateRearStabRightWeight,
-                    UnitRange.REAR_STAB_WEIGHT, unitSystem)
-            }
-            if (EquipmentFieldRules.isVisible(Field.REAR_STAB_VERT_ANGLE, bowType, isSetup, state.rearStabSide)) {
-                DoubleStepperRow(
-                    "Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle,
-                    UnitFormatting.degrees(state.rearStabVertAngle, digits = 0), -90.0, 90.0, 5.0,
-                )
-            }
-            if (EquipmentFieldRules.isVisible(Field.REAR_STAB_HORIZ_ANGLE, bowType, isSetup, state.rearStabSide)) {
-                DoubleStepperRow(
-                    "Horizontal Angle", state.rearStabHorizAngle, callbacks::updateRearStabHorizAngle,
-                    UnitFormatting.degrees(state.rearStabHorizAngle, digits = 0), 0.0, 90.0, 5.0,
-                )
+            SectionCard {
+                RearStabSidePicker(selected = state.rearStabSide, onSelect = callbacks::updateRearStabSide)
+                if (EquipmentFieldRules.isVisible(Field.REAR_STAB_WEIGHT, bowType, isSetup, state.rearStabSide)) {
+                    StabWeightStepperRow("Weight", state.rearStabWeight, callbacks::updateRearStabWeight,
+                        UnitRange.REAR_STAB_WEIGHT, unitSystem)
+                }
+                if (EquipmentFieldRules.isVisible(Field.REAR_STAB_LEFT_WEIGHT, bowType, isSetup, state.rearStabSide)) {
+                    StabWeightStepperRow("Left Weight", state.rearStabLeftWeight, callbacks::updateRearStabLeftWeight,
+                        UnitRange.REAR_STAB_WEIGHT, unitSystem)
+                }
+                if (EquipmentFieldRules.isVisible(Field.REAR_STAB_RIGHT_WEIGHT, bowType, isSetup, state.rearStabSide)) {
+                    StabWeightStepperRow("Right Weight", state.rearStabRightWeight, callbacks::updateRearStabRightWeight,
+                        UnitRange.REAR_STAB_WEIGHT, unitSystem)
+                }
+                if (EquipmentFieldRules.isVisible(Field.REAR_STAB_VERT_ANGLE, bowType, isSetup, state.rearStabSide)) {
+                    DoubleStepperRow(
+                        "Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle,
+                        UnitFormatting.degrees(state.rearStabVertAngle, digits = 0), -90.0, 90.0, 5.0,
+                    )
+                }
+                if (EquipmentFieldRules.isVisible(Field.REAR_STAB_HORIZ_ANGLE, bowType, isSetup, state.rearStabSide)) {
+                    DoubleStepperRow(
+                        "Horizontal Angle", state.rearStabHorizAngle, callbacks::updateRearStabHorizAngle,
+                        UnitFormatting.degrees(state.rearStabHorizAngle, digits = 0), 0.0, 90.0, 5.0,
+                    )
+                }
             }
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.V_BAR, bowType, isSetup)) {
             SectionHeader("V-Bar (Rear Stabilizer)")
-            StabWeightStepperRow("Left Weight", state.rearStabLeftWeight, callbacks::updateRearStabLeftWeight,
-                UnitRange.VBAR_WEIGHT, unitSystem)
-            StabWeightStepperRow("Right Weight", state.rearStabRightWeight, callbacks::updateRearStabRightWeight,
-                UnitRange.VBAR_WEIGHT, unitSystem)
-            DoubleStepperRow("Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle,
-                UnitFormatting.degrees(state.rearStabVertAngle, digits = 0), -90.0, 90.0, 5.0)
-            DoubleStepperRow("Horizontal Angle", state.rearStabHorizAngle, callbacks::updateRearStabHorizAngle,
-                UnitFormatting.degrees(state.rearStabHorizAngle, digits = 0), 0.0, 90.0, 5.0)
+            SectionCard {
+                StabWeightStepperRow("Left Weight", state.rearStabLeftWeight, callbacks::updateRearStabLeftWeight,
+                    UnitRange.VBAR_WEIGHT, unitSystem)
+                StabWeightStepperRow("Right Weight", state.rearStabRightWeight, callbacks::updateRearStabRightWeight,
+                    UnitRange.VBAR_WEIGHT, unitSystem)
+                DoubleStepperRow("Vertical Angle", state.rearStabVertAngle, callbacks::updateRearStabVertAngle,
+                    UnitFormatting.degrees(state.rearStabVertAngle, digits = 0), -90.0, 90.0, 5.0)
+                DoubleStepperRow("Horizontal Angle", state.rearStabHorizAngle, callbacks::updateRearStabHorizAngle,
+                    UnitFormatting.degrees(state.rearStabHorizAngle, digits = 0), 0.0, 90.0, 5.0)
+            }
         }
 
         Spacer(Modifier.height(24.dp))
