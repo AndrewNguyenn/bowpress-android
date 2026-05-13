@@ -2,7 +2,6 @@ package com.andrewnguyen.bowpress.feature.equipment.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,12 +23,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppLine2
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 
 @Composable
@@ -43,12 +45,14 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 
 /**
  * Rounded surface that groups consecutive form rows under a SectionHeader.
- * Mirrors iOS GroupedListStyle — cream background with a hairline outline.
+ * Mirrors iOS GroupedListStyle — cream background with a hairline outline and
+ * 0.5dp separators between rows. Dividers are auto-inserted via SubcomposeLayout
+ * so call sites just stack rows naturally.
  */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable () -> Unit,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -56,8 +60,31 @@ fun SectionCard(
         color = AppCream,
         border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-            content()
+        SubcomposeLayout(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+        ) { constraints ->
+            val rowPlaceables = subcompose("rows", content)
+                .map { it.measure(constraints) }
+            val dividerCount = (rowPlaceables.size - 1).coerceAtLeast(0)
+            val dividerPlaceables = subcompose("dividers") {
+                repeat(dividerCount) {
+                    HorizontalDivider(color = AppLine2, thickness = 0.5.dp)
+                }
+            }.map { it.measure(constraints) }
+            val totalHeight = rowPlaceables.sumOf { it.height } +
+                dividerPlaceables.sumOf { it.height }
+            val totalWidth = rowPlaceables.maxOfOrNull { it.width } ?: constraints.minWidth
+            layout(totalWidth, totalHeight) {
+                var y = 0
+                rowPlaceables.forEachIndexed { i, row ->
+                    row.placeRelative(0, y)
+                    y += row.height
+                    if (i < dividerPlaceables.size) {
+                        dividerPlaceables[i].placeRelative(0, y)
+                        y += dividerPlaceables[i].height
+                    }
+                }
+            }
         }
     }
 }
