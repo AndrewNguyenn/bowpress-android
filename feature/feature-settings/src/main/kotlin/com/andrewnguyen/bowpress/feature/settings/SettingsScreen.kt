@@ -59,6 +59,7 @@ import com.andrewnguyen.bowpress.core.model.User
 
 private const val TERMS_URL = "https://andrewnguyenn.github.io/bowpress-web/terms.html"
 private const val PRIVACY_URL = "https://andrewnguyenn.github.io/bowpress-web/privacy.html"
+private const val REPORT_BUG_URL = "https://github.com/andrewnguyenn/bowpress-android/issues"
 
 @Composable
 fun SettingsScreen(
@@ -175,6 +176,21 @@ private fun SettingsBody(
                             )
                         }
                     },
+                )
+                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                // iOS 61dee40: Report a bug deep-links to the GitHub issues
+                // page so users with a one-click route to drop a bug report.
+                SettingsLinkRow(
+                    label = "Report a bug",
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(REPORT_BUG_URL))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    },
+                    testTag = "settings_report_bug",
                 )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 SettingsLinkRow(

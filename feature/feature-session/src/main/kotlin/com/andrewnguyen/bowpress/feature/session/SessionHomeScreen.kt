@@ -114,10 +114,11 @@ fun SessionHomeScreen(
         if (state.selectedArrow == null) state.arrowConfigs.firstOrNull()?.let(viewModel::selectArrow)
     }
 
-    // Intention note + session name — ephemeral UI state. iOS keeps both on the
-    // view model (`sessionName`, `intentionNote`); the Android VM doesn't yet,
-    // so for now the inputs are purely decorative. Capped to match iOS's
-    // 60-char `sessionNameMaxLength` so the field can't grow unbounded.
+    // Intention note + session name — collected here, persisted by
+    // `viewModel.startSession(title=..., intention=...)`. iOS 4fb5c16 /
+    // 9b104a2 / 39df3bd: title goes onto ShootingSession.title, intention
+    // is seeded into ShootingSession.notes so the Log row + session detail
+    // surface what the user typed. Capped at iOS's 60-char limit.
     var sessionName by remember { mutableStateOf("") }
     var intentionNote by remember { mutableStateOf("") }
     var showBowPicker by remember { mutableStateOf(false) }
@@ -176,7 +177,14 @@ fun SessionHomeScreen(
                 onClick = {
                     val bow = state.selectedBow ?: return@BPPrimaryButton
                     val arrow = state.selectedArrow ?: return@BPPrimaryButton
-                    scope.launch { viewModel.startSession(bow, arrow) }
+                    scope.launch {
+                        viewModel.startSession(
+                            bow = bow,
+                            arrow = arrow,
+                            title = sessionName,
+                            intention = intentionNote,
+                        )
+                    }
                 },
             )
 

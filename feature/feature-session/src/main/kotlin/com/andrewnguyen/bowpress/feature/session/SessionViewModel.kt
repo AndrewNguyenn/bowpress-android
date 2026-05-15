@@ -147,7 +147,12 @@ class SessionViewModel @Inject constructor(
 
     // ---- Lifecycle ----
 
-    suspend fun startSession(bow: Bow, arrow: ArrowConfiguration) {
+    suspend fun startSession(
+        bow: Bow,
+        arrow: ArrowConfiguration,
+        title: String = "",
+        intention: String = "",
+    ) {
         _uiState.update { it.copy(isLoading = true, error = null) }
         // Prefer the most recent saved config for the bow; if none exists (e.g.
         // a bow seeded before iter 20's auto-config), seed a default one and
@@ -162,6 +167,11 @@ class SessionViewModel @Inject constructor(
         else existingConfigs + bowConfig
         val faceType = _uiState.value.selectedFaceType
         val distance = _uiState.value.selectedDistance
+        // iOS 4fb5c16/9b104a2/39df3bd: persist title + seed notes from intention
+        // so the Log row + session detail show what the user actually typed
+        // (previously the fields were decorative — silent data loss).
+        val trimmedTitle = title.trim().takeIf { it.isNotEmpty() }
+        val trimmedIntention = intention.trim()
         val session = ShootingSession(
             id = UUID.randomUUID().toString(),
             bowId = bow.id,
@@ -170,6 +180,8 @@ class SessionViewModel @Inject constructor(
             startedAt = Instant.now(),
             targetFaceType = faceType,
             distance = distance,
+            title = trimmedTitle,
+            notes = trimmedIntention,
         )
         sessionRepo.saveSession(session)
         _uiState.update {

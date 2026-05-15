@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -63,13 +64,22 @@ fun ReadOnlyGate(
     content: @Composable () -> Unit,
 ) {
     var showPaywall by remember { mutableStateOf(false) }
+    // Per-session dismiss — iOS 1025e1e. Once the user taps the X in the
+    // banner, hide it for the rest of the session (process lifetime). Reset
+    // on app restart so users still see it after re-entering. NOT
+    // rememberSaveable on purpose: rotation should NOT bring it back; an
+    // explicit relaunch should.
+    var bannerDismissed by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
     CompositionLocalProvider(LocalIsReadOnly provides isReadOnly) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            if (isReadOnly) {
-                UpgradeBanner(onTap = { showPaywall = true })
+            if (isReadOnly && !bannerDismissed) {
+                UpgradeBanner(
+                    onTap = { showPaywall = true },
+                    onDismiss = { bannerDismissed = true },
+                )
             }
             content()
         }
@@ -95,19 +105,22 @@ fun ReadOnlyGate(
 }
 
 @Composable
-private fun UpgradeBanner(onTap: () -> Unit) {
+private fun UpgradeBanner(onTap: () -> Unit, onDismiss: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onTap)
             .testTag("upgrade_banner"),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                // The banner body tap opens paywall; the X has its own hit
+                // target inside the row so a misfire doesn't dismiss the
+                // banner unintentionally.
+                .clickable(onClick = onTap)
+                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         ) {
             Icon(
                 Icons.Filled.Lock,
@@ -132,8 +145,22 @@ private fun UpgradeBanner(onTap: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
             }
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(4.dp))
             UpgradePill()
+            // Per-session dismiss — iOS 1025e1e. Separate IconButton with its
+            // own hit area so banner-tap (paywall) vs X-tap (dismiss) don't
+            // misfire into each other.
+            androidx.compose.material3.IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(36.dp).testTag("upgrade_banner_dismiss"),
+            ) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Dismiss read-only banner",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
         HorizontalDivider(
             thickness = 0.5.dp,
