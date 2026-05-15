@@ -45,7 +45,12 @@ class BowRepository @Inject constructor(
     suspend fun refreshFromRemote() {
         val remote = api.fetchBows()
         if (remote.isEmpty()) return
-        dao.upsertAll(remote.map { it.toEntity(pendingSync = false) })
+        // Skip remote rows that have local pending edits — iOS Fix #4 parity:
+        // a stale server snapshot must never overwrite a local write that
+        // hasn't drained through the sync worker yet.
+        val pendingIds = dao.findPendingSync().mapTo(HashSet()) { it.id }
+        val safe = remote.filter { it.id !in pendingIds }
+        dao.upsertAll(safe.map { it.toEntity(pendingSync = false) })
     }
 
     suspend fun deleteBow(id: String) {

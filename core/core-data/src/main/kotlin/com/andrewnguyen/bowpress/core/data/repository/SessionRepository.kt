@@ -80,9 +80,24 @@ class SessionRepository @Inject constructor(
         syncService.enqueueSync()
     }
 
+    /**
+     * Pull remote and upsert, but **skip rows that have local pending edits**.
+     * iOS Fix #4: a cold-launch hydration after force-quit was blowing away
+     * the local `endedAt`/notes/feelTags on a just-finished session because
+     * the server hadn't received the write yet. Same pattern existed here:
+     * `upsertAll(remote)` overwrote the local pendingSync row with the stale
+     * server snapshot, so the user landed back into the active-session screen.
+     *
+     * Fix mirrors iOS LocalStore.refreshSessionsPreservingPending: collect
+     * ids with `pendingSync = true`, then only upsert remote rows whose id
+     * is NOT in that set. Pending rows are left untouched; the sync worker
+     * pushes them on the next drain.
+     */
     suspend fun refreshFromRemote() {
         val remote = api.fetchSessions()
-        dao.upsertAll(remote.map { it.toEntity(pendingSync = false) })
+        val pendingIds = dao.findPendingSync().mapTo(HashSet()) { it.id }
+        val safe = remote.filter { it.id !in pendingIds }
+        dao.upsertAll(safe.map { it.toEntity(pendingSync = false) })
     }
 
     suspend fun deleteSession(id: String) {

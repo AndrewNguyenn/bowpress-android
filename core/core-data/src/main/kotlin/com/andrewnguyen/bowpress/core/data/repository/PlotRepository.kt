@@ -39,7 +39,12 @@ class PlotRepository @Inject constructor(
 
     suspend fun refreshForSession(sessionId: String) {
         val remote = api.fetchPlots(sessionId)
-        dao.upsertAll(remote.map { it.toEntity(pendingSync = false) })
+        // Preserve local pending edits — iOS Fix #4 parity. Critical for plots:
+        // an in-flight "delete arrow" or "edit ring" hasn't drained yet, so a
+        // stale server snapshot would resurrect / un-edit the arrow.
+        val pendingIds = dao.findPendingSync().mapTo(HashSet()) { it.id }
+        val safe = remote.filter { it.id !in pendingIds }
+        dao.upsertAll(safe.map { it.toEntity(pendingSync = false) })
     }
 
     suspend fun deletePlot(plot: ArrowPlot) {

@@ -76,7 +76,10 @@ class BowConfigRepository @Inject constructor(
 
     suspend fun refreshForBow(bowId: String) {
         val remote = api.fetchBowConfigurations(bowId)
-        dao.upsertAll(remote.map { it.toEntity(pendingSync = false) })
+        // Preserve local pending edits — iOS Fix #4 parity.
+        val pendingIds = dao.findPendingSync().mapTo(HashSet()) { it.id }
+        val safe = remote.filter { it.id !in pendingIds }
+        dao.upsertAll(safe.map { it.toEntity(pendingSync = false) })
     }
 
     /**
