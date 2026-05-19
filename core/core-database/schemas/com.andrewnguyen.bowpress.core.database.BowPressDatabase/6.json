@@ -1,0 +1,916 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "e87d31d32afbda853ae62e5b4efd099d",
+    "entities": [
+      {
+        "tableName": "bows",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `userId` TEXT NOT NULL, `name` TEXT NOT NULL, `bowType` TEXT NOT NULL, `brand` TEXT NOT NULL, `model` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bowType",
+            "columnName": "bowType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "bow_configurations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `bowId` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `label` TEXT, `drawLength` REAL NOT NULL, `letOffPct` REAL, `peepHeight` REAL, `dLoopLength` REAL, `topCableTwists` INTEGER, `bottomCableTwists` INTEGER, `mainStringTopTwists` INTEGER, `mainStringBottomTwists` INTEGER, `topLimbTurns` REAL, `bottomLimbTurns` REAL, `restVertical` INTEGER NOT NULL, `restHorizontal` INTEGER NOT NULL, `restDepth` REAL NOT NULL, `sightPosition` INTEGER, `gripAngle` REAL NOT NULL, `nockingHeight` INTEGER NOT NULL, `specificGrip` TEXT, `specificLimbs` TEXT, `frontStabWeight` REAL, `frontStabAngle` REAL, `rearStabSide` TEXT, `rearStabWeight` REAL, `rearStabVertAngle` REAL, `rearStabHorizAngle` REAL, `braceHeight` REAL, `tillerTop` REAL, `tillerBottom` REAL, `plungerTension` INTEGER, `clickerPosition` REAL, `rearStabLeftWeight` REAL, `rearStabRightWeight` REAL, `isReference` INTEGER NOT NULL, `referenceManuallyPinned` INTEGER NOT NULL, `avgArrowScore` REAL, `scoreable` INTEGER NOT NULL, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bowId",
+            "columnName": "bowId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "drawLength",
+            "columnName": "drawLength",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "letOffPct",
+            "columnName": "letOffPct",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "peepHeight",
+            "columnName": "peepHeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "dLoopLength",
+            "columnName": "dLoopLength",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "topCableTwists",
+            "columnName": "topCableTwists",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "bottomCableTwists",
+            "columnName": "bottomCableTwists",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "mainStringTopTwists",
+            "columnName": "mainStringTopTwists",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "mainStringBottomTwists",
+            "columnName": "mainStringBottomTwists",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "topLimbTurns",
+            "columnName": "topLimbTurns",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "bottomLimbTurns",
+            "columnName": "bottomLimbTurns",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "restVertical",
+            "columnName": "restVertical",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restHorizontal",
+            "columnName": "restHorizontal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restDepth",
+            "columnName": "restDepth",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sightPosition",
+            "columnName": "sightPosition",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "gripAngle",
+            "columnName": "gripAngle",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nockingHeight",
+            "columnName": "nockingHeight",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "specificGrip",
+            "columnName": "specificGrip",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "specificLimbs",
+            "columnName": "specificLimbs",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "frontStabWeight",
+            "columnName": "frontStabWeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "frontStabAngle",
+            "columnName": "frontStabAngle",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rearStabSide",
+            "columnName": "rearStabSide",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rearStabWeight",
+            "columnName": "rearStabWeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rearStabVertAngle",
+            "columnName": "rearStabVertAngle",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rearStabHorizAngle",
+            "columnName": "rearStabHorizAngle",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "braceHeight",
+            "columnName": "braceHeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tillerTop",
+            "columnName": "tillerTop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tillerBottom",
+            "columnName": "tillerBottom",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "plungerTension",
+            "columnName": "plungerTension",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "clickerPosition",
+            "columnName": "clickerPosition",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rearStabLeftWeight",
+            "columnName": "rearStabLeftWeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rearStabRightWeight",
+            "columnName": "rearStabRightWeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isReference",
+            "columnName": "isReference",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "referenceManuallyPinned",
+            "columnName": "referenceManuallyPinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avgArrowScore",
+            "columnName": "avgArrowScore",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "scoreable",
+            "columnName": "scoreable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "arrow_configurations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `userId` TEXT NOT NULL, `label` TEXT NOT NULL, `brand` TEXT, `model` TEXT, `length` REAL NOT NULL, `pointWeight` INTEGER NOT NULL, `fletchingType` TEXT NOT NULL, `fletchingLength` REAL NOT NULL, `fletchingOffset` REAL NOT NULL, `nockType` TEXT, `totalWeight` INTEGER, `shaftDiameter` REAL, `notes` TEXT, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "length",
+            "columnName": "length",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pointWeight",
+            "columnName": "pointWeight",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fletchingType",
+            "columnName": "fletchingType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fletchingLength",
+            "columnName": "fletchingLength",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fletchingOffset",
+            "columnName": "fletchingOffset",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nockType",
+            "columnName": "nockType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "totalWeight",
+            "columnName": "totalWeight",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "shaftDiameter",
+            "columnName": "shaftDiameter",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `bowId` TEXT NOT NULL, `bowConfigId` TEXT NOT NULL, `arrowConfigId` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER, `notes` TEXT NOT NULL, `feelTags` TEXT NOT NULL, `arrowCount` INTEGER NOT NULL, `windSpeed` REAL, `tempF` REAL, `lighting` TEXT, `targetFaceType` TEXT NOT NULL DEFAULT 'SIX_RING', `distance` TEXT, `title` TEXT, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bowId",
+            "columnName": "bowId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bowConfigId",
+            "columnName": "bowConfigId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrowConfigId",
+            "columnName": "arrowConfigId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAt",
+            "columnName": "endedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feelTags",
+            "columnName": "feelTags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrowCount",
+            "columnName": "arrowCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windSpeed",
+            "columnName": "windSpeed",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tempF",
+            "columnName": "tempF",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lighting",
+            "columnName": "lighting",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "targetFaceType",
+            "columnName": "targetFaceType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'SIX_RING'"
+          },
+          {
+            "fieldPath": "distance",
+            "columnName": "distance",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "arrow_plots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `bowConfigId` TEXT NOT NULL, `arrowConfigId` TEXT NOT NULL, `ring` INTEGER NOT NULL, `zone` TEXT NOT NULL, `plotX` REAL, `plotY` REAL, `endId` TEXT, `shotAt` INTEGER NOT NULL, `excluded` INTEGER NOT NULL, `notes` TEXT, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bowConfigId",
+            "columnName": "bowConfigId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrowConfigId",
+            "columnName": "arrowConfigId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ring",
+            "columnName": "ring",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "zone",
+            "columnName": "zone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "plotX",
+            "columnName": "plotX",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "plotY",
+            "columnName": "plotY",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "endId",
+            "columnName": "endId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "shotAt",
+            "columnName": "shotAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "excluded",
+            "columnName": "excluded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_arrow_plots_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_arrow_plots_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_arrow_plots_shotAt",
+            "unique": false,
+            "columnNames": [
+              "shotAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_arrow_plots_shotAt` ON `${TABLE_NAME}` (`shotAt`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "session_ends",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `endNumber` INTEGER NOT NULL, `notes` TEXT, `completedAt` INTEGER NOT NULL, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endNumber",
+            "columnName": "endNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_session_ends_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_session_ends_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "suggestions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `bowId` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `parameter` TEXT NOT NULL, `suggestedValue` TEXT NOT NULL, `currentValue` TEXT NOT NULL, `reasoning` TEXT NOT NULL, `confidence` REAL NOT NULL, `qualifier` TEXT, `wasRead` INTEGER NOT NULL, `wasDismissed` INTEGER NOT NULL, `deliveryType` TEXT NOT NULL, `evidenceJson` TEXT, `wasApplied` INTEGER NOT NULL, `appliedAt` INTEGER, `appliedConfigId` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bowId",
+            "columnName": "bowId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parameter",
+            "columnName": "parameter",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suggestedValue",
+            "columnName": "suggestedValue",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentValue",
+            "columnName": "currentValue",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasoning",
+            "columnName": "reasoning",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qualifier",
+            "columnName": "qualifier",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "wasRead",
+            "columnName": "wasRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wasDismissed",
+            "columnName": "wasDismissed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveryType",
+            "columnName": "deliveryType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "evidenceJson",
+            "columnName": "evidenceJson",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "wasApplied",
+            "columnName": "wasApplied",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "appliedAt",
+            "columnName": "appliedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "appliedConfigId",
+            "columnName": "appliedConfigId",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_suggestions_bowId",
+            "unique": false,
+            "columnNames": [
+              "bowId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_suggestions_bowId` ON `${TABLE_NAME}` (`bowId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sight_marks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `userId` TEXT NOT NULL, `bowId` TEXT NOT NULL, `distance` REAL NOT NULL, `distanceUnit` TEXT NOT NULL, `mark` REAL NOT NULL, `note` TEXT, `isSuggestion` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bowId",
+            "columnName": "bowId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distance",
+            "columnName": "distance",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanceUnit",
+            "columnName": "distanceUnit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mark",
+            "columnName": "mark",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isSuggestion",
+            "columnName": "isSuggestion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e87d31d32afbda853ae62e5b4efd099d')"
+    ]
+  }
+}

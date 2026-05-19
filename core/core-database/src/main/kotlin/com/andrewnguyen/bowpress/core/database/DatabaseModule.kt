@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
+import com.andrewnguyen.bowpress.core.database.dao.SightMarkDao
 import com.andrewnguyen.bowpress.core.database.dao.SuggestionDao
 import dagger.Module
 import dagger.Provides
@@ -38,4 +39,5 @@ object DatabaseModule {
     @Provides fun provideArrowPlotDao(db: BowPressDatabase): ArrowPlotDao = db.arrowPlotDao()
     @Provides fun provideSessionEndDao(db: BowPressDatabase): SessionEndDao = db.sessionEndDao()
     @Provides fun provideSuggestionDao(db: BowPressDatabase): SuggestionDao = db.suggestionDao()
+    @Provides fun provideSightMarkDao(db: BowPressDatabase): SightMarkDao = db.sightMarkDao()
 }

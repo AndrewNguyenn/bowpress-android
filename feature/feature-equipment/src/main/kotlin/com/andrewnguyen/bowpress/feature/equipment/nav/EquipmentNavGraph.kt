@@ -45,11 +45,13 @@ object EquipmentRoutes {
     const val BOW_CONFIG_DETAIL = "equipment/bow/{${EquipmentArgs.BOW_ID}}/config/{${EquipmentArgs.CONFIG_ID}}"
     const val BOW_CONFIG_EDIT = "equipment/bow/{${EquipmentArgs.BOW_ID}}/config/{${EquipmentArgs.CONFIG_ID}}/edit"
     const val ARROW_DETAIL = "equipment/arrow/{${EquipmentArgs.ARROW_ID}}"
+    const val SIGHT_MARKS = "equipment/bow/{${EquipmentArgs.BOW_ID}}/sight-marks"
 
     fun bowDetail(bowId: String) = "equipment/bow/$bowId"
     fun bowConfigDetail(bowId: String, configId: String) = "equipment/bow/$bowId/config/$configId"
     fun bowConfigEdit(bowId: String, configId: String) = "equipment/bow/$bowId/config/$configId/edit"
     fun arrowDetail(arrowId: String) = "equipment/arrow/$arrowId"
+    fun sightMarks(bowId: String) = "equipment/bow/$bowId/sight-marks"
 }
 
 /**
@@ -131,6 +133,17 @@ fun NavGraphBuilder.equipmentNavGraph(
             onOpenConfig = { configId ->
                 navController.navigate(EquipmentRoutes.bowConfigDetail(bowId, configId))
             },
+            onOpenSightMarks = { navController.navigate(EquipmentRoutes.sightMarks(bowId)) },
+        )
+    }
+
+    composable(
+        route = EquipmentRoutes.SIGHT_MARKS,
+        arguments = listOf(navArgument(EquipmentArgs.BOW_ID) { type = NavType.StringType }),
+    ) {
+        com.andrewnguyen.bowpress.feature.equipment.sightmarks.SightMarksListScreen(
+            onBack = { navController.popBackStack() },
+            userId = currentUserId(),
         )
     }
 

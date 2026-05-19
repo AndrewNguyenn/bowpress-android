@@ -80,6 +80,7 @@ import java.util.Locale
 fun BowDetailScreen(
     onBack: () -> Unit,
     onOpenConfig: (configId: String) -> Unit,
+    onOpenSightMarks: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: BowDetailViewModel = hiltViewModel(),
     editViewModel: BowConfigEditViewModel = hiltViewModel(),
@@ -199,6 +200,7 @@ fun BowDetailScreen(
                 onDeleteGripSuggestion = editViewModel::deleteGripFromCatalog,
                 onDeleteLimbSuggestion = editViewModel::deleteLimbsFromCatalog,
                 onOpenConfig = onOpenConfig,
+                onOpenSightMarks = onOpenSightMarks,
                 onToggleReference = viewModel::setReference,
                 onDeleteRequested = { showDeleteConfirm = true },
                 modifier = Modifier.padding(padding),
@@ -243,6 +245,7 @@ private fun BowDetailBody(
     onDeleteGripSuggestion: (String) -> Unit,
     onDeleteLimbSuggestion: (String) -> Unit,
     onOpenConfig: (String) -> Unit,
+    onOpenSightMarks: () -> Unit,
     onToggleReference: (configId: String, pinned: Boolean) -> Unit,
     onDeleteRequested: () -> Unit,
     modifier: Modifier = Modifier,
@@ -316,6 +319,21 @@ private fun BowDetailBody(
 
         Spacer(Modifier.height(16.dp))
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            // Sight Marks entry — iOS shows this as a NavigationLink under the
+            // form body, just above the Delete Bow button.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenSightMarks)
+                    .padding(vertical = 14.dp)
+                    .testTag("sight_marks_link"),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Sight Marks", style = MaterialTheme.typography.bodyLarge)
+                Text("›", style = MaterialTheme.typography.bodyLarge)
+            }
+            HorizontalDivider()
             // iOS BowDetailView renders a destructive "Delete Bow" button below
             // History (BowDetailView.swift:181-191). Centered, error-tinted text.
             Row(
