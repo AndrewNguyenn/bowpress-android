@@ -172,7 +172,11 @@ fun SessionDetailScreen(
             arrowNumber = editing.number,
             faceType = state.faceType,
             onReplotRing = { ring, zone ->
-                viewModel.replotArrow(editing.arrow.id, ring, zone, editing.arrow.plotX, editing.arrow.plotY)
+                // Keypad re-score: pass null plot coords so the VM snaps the
+                // dot to the new ring's midline along the existing bearing.
+                // Otherwise precision stats would compute from a position
+                // that doesn't match the displayed ring.
+                viewModel.replotArrow(editing.arrow.id, ring, zone, null, null)
             },
             onDelete = { viewModel.deleteArrow(editing.arrow.id) },
             onDismiss = { editingArrow = null },

@@ -489,7 +489,7 @@ private fun TargetInteractiveFace(
                     detectDragGestures(
                         onDragStart = { start ->
                             dragPreview = start
-                            lensSnapshot = buildSnapshot(
+                            lensSnapshot = buildPenLensSnapshot(
                                 start, size.width.toFloat(), arrows,
                                 arrowDiameterMm, geometry, faceType,
                             )
@@ -497,7 +497,7 @@ private fun TargetInteractiveFace(
                         onDrag = { change, _ ->
                             change.consume()
                             dragPreview = change.position
-                            lensSnapshot = buildSnapshot(
+                            lensSnapshot = buildPenLensSnapshot(
                                 change.position, size.width.toFloat(), arrows,
                                 arrowDiameterMm, geometry, faceType,
                             )
@@ -568,32 +568,7 @@ private fun TargetInteractiveFace(
     }
 }
 
-/** Build a PenLensSnapshot for the current touch. Computed inside the gesture
- *  loop so the lens follows the finger one-to-one. */
-private fun buildSnapshot(
-    touch: Offset,
-    faceSizePx: Float,
-    arrows: List<ArrowPlot>,
-    arrowDiameterMm: Double,
-    geometry: TargetGeometry,
-    faceType: TargetFaceType,
-): PenLensSnapshot {
-    val radiusPx = faceSizePx / 2f
-    val plotX = (touch.x - radiusPx).toDouble() / radiusPx
-    val plotY = (touch.y - radiusPx).toDouble() / radiusPx
-    val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
-    val classification = geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius)
-    val arrowDotPx = ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
-    return PenLensSnapshot(
-        touchPx = touch,
-        faceOriginPx = Offset.Zero,
-        faceSizePx = faceSizePx,
-        arrowDotSizePx = arrowDotPx,
-        faceType = faceType,
-        arrows = arrows,
-        previewRing = classification.ring,
-    )
-}
+// Snapshot building lives in PenLensOverlay.kt — shared with TargetPlot.
 
 // ---------------------------------------------------------------------------
 // Recent arrows strip — 6-cell grid with avg of last N

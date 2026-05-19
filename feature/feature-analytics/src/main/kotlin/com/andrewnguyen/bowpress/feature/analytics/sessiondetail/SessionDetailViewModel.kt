@@ -132,15 +132,94 @@ class SessionDetailViewModel @Inject constructor(
      * Replace an arrow's score/position. Mirrors iOS
      * `HistoricalSessionsView.replotArrow` — keeps the existing id, sessionId,
      * config/end refs, and timestamp; only ring/zone/plotX/plotY change.
-     * The repo writes pendingSync = true so the sync worker propagates.
+     *
+     * When [plotX]/[plotY] are passed null (the keypad re-score path with no
+     * positional information), snap the plot to the **midline** of the new
+     * ring along the existing bearing — without this, precision stats
+     * (meanDist, group σ) would compute from a position that doesn't
+     * correspond to the score, silently desyncing the heatmap from the
+     * displayed ring.
      */
     fun replotArrow(arrowId: String, ring: Int, zone: Zone, plotX: Double?, plotY: Double?) {
         viewModelScope.launch {
             val current = _state.value.arrows.firstOrNull { it.id == arrowId } ?: return@launch
-            val updated = current.copy(ring = ring, zone = zone, plotX = plotX, plotY = plotY)
+            val (snappedX, snappedY) = if (plotX != null && plotY != null) {
+                plotX to plotY
+            } else {
+                snapToRingMidline(
+                    ring = ring,
+                    currentX = current.plotX,
+                    currentY = current.plotY,
+                    faceType = _state.value.faceType,
+                )
+            }
+            val updated = current.copy(
+                ring = ring,
+                zone = zone,
+                plotX = snappedX,
+                plotY = snappedY,
+            )
             plotRepo.savePlot(updated)
             _state.update { st ->
                 st.copy(arrows = st.arrows.map { if (it.id == arrowId) updated else it })
+            }
+        }
+    }
+
+    /**
+     * Snap (plotX, plotY) to the geometric midpoint of [ring]'s band along
+     * the current bearing. Falls back to a straight-down bearing when the
+     * current plot has no position (so the dot lands somewhere visible on
+     * the heatmap rather than at origin).
+     */
+    private fun snapToRingMidline(
+        ring: Int,
+        currentX: Double?,
+        currentY: Double?,
+        faceType: TargetFaceType,
+    ): Pair<Double, Double> {
+        val (inner, outer) = ringBand(ring, faceType)
+        val midRadius = (inner + outer) / 2.0
+        val curX = currentX ?: 0.0
+        val curY = currentY ?: 1.0 // arbitrary south bearing
+        val curMag = kotlin.math.hypot(curX, curY)
+        return if (curMag < 1e-6) {
+            0.0 to midRadius
+        } else {
+            midRadius * curX / curMag to midRadius * curY / curMag
+        }
+    }
+
+    /**
+     * Inner / outer normalised radius for a given ring on the given face.
+     * Numbers come from the same threshold tables `TargetGeometry` uses for
+     * classification — so a re-score that lands at the midline classifies
+     * back to the same ring on the next render.
+     */
+    private fun ringBand(ring: Int, faceType: TargetFaceType): Pair<Double, Double> {
+        return when (faceType) {
+            TargetFaceType.SIX_RING -> when (ring) {
+                11 -> 0.0 to 60.0 / 735.0           // X
+                10 -> 60.0 / 735.0 to 119.0 / 735.0 // 10 / 9 divider
+                9 -> 119.0 / 735.0 to 238.0 / 735.0
+                8 -> 238.0 / 735.0 to 357.0 / 735.0
+                7 -> 357.0 / 735.0 to 475.0 / 735.0
+                6 -> 475.0 / 735.0 to 594.0 / 735.0
+                else -> 594.0 / 735.0 to 1.05       // miss — just outside the face
+            }
+            TargetFaceType.TEN_RING -> when (ring) {
+                11 -> 0.0 to 0.05
+                10 -> 0.05 to 0.10
+                9 -> 0.10 to 0.20
+                8 -> 0.20 to 0.30
+                7 -> 0.30 to 0.40
+                6 -> 0.40 to 0.50
+                5 -> 0.50 to 0.60
+                4 -> 0.60 to 0.70
+                3 -> 0.70 to 0.80
+                2 -> 0.80 to 0.90
+                1 -> 0.90 to 1.00
+                else -> 1.00 to 1.05
             }
         }
     }

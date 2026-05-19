@@ -37,8 +37,8 @@ import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
-import com.andrewnguyen.bowpress.core.designsystem.AppPond
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
@@ -213,7 +213,11 @@ private fun QuickScoreKeypad(
                                 italic = true,
                                 weight = FontWeight.Medium,
                             ).copy(
-                                color = if (isCurrent) AppInk2.copy(alpha = 0f).let { _ -> AppLine } else AppInk,
+                                // Selected chip has a dark AppPondDk fill —
+                                // legible label is the light paper tone, not
+                                // the divider grey that the previous expression
+                                // (refactor debris) returned.
+                                color = if (isCurrent) AppPaper else AppInk,
                             ),
                         )
                     }
@@ -237,6 +241,3 @@ private fun ringLabel(ring: Int): String = when (ring) {
  * miss-pattern, not the score), so we mirror that here.
  */
 private fun zoneForRing(ring: Int, currentZone: Zone): Zone = currentZone
-
-@Composable
-internal fun pondColor(): androidx.compose.ui.graphics.Color = AppPond

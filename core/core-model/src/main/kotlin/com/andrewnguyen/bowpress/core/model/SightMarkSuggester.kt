@@ -53,6 +53,14 @@ object SightMarkSuggester {
         data class NotEnoughMarks(val have: Int) : Outcome()
         data class SpreadTooSmall(val haveMeters: Double) : Outcome()
         data class DistanceOutOfRange(val haveMinMeters: Double, val haveMaxMeters: Double) : Outcome()
+        /**
+         * The spread gate passed but the normal-equation matrix is still
+         * singular (e.g. clustering of input distances around a few
+         * specific points). Distinct outcome from SpreadTooSmall so the UI
+         * can surface "your marks aren't varied enough to fit a curve"
+         * rather than the misleading spread-too-small message.
+         */
+        data class Singular(val haveMeters: Double) : Outcome()
     }
 
     /**
@@ -86,8 +94,15 @@ object SightMarkSuggester {
             return Outcome.DistanceOutOfRange(minX, maxX)
         }
 
+        // The spread gate already passed, so a singular matrix here means
+        // the x values are degenerate in some other way (e.g. all but one
+        // mark sit at identical distances and the spread is carried by a
+        // single outlier — det = 0 even though min/max differ enough).
+        // Surface as Singular so callers can present an honest "marks too
+        // close together to fit" message rather than the misleading
+        // "spread too small" string.
         val coeffs = quadraticLeastSquares(xs, ys)
-            ?: return Outcome.SpreadTooSmall(spread)
+            ?: return Outcome.Singular(haveMeters = spread)
         val (a, b, c) = coeffs
 
         val predicted = a + b * targetMeters + c * targetMeters * targetMeters

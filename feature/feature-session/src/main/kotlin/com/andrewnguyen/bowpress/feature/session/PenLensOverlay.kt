@@ -34,6 +34,37 @@ import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 
 /**
+ * Build a [PenLensSnapshot] for a touch in the target Canvas's local
+ * pixel space. Shared between [TargetPlot] and
+ * [ActiveSessionScreen.TargetInteractiveFace] so the two plotting
+ * surfaces stay in lockstep.
+ */
+internal fun buildPenLensSnapshot(
+    touch: Offset,
+    faceSizePx: Float,
+    arrows: List<ArrowPlot>,
+    arrowDiameterMm: Double,
+    geometry: TargetGeometry,
+    faceType: TargetFaceType,
+): PenLensSnapshot {
+    val radiusPx = faceSizePx / 2f
+    val plotX = (touch.x - radiusPx).toDouble() / radiusPx
+    val plotY = (touch.y - radiusPx).toDouble() / radiusPx
+    val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
+    val classification = geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius)
+    val arrowDotPx = ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
+    return PenLensSnapshot(
+        touchPx = touch,
+        faceOriginPx = Offset.Zero,
+        faceSizePx = faceSizePx,
+        arrowDotSizePx = arrowDotPx,
+        faceType = faceType,
+        arrows = arrows,
+        previewRing = classification.ring,
+    )
+}
+
+/**
  * Snapshot of a live touch on the target, in pixel coordinates relative to
  * the [TargetPlot]'s top-left. Emitted by [TargetPlot] on every drag tick
  * and consumed by [PenLensOverlay] which renders the magnifier on a sibling
@@ -93,69 +124,53 @@ fun PenLensOverlay(snapshot: PenLensSnapshot?, modifier: Modifier = Modifier) {
     val placeBelow = lensTopIfAbove < edgeBuffer
     val lensCenterY = if (placeBelow) snapshot.touchPx.y + touchClearance else preferredAboveY
 
-    // Horizontal placement is the touch x clamped so the lens stays inside
-    // the parent Box. Caller passes a Modifier that fills the available
-    // space; the inner offset is in pixels.
-    Box(
-        modifier = modifier.fillMaxSize(),
-    ) {
-        // Compute the lens top-left so the centre lands at (touch.x, lensCenterY).
-        // Resolve at render time so the parent Box's max width is known.
-        val lensTopLeft: (Float) -> Offset = { boxWidth ->
-            val clampedX = snapshot.touchPx.x.coerceIn(
-                lensRadius + edgeBuffer,
-                (boxWidth - lensRadius - edgeBuffer).coerceAtLeast(lensRadius + edgeBuffer),
-            )
-            Offset(clampedX - lensRadius, lensCenterY - lensRadius)
-        }
+    // Horizontal placement clamps inside the parent Box's bounds.
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val boxWidthPx = with(density) { maxWidth.toPx() }
+        val clampedX = snapshot.touchPx.x.coerceIn(
+            lensRadius + edgeBuffer,
+            (boxWidthPx - lensRadius - edgeBuffer).coerceAtLeast(lensRadius + edgeBuffer),
+        )
+        val origin = Offset(clampedX - lensRadius, lensCenterY - lensRadius)
+        val lensSizeDp = with(density) { lensSizePx.toDp() }
 
-        BoxWithMeasuredWidth { measuredWidth ->
-            val origin = lensTopLeft(measuredWidth)
-            val lensSizeDp = with(density) { lensSizePx.toDp() }
-
-            // Score stamp — floats above the lens center, shows preview ring.
-            val stampTopY = origin.y - stampOffset
+        // Score stamp — floats above the lens center horizontally, with the
+        // stamp's own half-width subtracted so it's truly centered. Hidden
+        // when above-the-lens placement would clip the parent's top edge
+        // (matches iOS, where the screen-global overlay places the stamp on
+        // an unclipped surface). The 40dp stamp width is matched by
+        // [ScoreStamp]'s Modifier.size below — keep these in sync.
+        val stampWidthPx = with(density) { 40.dp.toPx() }
+        val stampTopY = origin.y - stampOffset
+        if (stampTopY >= 0f) {
             ScoreStamp(
                 ring = snapshot.previewRing,
-                modifier = Modifier
-                    .offset(
-                        x = with(density) { (origin.x + lensRadius - stampHalfWidthPx() / 2f).toDp() },
-                        y = with(density) { stampTopY.toDp() },
-                    ),
+                modifier = Modifier.offset(
+                    x = with(density) { (origin.x + lensRadius - stampWidthPx / 2f).toDp() },
+                    y = with(density) { stampTopY.toDp() },
+                ),
             )
-
-            // Lens body — circular clip wraps the magnified face + arrows.
-            Box(
-                modifier = Modifier
-                    .offset(
-                        x = with(density) { origin.x.toDp() },
-                        y = with(density) { origin.y.toDp() },
-                    )
-                    .size(lensSizeDp)
-                    .clip(CircleShape)
-                    .background(AppPaper)
-                    .border(1.dp, AppLine, CircleShape),
-            ) {
-                LensContent(
-                    snapshot = snapshot,
-                    lensRadius = lensRadius,
-                    zoomedFaceSize = zoomedFaceSize,
-                    density = density,
-                )
-            }
         }
-    }
-}
 
-/** Measures the parent box once and feeds the width back into [content]. */
-@Composable
-private fun BoxWithMeasuredWidth(content: @Composable (widthPx: Float) -> Unit) {
-    androidx.compose.foundation.layout.BoxWithConstraints(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        val density = LocalDensity.current
-        val widthPx = with(density) { maxWidth.toPx() }
-        content(widthPx)
+        // Lens body — circular clip wraps the magnified face + arrows.
+        Box(
+            modifier = Modifier
+                .offset(
+                    x = with(density) { origin.x.toDp() },
+                    y = with(density) { origin.y.toDp() },
+                )
+                .size(lensSizeDp)
+                .clip(CircleShape)
+                .background(AppPaper)
+                .border(1.dp, AppLine, CircleShape),
+        ) {
+            LensContent(
+                snapshot = snapshot,
+                lensRadius = lensRadius,
+                zoomedFaceSize = zoomedFaceSize,
+                density = density,
+            )
+        }
     }
 }
 
@@ -230,8 +245,6 @@ private fun ScoreStamp(ring: Int?, modifier: Modifier = Modifier) {
         )
     }
 }
-
-private fun stampHalfWidthPx(): Float = 0f // unused — kept for layout symmetry
 
 private const val LENS_SIZE_RATIO = 0.75f
 private const val LENS_ZOOM = 2.5f

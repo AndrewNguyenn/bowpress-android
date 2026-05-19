@@ -67,29 +67,29 @@ fun TargetPlot(
                 detectDragGestures(
                     onDragStart = { start ->
                         dragPreview = start
-                        emitSnapshot(
-                            touch = start,
-                            faceSizePx = size.width.toFloat(),
-                            density = density,
-                            arrows = arrows,
-                            arrowDiameterMm = arrowDiameterMm,
-                            geometry = geometry,
-                            faceType = faceType,
-                            emit = onLensSnapshotChanged,
+                        onLensSnapshotChanged(
+                            buildPenLensSnapshot(
+                                touch = start,
+                                faceSizePx = size.width.toFloat(),
+                                arrows = arrows,
+                                arrowDiameterMm = arrowDiameterMm,
+                                geometry = geometry,
+                                faceType = faceType,
+                            ),
                         )
                     },
                     onDrag = { change, _ ->
                         change.consume()
                         dragPreview = change.position
-                        emitSnapshot(
-                            touch = change.position,
-                            faceSizePx = size.width.toFloat(),
-                            density = density,
-                            arrows = arrows,
-                            arrowDiameterMm = arrowDiameterMm,
-                            geometry = geometry,
-                            faceType = faceType,
-                            emit = onLensSnapshotChanged,
+                        onLensSnapshotChanged(
+                            buildPenLensSnapshot(
+                                touch = change.position,
+                                faceSizePx = size.width.toFloat(),
+                                arrows = arrows,
+                                arrowDiameterMm = arrowDiameterMm,
+                                geometry = geometry,
+                                faceType = faceType,
+                            ),
                         )
                     },
                     onDragEnd = {
@@ -129,40 +129,8 @@ fun TargetPlot(
     }
 }
 
-/**
- * Build a [PenLensSnapshot] for the current touch + emit. Calculates the
- * preview ring so the lens can stamp it above. faceOrigin is (0, 0) because
- * the lens overlay sits in the same parent Box as the TargetPlot Canvas;
- * the parent is responsible for absolute-positioning if needed.
- */
-private fun emitSnapshot(
-    touch: Offset,
-    faceSizePx: Float,
-    density: androidx.compose.ui.unit.Density,
-    arrows: List<ArrowPlot>,
-    arrowDiameterMm: Double,
-    geometry: TargetGeometry,
-    faceType: TargetFaceType,
-    emit: (PenLensSnapshot?) -> Unit,
-) {
-    val radiusPx = faceSizePx / 2f
-    val plotX = (touch.x - radiusPx).toDouble() / radiusPx
-    val plotY = (touch.y - radiusPx).toDouble() / radiusPx
-    val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
-    val classification = geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius)
-    val arrowDotPx = ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
-    emit(
-        PenLensSnapshot(
-            touchPx = touch,
-            faceOriginPx = Offset.Zero, // parent positions both layers identically
-            faceSizePx = faceSizePx,
-            arrowDotSizePx = arrowDotPx,
-            faceType = faceType,
-            arrows = arrows,
-            previewRing = classification.ring,
-        ),
-    )
-}
+// buildPenLensSnapshot lives in PenLensOverlay.kt and is shared with
+// ActiveSessionScreen.TargetInteractiveFace.
 
 // ---- Drawing helpers ----
 
@@ -340,24 +308,6 @@ private fun DrawScope.drawExistingArrows(
             )
         }
     }
-}
-
-private fun DrawScope.drawDragPreview(
-    preview: Offset?,
-    arrowDiameterMm: Double,
-    geometry: TargetGeometry,
-) {
-    if (preview == null) return
-    val radiusPx = minOf(size.width, size.height) / 2f
-    val dotDiameterPx = (arrowDiameterMm / geometry.mmPerNormUnit * radiusPx)
-        .toFloat()
-        .coerceAtLeast(8f)
-    drawCircle(
-        color = Color.White,
-        radius = dotDiameterPx / 2f,
-        center = preview,
-        style = Stroke(width = 1.5f),
-    )
 }
 
 /**
