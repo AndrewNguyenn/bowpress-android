@@ -6,7 +6,7 @@ unblocks each one. Items needing human credentials or a backend
 deployment land in the **External** section; items that can be closed
 purely with code land in **Code**.
 
-Last updated: 2026-05-13 by the release-prep work.
+Last updated: 2026-05-19 by the Play-Console-account work.
 
 ---
 
@@ -15,26 +15,54 @@ Last updated: 2026-05-13 by the release-prep work.
 **Repo-side: ✅ Ready to upload an AAB.**
 - Upload keystore: `~/.bowpress-secrets/bowpress-upload.keystore` (mode 600)
 - Release SHA-1: `BE:F3:E2:AB:C7:1C:DC:56:DD:E8:E8:53:BC:B4:3B:EC:00:C4:9C:F4`
-- Signing wired in `app/build.gradle.kts` (reads credentials from
-  gitignored `local.properties`). `./gradlew :app:bundleRelease`
-  produces `app/build/outputs/bundle/release/app-release.aab` (8.0M).
+- ✅ Upload keystore SHA-1 registered on both Firebase apps via the
+  Firebase Management API (2026-05-19). Confirmed active on Release
+  (`538f20ea…`) and Debug (`438afb3b…`).
+- ✅ `app/google-services.json` re-downloaded with the new fingerprint;
+  fresh AAB rebuilt against it.
+- Signing wired in `app/build.gradle.kts` (reads from gitignored
+  `local.properties`). `./gradlew :app:bundleRelease` produces
+  `app/build/outputs/bundle/release/app-release.aab` (8.1M).
 - R8 + resource shrinking pass cleanly; release APK smoke-tested on
   emulator (renders auth screen, no crash).
+- ✅ Play Console listing copy pre-written at
+  `scripts/play-listing/listing.md`. Copy-paste source for app
+  name / short / full description, Data Safety answers, content
+  rating expected outcomes, and the exact subscription product IDs.
 
-**Still needed before submitting (external actions):**
-1. Play Console developer account ($25 one-time)
-2. Register release SHA-1 with both Firebase apps (curl snippet
-   under "External § 2" below)
-3. Wire `GOOGLE_CLIENT_ID` Worker secret to include Android client ID
-   (External § 1)
-4. Backend `/subscription/verify-google` endpoint (External § 3 — blocks
-   subscription verify on Android)
-5. Google Play RTDN webhook receiver in `bowpress-api`
-6. Privacy policy URL on the Play listing + Data Safety form
-7. App icon at Play Store sizes (512×512 + 1024×500 feature graphic)
-8. Listing copy + ≥4 screenshots
-9. New personal-account requirement: 12 testers × 14 days closed test
-   before production graduation
+**Play Console developer account: ✅ exists** (`stageandrewnguyen@gmail.com`,
+2026-05-19).
+
+**Still needed before first internal-test build can install:**
+
+1. **Upload AAB to Internal Testing track** (manual — Play Console
+   UI; the Play Developer API for upload would need a separate
+   OAuth scope grant from this account that gcloud doesn't carry
+   by default). First upload generates the Play App-Signing key.
+   After upload, paste the App-Signing SHA-1 from **Setup → App
+   integrity** back into this session and I'll register that with
+   Firebase too.
+2. **Create subscription products** in Play Console (Monetize →
+   Products → Subscriptions) with the exact IDs
+   `com.andrewnguyen.bowpress.monthly` and
+   `com.andrewnguyen.bowpress.annual` — code at
+   `feature-subscription/PlayBillingManager.kt:46-47` queries by
+   these IDs.
+3. **Grant service account** `bowpress-play-billing@bowpress-ios.iam.gserviceaccount.com`
+   "View app information" + "Manage orders and subscriptions" on
+   the BowPress app under **Setup → API access**. Once granted, I'll
+   `wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` from the
+   existing key at `~/.bowpress-secrets/play-billing-key.json`.
+4. **Real-Time Developer Notifications (RTDN)** topic in Play
+   Console Monetize → Real-time developer notifications. Backend
+   `bowpress-api` needs a Pub/Sub webhook receiver — separate scope.
+5. **Listing visual assets**: icon (512×512), feature graphic
+   (1024×500), 4–8 phone screenshots. Copy already pre-written.
+6. **`GOOGLE_CLIENT_ID` Worker secret** push to include the Android
+   client ID (External § 1 below). I can do this with `wrangler` —
+   just need confirmation.
+7. **12 testers × 14 days closed test** before production
+   graduation (new-personal-account Play requirement).
 
 ---
 
