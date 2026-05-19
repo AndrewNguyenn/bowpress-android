@@ -405,6 +405,17 @@ private fun TargetSection(
 
         Spacer(Modifier.height(4.dp))
 
+        // Sight mark chip — surfaces the relevant mark for the active bow at
+        // the session's target distance. Renders nothing if there's no
+        // useful reading. Mirrors iOS SightMarkChip.
+        SightMarkChip(
+            bowId = state.selectedBow?.id,
+            distance = state.activeSession?.distance,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+
+        Spacer(Modifier.height(8.dp))
+
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
