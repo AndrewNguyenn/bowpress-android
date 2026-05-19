@@ -24,14 +24,14 @@ import com.andrewnguyen.bowpress.core.model.Zone
 
 /**
  * Canvas that draws the target face and captures drag-to-plot gestures. Mirrors
- * bowpress-ios/Sources/BowPress/Session/TargetPlotView.swift — the exact line refs for
- * the scoring logic are on [TargetGeometry]. UI-side references:
+ * bowpress-ios/Sources/BowPress/Session/TargetPlotView.swift (iOS f2be7ea — pen
+ * magnifier path):
  *
- *   - Ring rendering: iOS lines 83–86 (target face is a pre-rendered image on iOS;
- *     Android draws vector circles).
- *   - Drag-gesture touch-offset trick (thumb sits ~80pt below the dot): iOS lines
- *     73–74 and 128–133. We mirror the same offset on Android so placed dots don't
- *     disappear under the user's finger.
+ *   - **Pen magnifier (iOS f2be7ea):** finger commits AT the touch point. The
+ *     thumb-offset trick is gone — instead [onLensSnapshotChanged] fires on
+ *     every drag tick with a [PenLensSnapshot] that the parent renders via
+ *     [PenLensOverlay] at sibling z-level so the lens can extend past the
+ *     target's frame.
  *   - Classification (ring from radius, zone from atan2): iOS lines 148–174. Android
  *     uses [TargetGeometry.classifyWithDotRadius] so a dot that visibly touches a
  *     higher ring scores it (iOS lines 155–158).
@@ -39,7 +39,6 @@ import com.andrewnguyen.bowpress.core.model.Zone
  *     lines 163–165.
  */
 const val TARGET_PLOT_TEST_TAG = "target_plot_canvas"
-private val TOUCH_OFFSET_DP = 80.dp
 
 @Composable
 fun TargetPlot(
@@ -49,43 +48,64 @@ fun TargetPlot(
     isEnabled: Boolean = true,
     arrowDiameterMm: Double = 5.0,
     faceType: TargetFaceType = TargetFaceType.SIX_RING,
+    onLensSnapshotChanged: (PenLensSnapshot?) -> Unit = {},
 ) {
     val density = LocalDensity.current
-    val touchOffsetPx = with(density) { TOUCH_OFFSET_DP.toPx() }
-    var dragPreview by remember { mutableStateOf<Offset?>(null) }
     val geometry = TargetGeometry.forFace(faceType)
+    // dragPreview is the live touch position in the canvas's local pixel
+    // space. Used to draw a placeholder + (via the snapshot) feed the
+    // PenLensOverlay. Cleared on drag end / cancel.
+    var dragPreview by remember { mutableStateOf<Offset?>(null) }
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .testTag(TARGET_PLOT_TEST_TAG)
-            .pointerInput(isEnabled, touchOffsetPx, faceType) {
+            .pointerInput(isEnabled, faceType, arrowDiameterMm) {
                 if (!isEnabled) return@pointerInput
                 detectDragGestures(
                     onDragStart = { start ->
-                        dragPreview = Offset(start.x, start.y - touchOffsetPx)
+                        dragPreview = start
+                        emitSnapshot(
+                            touch = start,
+                            faceSizePx = size.width.toFloat(),
+                            density = density,
+                            arrows = arrows,
+                            arrowDiameterMm = arrowDiameterMm,
+                            geometry = geometry,
+                            faceType = faceType,
+                            emit = onLensSnapshotChanged,
+                        )
                     },
                     onDrag = { change, _ ->
                         change.consume()
-                        dragPreview = Offset(
-                            change.position.x,
-                            change.position.y - touchOffsetPx,
+                        dragPreview = change.position
+                        emitSnapshot(
+                            touch = change.position,
+                            faceSizePx = size.width.toFloat(),
+                            density = density,
+                            arrows = arrows,
+                            arrowDiameterMm = arrowDiameterMm,
+                            geometry = geometry,
+                            faceType = faceType,
+                            emit = onLensSnapshotChanged,
                         )
                     },
                     onDragEnd = {
-                        val placement = dragPreview ?: return@detectDragGestures
+                        val placement = dragPreview
                         dragPreview = null
+                        onLensSnapshotChanged(null)
+                        if (placement == null) return@detectDragGestures
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
                         val radiusPx = (minOf(size.width, size.height) / 2f).toDouble()
                         if (radiusPx <= 0.0) return@detectDragGestures
-                        // iOS stores plotX = dx/radius, plotY = (point.y - center.y)/radius.
-                        // Positive plotY = south. (TargetPlotView.swift lines 164–165.)
+                        // Commit AT the finger position (iOS f2be7ea) — no
+                        // thumb offset. The lens magnification gave the user
+                        // a clear view of where the dot will land.
                         val plotX = (placement.x - centerX).toDouble() / radiusPx
                         val plotY = (placement.y - centerY).toDouble() / radiusPx
-                        // Arrow dot radius in normalized units — iOS line 81 uses the
-                        // same scaling via MM_PER_NORM_UNIT.
                         val dotNormRadius =
                             (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
                         val result = geometry.classifyWithDotRadius(
@@ -96,14 +116,52 @@ fun TargetPlot(
                         val ring = result.ring ?: return@detectDragGestures
                         onArrowPlotted(plotX, plotY, ring, result.zone)
                     },
-                    onDragCancel = { dragPreview = null },
+                    onDragCancel = {
+                        dragPreview = null
+                        onLensSnapshotChanged(null)
+                    },
                 )
             },
     ) {
         drawTargetFace(faceType)
         drawExistingArrows(arrows = arrows, arrowDiameterMm = arrowDiameterMm, geometry = geometry)
-        drawDragPreview(preview = dragPreview, arrowDiameterMm = arrowDiameterMm, geometry = geometry)
+        // No more 80dp-above preview dot — the lens shows where the commit lands.
     }
+}
+
+/**
+ * Build a [PenLensSnapshot] for the current touch + emit. Calculates the
+ * preview ring so the lens can stamp it above. faceOrigin is (0, 0) because
+ * the lens overlay sits in the same parent Box as the TargetPlot Canvas;
+ * the parent is responsible for absolute-positioning if needed.
+ */
+private fun emitSnapshot(
+    touch: Offset,
+    faceSizePx: Float,
+    density: androidx.compose.ui.unit.Density,
+    arrows: List<ArrowPlot>,
+    arrowDiameterMm: Double,
+    geometry: TargetGeometry,
+    faceType: TargetFaceType,
+    emit: (PenLensSnapshot?) -> Unit,
+) {
+    val radiusPx = faceSizePx / 2f
+    val plotX = (touch.x - radiusPx).toDouble() / radiusPx
+    val plotY = (touch.y - radiusPx).toDouble() / radiusPx
+    val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
+    val classification = geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius)
+    val arrowDotPx = ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
+    emit(
+        PenLensSnapshot(
+            touchPx = touch,
+            faceOriginPx = Offset.Zero, // parent positions both layers identically
+            faceSizePx = faceSizePx,
+            arrowDotSizePx = arrowDotPx,
+            faceType = faceType,
+            arrows = arrows,
+            previewRing = classification.ring,
+        ),
+    )
 }
 
 // ---- Drawing helpers ----

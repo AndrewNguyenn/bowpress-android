@@ -454,11 +454,12 @@ private fun faceSize(face: TargetFaceType): String = when (face) {
 }
 
 /**
- * BPTargetFace (visual) + Canvas overlay (arrow dots) + drag-to-plot gesture. Mirrors
- * the existing [TargetPlot]'s gesture math so the same (plotX, plotY) values feed
- * SessionViewModel.plotArrow. The 80dp touch offset trick (iOS TargetPlotView.swift
- * line 74; Android [TargetPlot] line 42) keeps the plotted dot visible above the
- * archer's finger during a drag.
+ * BPTargetFace (visual) + Canvas overlay (arrow dots) + drag-to-plot gesture
+ * with the Pen-magnifier UX (iOS f2be7ea). The thumb-offset trick is gone:
+ * the dot now commits AT the finger position, and a floating
+ * [PenLensOverlay] provides 2.5× magnification + a live score stamp during
+ * drag so the archer can see where the dot will land. Snapshot updates
+ * fire on every drag tick.
  */
 @Composable
 private fun TargetInteractiveFace(
@@ -469,11 +470,13 @@ private fun TargetInteractiveFace(
     onArrowPlotted: (plotX: Double, plotY: Double, ring: Int, zone: Zone) -> Unit,
 ) {
     val density = LocalDensity.current
-    val touchOffsetPx = with(density) { 80.dp.toPx() }
     val dotRadiusPx = with(density) { 11.dp.toPx() }
     val dotStrokePx = with(density) { 1.2.dp.toPx() }
     val geometry = TargetGeometry.forFace(faceType)
+    // dragPreview is the live touch position in the inner Canvas's local
+    // pixel space, used to drive the lens snapshot.
     var dragPreview by remember { mutableStateOf<Offset?>(null) }
+    var lensSnapshot by remember { mutableStateOf<PenLensSnapshot?>(null) }
 
     Box(modifier = Modifier.size(TARGET_FACE_SIZE)) {
         BPTargetFace(size = TARGET_FACE_SIZE, style = BPTargetStyle.WA)
@@ -481,26 +484,34 @@ private fun TargetInteractiveFace(
         Canvas(
             modifier = Modifier
                 .matchParentSize()
-                .pointerInput(isEnabled, faceType, touchOffsetPx) {
+                .pointerInput(isEnabled, faceType, arrowDiameterMm) {
                     if (!isEnabled) return@pointerInput
                     detectDragGestures(
                         onDragStart = { start ->
-                            dragPreview = Offset(start.x, start.y - touchOffsetPx)
+                            dragPreview = start
+                            lensSnapshot = buildSnapshot(
+                                start, size.width.toFloat(), arrows,
+                                arrowDiameterMm, geometry, faceType,
+                            )
                         },
                         onDrag = { change, _ ->
                             change.consume()
-                            dragPreview = Offset(
-                                change.position.x,
-                                change.position.y - touchOffsetPx,
+                            dragPreview = change.position
+                            lensSnapshot = buildSnapshot(
+                                change.position, size.width.toFloat(), arrows,
+                                arrowDiameterMm, geometry, faceType,
                             )
                         },
                         onDragEnd = {
-                            val placement = dragPreview ?: return@detectDragGestures
+                            val placement = dragPreview
                             dragPreview = null
+                            lensSnapshot = null
+                            if (placement == null) return@detectDragGestures
                             val radiusPx = (minOf(size.width, size.height) / 2f).toDouble()
                             if (radiusPx <= 0.0) return@detectDragGestures
                             val centerX = size.width / 2f
                             val centerY = size.height / 2f
+                            // Commit AT the finger position — iOS f2be7ea.
                             val plotX = (placement.x - centerX).toDouble() / radiusPx
                             val plotY = (placement.y - centerY).toDouble() / radiusPx
                             val dotNormRadius =
@@ -513,7 +524,10 @@ private fun TargetInteractiveFace(
                             val ring = result.ring ?: return@detectDragGestures
                             onArrowPlotted(plotX, plotY, ring, result.zone)
                         },
-                        onDragCancel = { dragPreview = null },
+                        onDragCancel = {
+                            dragPreview = null
+                            lensSnapshot = null
+                        },
                     )
                 },
         ) {
@@ -545,17 +559,40 @@ private fun TargetInteractiveFace(
                     style = Stroke(width = dotStrokePx),
                 )
             }
-
-            dragPreview?.let {
-                drawCircle(
-                    color = AppCream,
-                    radius = dotRadiusPx,
-                    center = it,
-                    style = Stroke(width = 1.5f),
-                )
-            }
+            // No more drag-preview dot — the lens is the visual aid now.
         }
+
+        // Pen magnifier — same z-level as the target so it can extend past
+        // the target's frame. Renders nothing while not dragging.
+        PenLensOverlay(snapshot = lensSnapshot, modifier = Modifier.matchParentSize())
     }
+}
+
+/** Build a PenLensSnapshot for the current touch. Computed inside the gesture
+ *  loop so the lens follows the finger one-to-one. */
+private fun buildSnapshot(
+    touch: Offset,
+    faceSizePx: Float,
+    arrows: List<ArrowPlot>,
+    arrowDiameterMm: Double,
+    geometry: TargetGeometry,
+    faceType: TargetFaceType,
+): PenLensSnapshot {
+    val radiusPx = faceSizePx / 2f
+    val plotX = (touch.x - radiusPx).toDouble() / radiusPx
+    val plotY = (touch.y - radiusPx).toDouble() / radiusPx
+    val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
+    val classification = geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius)
+    val arrowDotPx = ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
+    return PenLensSnapshot(
+        touchPx = touch,
+        faceOriginPx = Offset.Zero,
+        faceSizePx = faceSizePx,
+        arrowDotSizePx = arrowDotPx,
+        faceType = faceType,
+        arrows = arrows,
+        previewRing = classification.ring,
+    )
 }
 
 // ---------------------------------------------------------------------------
