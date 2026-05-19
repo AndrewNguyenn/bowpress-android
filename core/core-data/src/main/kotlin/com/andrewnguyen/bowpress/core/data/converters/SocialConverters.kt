@@ -1,0 +1,198 @@
+package com.andrewnguyen.bowpress.core.data.converters
+
+import com.andrewnguyen.bowpress.core.database.entities.ActivityItemEntity
+import com.andrewnguyen.bowpress.core.database.entities.ClubEntity
+import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
+import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
+import com.andrewnguyen.bowpress.core.database.entities.SocialProfileEntity
+import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.ActivityKind
+import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
+import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubRole
+import com.andrewnguyen.bowpress.core.model.Division
+import com.andrewnguyen.bowpress.core.model.FriendshipDirection
+import com.andrewnguyen.bowpress.core.model.FriendshipSource
+import com.andrewnguyen.bowpress.core.model.FriendshipStatus
+import com.andrewnguyen.bowpress.core.model.HandicapConfig
+import com.andrewnguyen.bowpress.core.model.HandicapEquation
+import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.LeagueEntry
+import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
+import com.andrewnguyen.bowpress.core.model.LeagueSchedule
+import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
+import com.andrewnguyen.bowpress.core.model.LeagueStatus
+import com.andrewnguyen.bowpress.core.model.LeagueType
+import com.andrewnguyen.bowpress.core.model.RoundDef
+import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.core.model.SocialVisibility
+import com.andrewnguyen.bowpress.core.model.TeamConfig
+import com.andrewnguyen.bowpress.core.model.TeamScoring
+import com.andrewnguyen.bowpress.core.model.Friendship
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+
+private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+// ── SocialProfile ──────────────────────────────────────────────────────────
+
+fun SocialProfileEntity.toDto(): SocialProfile = SocialProfile(
+    userId = userId,
+    handle = handle,
+    displayName = displayName,
+    joinedAt = joinedAt,
+    visibility = runCatching { SocialVisibility.valueOf(visibility) }.getOrDefault(SocialVisibility.friends),
+    bowSummary = bowSummary,
+    sessionCount = sessionCount,
+    arrowCount = arrowCount,
+    division = division?.let { runCatching { Division.valueOf(it) }.getOrNull() },
+)
+
+fun SocialProfile.toEntity(pendingSync: Boolean = false): SocialProfileEntity = SocialProfileEntity(
+    userId = userId,
+    handle = handle,
+    displayName = displayName,
+    joinedAt = joinedAt,
+    visibility = visibility.name,
+    bowSummary = bowSummary,
+    sessionCount = sessionCount,
+    arrowCount = arrowCount,
+    division = division?.name,
+    pendingSync = pendingSync,
+)
+
+// ── Friendship ─────────────────────────────────────────────────────────────
+
+fun FriendshipEntity.toDto(): Friendship = Friendship(
+    id = id,
+    requesterId = requesterId,
+    addresseeId = addresseeId,
+    status = runCatching { FriendshipStatus.valueOf(status) }.getOrDefault(FriendshipStatus.pending),
+    source = runCatching { FriendshipSource.valueOf(source) }.getOrDefault(FriendshipSource.handle),
+    createdAt = createdAt,
+    respondedAt = respondedAt,
+    otherUserId = otherUserId,
+    otherHandle = otherHandle,
+    otherDisplayName = otherDisplayName,
+    direction = direction?.let { runCatching { FriendshipDirection.valueOf(it) }.getOrNull() },
+)
+
+fun Friendship.toEntity(pendingSync: Boolean = false): FriendshipEntity = FriendshipEntity(
+    id = id,
+    requesterId = requesterId,
+    addresseeId = addresseeId,
+    status = status.name,
+    source = source.name,
+    createdAt = createdAt,
+    respondedAt = respondedAt,
+    otherUserId = otherUserId,
+    otherHandle = otherHandle,
+    otherDisplayName = otherDisplayName,
+    direction = direction?.name,
+    pendingSync = pendingSync,
+)
+
+// ── Club ───────────────────────────────────────────────────────────────────
+
+fun ClubEntity.toDto(): Club = Club(
+    id = id,
+    name = name,
+    description = description,
+    notes = notes,
+    inviteCode = inviteCode,
+    createdAt = createdAt,
+    createdBy = createdBy,
+    memberCount = memberCount,
+    myRole = runCatching { ClubRole.valueOf(myRole) }.getOrDefault(ClubRole.member),
+)
+
+fun Club.toEntity(pendingSync: Boolean = false): ClubEntity = ClubEntity(
+    id = id,
+    name = name,
+    description = description,
+    notes = notes,
+    inviteCode = inviteCode,
+    createdAt = createdAt,
+    createdBy = createdBy,
+    memberCount = memberCount,
+    myRole = myRole.name,
+    pendingSync = pendingSync,
+)
+
+// ── ActivityItem ───────────────────────────────────────────────────────────
+
+fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
+    id = id,
+    kind = runCatching { ActivityKind.valueOf(kind) }.getOrDefault(ActivityKind.club_session),
+    sourceKind = runCatching { ActivitySourceKind.valueOf(sourceKind) }.getOrDefault(ActivitySourceKind.club),
+    actorHandle = actorHandle,
+    actorDisplayName = actorDisplayName,
+    title = title,
+    meta = meta,
+    stamp = stamp,
+    createdAt = createdAt,
+)
+
+fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
+    id = id,
+    kind = kind.name,
+    sourceKind = sourceKind.name,
+    actorHandle = actorHandle,
+    actorDisplayName = actorDisplayName,
+    title = title,
+    meta = meta,
+    stamp = stamp,
+    createdAt = createdAt,
+)
+
+// ── League ─────────────────────────────────────────────────────────────────
+
+@Suppress("UNCHECKED_CAST")
+fun LeagueEntity.toDto(): League {
+    val divisions = json.decodeFromString<List<String>>(divisions)
+        .mapNotNull { runCatching { Division.valueOf(it) }.getOrNull() }
+    val round = json.decodeFromString<RoundDef>(roundJson)
+    val schedule = json.decodeFromString<LeagueSchedule>(scheduleJson)
+    val handicap = json.decodeFromString<HandicapConfig>(handicapJson)
+    val team = teamJson?.let { runCatching { json.decodeFromString<TeamConfig>(it) }.getOrNull() }
+    val myEntry = myEntryJson?.let { runCatching { json.decodeFromString<LeagueEntry>(it) }.getOrNull() }
+    return League(
+        id = id,
+        name = name,
+        hostClubId = hostClubId,
+        hostUserId = hostUserId,
+        type = runCatching { LeagueType.valueOf(leagueType) }.getOrDefault(LeagueType.individual),
+        divisions = divisions,
+        team = team,
+        round = round,
+        schedule = schedule,
+        handicap = handicap,
+        entryRule = runCatching { LeagueEntryRule.valueOf(entryRule) }.getOrDefault(LeagueEntryRule.open),
+        inviteCode = inviteCode,
+        status = runCatching { LeagueStatus.valueOf(status) }.getOrDefault(LeagueStatus.upcoming),
+        createdAt = createdAt,
+        myEntry = myEntry,
+        entryCount = entryCount,
+    )
+}
+
+fun League.toEntity(pendingSync: Boolean = false): LeagueEntity = LeagueEntity(
+    id = id,
+    name = name,
+    hostClubId = hostClubId,
+    hostUserId = hostUserId,
+    leagueType = type.name,
+    divisions = json.encodeToString(divisions.map { it.name }),
+    teamJson = team?.let { json.encodeToString(it) },
+    roundJson = json.encodeToString(round),
+    scheduleJson = json.encodeToString(schedule),
+    handicapJson = json.encodeToString(handicap),
+    entryRule = entryRule.name,
+    inviteCode = inviteCode,
+    status = status.name,
+    createdAt = createdAt,
+    myEntryJson = myEntry?.let { json.encodeToString(it) },
+    entryCount = entryCount,
+    pendingSync = pendingSync,
+)

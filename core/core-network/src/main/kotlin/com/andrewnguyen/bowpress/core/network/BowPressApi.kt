@@ -1,21 +1,42 @@
 package com.andrewnguyen.bowpress.core.network
 
+import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubFeedItem
+import com.andrewnguyen.bowpress.core.model.ClubMember
+import com.andrewnguyen.bowpress.core.model.CompareView
 import com.andrewnguyen.bowpress.core.model.ConfigurationChange
+import com.andrewnguyen.bowpress.core.model.CreateClubBody
+import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
 import com.andrewnguyen.bowpress.core.model.DeviceToken
 import com.andrewnguyen.bowpress.core.model.DriftResponse
 import com.andrewnguyen.bowpress.core.model.Entitlement
+import com.andrewnguyen.bowpress.core.model.FriendProfile
+import com.andrewnguyen.bowpress.core.model.Friendship
+import com.andrewnguyen.bowpress.core.model.JoinClubBody
+import com.andrewnguyen.bowpress.core.model.JoinLeagueBody
+import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.LeaderboardRow
+import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
+import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
+import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
 import com.andrewnguyen.bowpress.core.model.TimelineResponse
 import com.andrewnguyen.bowpress.core.model.TrendsResponse
+import com.andrewnguyen.bowpress.core.model.UpdateClubBody
+import com.andrewnguyen.bowpress.core.model.UpdateSocialProfileRequest
 import com.andrewnguyen.bowpress.core.model.User
 import retrofit2.Response
 import retrofit2.http.Body
@@ -292,4 +313,131 @@ interface BowPressApi {
 
     @DELETE("device-tokens/{token}")
     suspend fun deleteDeviceToken(@Path("token") token: String)
+
+    // ---- Social — Profile -------------------------------------------------------
+
+    @GET("social/me")
+    suspend fun getSocialProfile(): SocialProfile
+
+    @PATCH("social/me")
+    suspend fun updateSocialProfile(@Body body: UpdateSocialProfileRequest): SocialProfile
+
+    @GET("social/archers/{handle}")
+    suspend fun getArcherByHandle(@Path("handle") handle: String): SocialProfile
+
+    // ---- Social — Friendships --------------------------------------------------
+
+    @GET("social/friends")
+    suspend fun getFriends(): List<Friendship>
+
+    @GET("social/friend-requests")
+    suspend fun getFriendRequests(): List<Friendship>
+
+    @POST("social/friend-requests")
+    suspend fun sendFriendRequest(@Body body: SendFriendRequestBody): Friendship
+
+    @POST("social/friend-requests/{id}/accept")
+    suspend fun acceptFriendRequest(@Path("id") id: String): Friendship
+
+    @DELETE("social/friend-requests/{id}")
+    suspend fun deleteFriendRequest(@Path("id") id: String)
+
+    @DELETE("social/friends/{otherUserId}")
+    suspend fun unfriend(@Path("otherUserId") otherUserId: String)
+
+    @GET("social/friends/{otherUserId}/profile")
+    suspend fun getFriendProfile(@Path("otherUserId") otherUserId: String): FriendProfile
+
+    @GET("social/friends/{otherUserId}/compare")
+    suspend fun getCompareView(
+        @Path("otherUserId") otherUserId: String,
+        @Query("distance") distance: String? = null,
+        @Query("face") face: String? = null,
+    ): CompareView
+
+    // ---- Social — Clubs --------------------------------------------------------
+
+    @GET("social/clubs")
+    suspend fun getClubs(): List<Club>
+
+    @POST("social/clubs")
+    suspend fun createClub(@Body body: CreateClubBody): Club
+
+    @GET("social/clubs/{id}")
+    suspend fun getClub(@Path("id") id: String): Club
+
+    @PATCH("social/clubs/{id}")
+    suspend fun updateClub(@Path("id") id: String, @Body body: UpdateClubBody): Club
+
+    @DELETE("social/clubs/{id}")
+    suspend fun deleteClub(@Path("id") id: String)
+
+    @POST("social/clubs/join")
+    suspend fun joinClub(@Body body: JoinClubBody): Club
+
+    @DELETE("social/clubs/{id}/members/me")
+    suspend fun leaveClub(@Path("id") id: String)
+
+    @GET("social/clubs/{id}/members")
+    suspend fun getClubMembers(@Path("id") id: String): List<ClubMember>
+
+    @GET("social/clubs/{id}/feed")
+    suspend fun getClubFeed(@Path("id") id: String): List<ClubFeedItem>
+
+    @GET("social/clubs/{id}/leaderboard")
+    suspend fun getClubLeaderboard(
+        @Path("id") id: String,
+        @Query("scope") scope: String = "30d",
+    ): List<LeaderboardRow>
+
+    // ---- Social — Leagues ------------------------------------------------------
+
+    @GET("social/leagues")
+    suspend fun getLeagues(): List<League>
+
+    @POST("social/leagues")
+    suspend fun createLeague(@Body body: CreateLeagueBody): League
+
+    @GET("social/leagues/{id}")
+    suspend fun getLeague(@Path("id") id: String): League
+
+    @PATCH("social/leagues/{id}")
+    suspend fun updateLeague(@Path("id") id: String, @Body body: CreateLeagueBody): League
+
+    @DELETE("social/leagues/{id}")
+    suspend fun deleteLeague(@Path("id") id: String)
+
+    @POST("social/leagues/join")
+    suspend fun joinLeagueByCode(@Body body: JoinLeagueBody): League
+
+    @POST("social/leagues/{id}/join")
+    suspend fun joinLeague(@Path("id") id: String, @Body body: JoinLeagueBody): League
+
+    @DELETE("social/leagues/{id}/entries/me")
+    suspend fun leaveLeague(@Path("id") id: String)
+
+    @POST("social/leagues/{id}/submissions")
+    suspend fun submitLeagueScore(
+        @Path("id") id: String,
+        @Body body: SubmitScoreBody,
+    ): LeagueSubmission
+
+    @GET("social/leagues/{id}/submissions")
+    suspend fun getLeagueSubmissions(@Path("id") id: String): List<LeagueSubmission>
+
+    @GET("social/leagues/{id}/standings")
+    suspend fun getLeagueStandings(@Path("id") id: String): List<LeagueStandingRow>
+
+    @GET("social/leagues/{id}/admin")
+    suspend fun getLeagueAdminMatrix(@Path("id") id: String): AdminMatrix
+
+    // ---- Social — Activity Feed ------------------------------------------------
+
+    @GET("social/feed")
+    suspend fun getActivityFeed(): List<ActivityItem>
+
+    // ---- Social — Dev notify (for e2e tests) -----------------------------------
+
+    @POST("social/dev/notify")
+    suspend fun sendDevNotify(@Body body: Map<String, String>)
 }
