@@ -139,19 +139,12 @@ internal fun AuthScreenContent(
                 Text("Continue with Google", fontWeight = FontWeight.Medium)
             }
 
-            Spacer(Modifier.height(14.dp))
-
-            // Email CTA — BPHairlineButton (no rounded corners)
-            BPHairlineButton(
-                label = "Continue with Email",
-                onClick = { if (!isLoading) onContinueWithEmail() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .testTag(TAG_CONTINUE_EMAIL),
-                borderTone = AppLine,
-                labelTone = AppInk,
-            )
+            // iOS 7751e53 / 0fe6169 / 0959fbc: Continue-with-Email CTA + nested
+            // EmailAuthScreen/VerifyEmailScreen are hidden from the UI because
+            // there's no verified Resend domain to send verification mail from.
+            // The service layer + composable bodies are left intact so the
+            // surface can be reinstated by reverting this single edit. iOS
+            // parity: Apple/Google only at the entry point.
 
             if (errorMessage != null) {
                 Spacer(Modifier.height(16.dp))
