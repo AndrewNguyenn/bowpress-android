@@ -146,6 +146,8 @@ private fun SettingsBody(
                         setUnitSystem(if (metric) UnitSystem.METRIC else UnitSystem.IMPERIAL)
                     },
                 )
+                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                AppearanceRow()
             }
         }
 
@@ -386,6 +388,44 @@ private fun UnitsRow(
         ) {
             Text(
                 text = unitSystem.label.uppercase(),
+                style = jetbrainsMono(10.sp).copy(color = AppInk3, letterSpacing = 0.04.em),
+            )
+            Text(
+                text = "›",
+                style = frauncesDisplay(16.sp, italic = true).copy(color = AppPond),
+            )
+        }
+    }
+}
+
+/**
+ * Appearance row — System / Light / Dark cycle. Mirrors iOS 04e79bc.
+ * The tap cycles `preference.next` and persists via DataStore through the
+ * `LocalThemePreferenceSetter` provided by BowPressTheme.
+ */
+@Composable
+private fun AppearanceRow() {
+    val preference = com.andrewnguyen.bowpress.core.designsystem.LocalThemePreference.current
+    val setter = com.andrewnguyen.bowpress.core.designsystem.LocalThemePreferenceSetter.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { setter(preference.next) }
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .testTag("settings_appearance_row"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = "Appearance",
+            style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = preference.displayLabel.uppercase(),
                 style = jetbrainsMono(10.sp).copy(color = AppInk3, letterSpacing = 0.04.em),
             )
             Text(

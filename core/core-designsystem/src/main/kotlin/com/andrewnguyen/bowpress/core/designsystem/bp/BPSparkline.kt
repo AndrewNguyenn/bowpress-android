@@ -27,6 +27,10 @@ fun BPSparkline(
     height: Dp = 86.dp,
     range: ClosedRange<Double>? = null,
 ) {
+    val lineColor = AppLine
+    val pathColor = AppPondDk
+    val dotFill = AppMoss
+    val dotStroke = AppInk
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -43,7 +47,7 @@ fun BPSparkline(
         val dash = PathEffect.dashPathEffect(floatArrayOf(1f, 4f))
         for (y in listOf(0f, h / 2f, h)) {
             drawLine(
-                color = AppLine,
+                color = lineColor,
                 start = Offset(0f, y),
                 end = Offset(w, y),
                 strokeWidth = 1f,
@@ -62,7 +66,7 @@ fun BPSparkline(
             }
             drawPath(
                 path = path,
-                color = AppPondDk,
+                color = pathColor,
                 style = Stroke(width = 1.4.dp.toPx()),
             )
         }
@@ -74,9 +78,9 @@ fun BPSparkline(
             val cx = w
             val cy = h - norm * h
             val r = 3.5.dp.toPx()
-            drawCircle(AppMoss, radius = r, center = Offset(cx, cy))
+            drawCircle(dotFill, radius = r, center = Offset(cx, cy))
             drawCircle(
-                color = AppInk,
+                color = dotStroke,
                 radius = r,
                 center = Offset(cx, cy),
                 style = Stroke(width = 1.dp.toPx()),

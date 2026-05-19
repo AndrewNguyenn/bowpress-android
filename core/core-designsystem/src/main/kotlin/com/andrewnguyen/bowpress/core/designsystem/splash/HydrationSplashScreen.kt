@@ -305,6 +305,7 @@ private fun HairlineOverlay(started: Boolean, modifier: Modifier = Modifier) {
         }
     }
     val density = LocalDensity.current
+    val hairlineColor = AppInk
     Canvas(modifier = modifier.alpha(alpha.value)) {
         val cx = size.width / 2f
         val cy = size.height / 2f
@@ -313,7 +314,7 @@ private fun HairlineOverlay(started: Boolean, modifier: Modifier = Modifier) {
         hairlineRadii.forEach { rDp ->
             val rPx = with(density) { (rDp * CoordScale).dp.toPx() }
             drawCircle(
-                color = AppInk,
+                color = hairlineColor,
                 radius = rPx,
                 center = Offset(cx, cy),
                 style = stroke,
@@ -325,6 +326,8 @@ private fun HairlineOverlay(started: Boolean, modifier: Modifier = Modifier) {
 @Composable
 private fun ArrowPlot(started: Boolean, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
+    val flierColor = AppMaple
+    val dotColor = AppInk
     Canvas(modifier = modifier) {
         // Nothing draws here — the real drawing happens per-arrow below.
         // Kept so the parent Box has a consistent canvas descendant.
@@ -372,14 +375,14 @@ private fun ArrowPlot(started: Boolean, modifier: Modifier = Modifier) {
             if (arrow.flier) {
                 val strokePx = with(density) { 1.2.dp.toPx() }
                 drawCircle(
-                    color = AppMaple.copy(alpha = alpha.value),
+                    color = flierColor.copy(alpha = alpha.value),
                     radius = rPx * scale.value,
                     center = Offset(cx, cy),
                     style = Stroke(width = strokePx),
                 )
             } else {
                 drawCircle(
-                    color = AppInk.copy(alpha = alpha.value),
+                    color = dotColor.copy(alpha = alpha.value),
                     radius = rPx * scale.value,
                     center = Offset(cx, cy),
                 )
@@ -417,6 +420,7 @@ private fun Crosshair(started: Boolean, modifier: Modifier = Modifier) {
         }
     }
     val density = LocalDensity.current
+    val baseTint = AppPondDk
     Canvas(modifier = modifier) {
         val cx = with(density) { (100f * CoordScale).dp.toPx() }
         val cy = with(density) { (100f * CoordScale).dp.toPx() }
@@ -424,7 +428,7 @@ private fun Crosshair(started: Boolean, modifier: Modifier = Modifier) {
         val arm = with(density) { (7f * CoordScale).dp.toPx() } * scale.value
         val strokePx = with(density) { 0.9.dp.toPx() }
         val stroke = Stroke(width = strokePx)
-        val tint = AppPondDk.copy(alpha = alpha.value)
+        val tint = baseTint.copy(alpha = alpha.value)
 
         drawCircle(color = tint, radius = r, center = Offset(cx, cy), style = stroke)
         drawLine(

@@ -1,61 +1,102 @@
 package com.andrewnguyen.bowpress.core.designsystem
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import com.andrewnguyen.bowpress.core.model.ThemePreference
 
-// Kenrokuen is light-mode only — we deliberately ignore the system dark-mode
-// signal here. Dark mode support can return later but needs a whole parallel
-// palette, which is out of scope.
-private val KenrokuenLightScheme = lightColorScheme(
-    primary = AppPondDk,
-    onPrimary = AppPaper,
-    primaryContainer = AppPondLt,
-    onPrimaryContainer = AppDeep,
+/**
+ * Build an M3 [ColorScheme] from a Kenrokuen palette. Same channel mapping
+ * for light + dark — only the underlying [palette] differs. We always
+ * route through [lightColorScheme] because the channel mapping is identical;
+ * [darkColorScheme]'s defaults bake in different fallbacks that we don't
+ * want overriding our explicit Kenrokuen mapping.
+ */
+private fun schemeFor(palette: KenrokuenPalette): ColorScheme = lightColorScheme(
+    primary = palette.pondDk,
+    onPrimary = palette.paper,
+    primaryContainer = palette.pondLt,
+    onPrimaryContainer = palette.deep,
+    inversePrimary = palette.pondLt,
 
-    secondary = AppMoss,
-    onSecondary = AppPaper,
-    secondaryContainer = AppLine2,
-    onSecondaryContainer = AppPine,
+    secondary = palette.moss,
+    onSecondary = palette.paper,
+    secondaryContainer = palette.line2,
+    onSecondaryContainer = palette.pine,
 
-    tertiary = AppMaple,
-    onTertiary = AppPaper,
-    tertiaryContainer = AppPaper2,
-    onTertiaryContainer = AppMaple,
+    tertiary = palette.maple,
+    onTertiary = palette.paper,
+    tertiaryContainer = palette.paper2,
+    onTertiaryContainer = palette.maple,
 
-    background = AppPaper,
-    onBackground = AppInk,
+    background = palette.paper,
+    onBackground = palette.ink,
 
-    surface = AppPaper,
-    onSurface = AppInk,
-    surfaceVariant = AppPaper2,
-    onSurfaceVariant = AppInk2,
-    surfaceTint = AppPond,
+    surface = palette.paper,
+    onSurface = palette.ink,
+    surfaceVariant = palette.paper2,
+    onSurfaceVariant = palette.ink2,
+    surfaceTint = palette.pond,
 
-    inverseSurface = AppInk,
-    inverseOnSurface = AppPaper,
-    inversePrimary = AppPondLt,
+    inverseSurface = palette.ink,
+    inverseOnSurface = palette.paper,
 
-    outline = AppLine,
-    outlineVariant = AppLine2,
+    error = palette.maple,
+    onError = palette.paper,
+    errorContainer = palette.paper2,
+    onErrorContainer = palette.danger,
 
-    error = AppMaple,
-    onError = AppPaper,
-    errorContainer = AppPaper2,
-    onErrorContainer = AppDanger,
+    outline = palette.line,
+    outlineVariant = palette.line2,
 
-    scrim = AppInk,
+    scrim = palette.ink,
 )
 
+/**
+ * Resolves the active palette from the user's [ThemePreference] +
+ * `isSystemInDarkTheme()`. Mirrors iOS `prefs.colorScheme` which returns
+ * nil (follow OS), .light, or .dark.
+ */
+@Composable
+private fun resolvePalette(preference: ThemePreference): KenrokuenPalette {
+    val isDark = when (preference) {
+        ThemePreference.SYSTEM -> isSystemInDarkTheme()
+        ThemePreference.LIGHT -> false
+        ThemePreference.DARK -> true
+    }
+    return if (isDark) DarkKenrokuen else LightKenrokuen
+}
+
+/**
+ * Root theme. Provides [LocalKenrokuen] + [LocalThemePreference] +
+ * [LocalThemePreferenceSetter] so any composable can read tokens (`AppPaper`
+ * etc.) and the Settings Appearance row can cycle the preference.
+ *
+ * iOS 04e79bc parity: System / Light / Dark with the Yofuke palette for
+ * dark. Default arguments give a SYSTEM-following theme so unit-test /
+ * preview callers don't need to wire DataStore.
+ */
 @Composable
 fun BowPressTheme(
+    preference: ThemePreference = ThemePreference.SYSTEM,
+    onPreferenceChange: (ThemePreference) -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    // Always light — see comment on KenrokuenLightScheme.
-    MaterialTheme(
-        colorScheme = KenrokuenLightScheme,
-        typography = BowPressTypography,
-        shapes = BPShapes,
-        content = content,
-    )
+    val palette = resolvePalette(preference)
+    val scheme = remember(palette) { schemeFor(palette) }
+    CompositionLocalProvider(
+        LocalThemePreference provides preference,
+        LocalThemePreferenceSetter provides onPreferenceChange,
+    ) {
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = BowPressTypography,
+            shapes = BPShapes,
+            content = content,
+        )
+    }
 }

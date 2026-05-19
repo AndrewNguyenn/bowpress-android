@@ -32,13 +32,14 @@ fun BPNavHeader(
     eyebrow: String = "BOWPRESS",
     meta: (@Composable () -> Unit)? = null,
 ) {
+    val underlineColor = AppLine
     Row(
         modifier = modifier
             .fillMaxWidth()
             .drawBehind {
                 val y = size.height
                 drawLine(
-                    color = AppLine,
+                    color = underlineColor,
                     start = Offset(0f, y),
                     end = Offset(size.width, y),
                     strokeWidth = 1f,

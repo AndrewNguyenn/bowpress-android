@@ -3,7 +3,9 @@ package com.andrewnguyen.bowpress
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
+import com.andrewnguyen.bowpress.core.data.repository.ThemePreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
+import com.andrewnguyen.bowpress.core.model.ThemePreference
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
 import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
@@ -35,6 +37,7 @@ class AppStateViewModel @Inject constructor(
     private val userRepository: UserRepository,
     suggestionRepository: SuggestionRepository,
     private val unitPreferencesRepository: UnitPreferencesRepository,
+    private val themePreferencesRepository: ThemePreferencesRepository,
     private val pushInitializer: PushInitializer,
     billingManager: PlayBillingManager,
     private val analyticsRefreshBus: AnalyticsRefreshBus,
@@ -70,6 +73,14 @@ class AppStateViewModel @Inject constructor(
         initialValue = UnitSystem.DEFAULT,
     )
 
+    /** Active theme preference, threaded into BowPressTheme. */
+    val themePreference: StateFlow<ThemePreference> =
+        themePreferencesRepository.themePreference.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ThemePreference.SYSTEM,
+        )
+
     /** Current [Entitlement] observed from Play Billing. */
     val entitlement: StateFlow<Entitlement> = billingManager.entitlement
 
@@ -101,6 +112,10 @@ class AppStateViewModel @Inject constructor(
 
     fun setUnitSystem(system: UnitSystem) {
         viewModelScope.launch { unitPreferencesRepository.setUnitSystem(system) }
+    }
+
+    fun setThemePreference(preference: ThemePreference) {
+        viewModelScope.launch { themePreferencesRepository.setThemePreference(preference) }
     }
 
     init {

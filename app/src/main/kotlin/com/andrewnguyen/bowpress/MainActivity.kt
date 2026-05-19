@@ -29,22 +29,16 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(paperScrim, paperScrim),
         )
         setContent {
-            BowPressTheme {
-                // Opt every `Modifier.testTag(...)` in the tree into the
-                // accessibility resource-id stream. Maestro queries Android
-                // views by `id:` (matched against resource-id) — without this
-                // opt-in, Compose testTags only show up in semantics and
-                // can't be selected from a Maestro flow. iOS's
-                // `accessibilityIdentifier("...")` already populates the
-                // matching field on its side, so the same flow YAML now
-                // works on both platforms.
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .semantics { testTagsAsResourceId = true },
-                ) {
-                    BowPressApp()
-                }
+            // BowPressTheme moved inside BowPressApp so it can subscribe to
+            // the user's ThemePreference flow (DataStore-backed) and switch
+            // light ↔ Yofuke dark at runtime. The testTag→resource-id opt-in
+            // wraps the whole tree regardless of theme.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .semantics { testTagsAsResourceId = true },
+            ) {
+                BowPressApp()
             }
         }
     }

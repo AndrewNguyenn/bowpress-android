@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
 import com.andrewnguyen.bowpress.core.designsystem.splash.HydrationSplashScreen
@@ -47,6 +48,7 @@ fun BowPressApp(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val unitSystem by viewModel.unitSystem.collectAsStateWithLifecycle()
+    val themePreference by viewModel.themePreference.collectAsStateWithLifecycle()
     val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
@@ -63,6 +65,10 @@ fun BowPressApp(
         }
     }
 
+    BowPressTheme(
+        preference = themePreference,
+        onPreferenceChange = viewModel::setThemePreference,
+    ) {
     CompositionLocalProvider(
         LocalUnitSystem provides unitSystem,
         LocalUnitSystemSetter provides viewModel::setUnitSystem,
@@ -112,5 +118,6 @@ fun BowPressApp(
                 }
             }
         }
+    }
     }
 }
