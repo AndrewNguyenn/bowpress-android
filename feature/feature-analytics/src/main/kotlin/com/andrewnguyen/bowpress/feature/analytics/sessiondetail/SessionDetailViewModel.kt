@@ -5,8 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
+import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.SessionEnd
+import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.Zone
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +29,7 @@ data class SessionDetailUiState(
     val sessionId: String = "",
     val arrows: List<ArrowPlot> = emptyList(),
     val ends: List<SessionEnd> = emptyList(),
+    val faceType: TargetFaceType = TargetFaceType.TEN_RING,
 ) {
     val arrowCount: Int get() = arrows.size
     val endCount: Int get() = ends.size.coerceAtLeast(1)
@@ -103,6 +108,7 @@ data class PrecisionStats(
 class SessionDetailViewModel @Inject constructor(
     private val plotRepo: PlotRepository,
     private val sessionEndRepo: SessionEndRepository,
+    private val sessionRepo: SessionRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -115,9 +121,43 @@ class SessionDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val arrows = plotRepo.getBySession(sessionId)
             val ends = sessionEndRepo.getBySession(sessionId)
+            val faceType = sessionRepo.getById(sessionId)?.targetFaceType ?: TargetFaceType.TEN_RING
             _state.update {
-                it.copy(isLoading = false, arrows = arrows, ends = ends)
+                it.copy(isLoading = false, arrows = arrows, ends = ends, faceType = faceType)
             }
+        }
+    }
+
+    /**
+     * Replace an arrow's score/position. Mirrors iOS
+     * `HistoricalSessionsView.replotArrow` — keeps the existing id, sessionId,
+     * config/end refs, and timestamp; only ring/zone/plotX/plotY change.
+     * The repo writes pendingSync = true so the sync worker propagates.
+     */
+    fun replotArrow(arrowId: String, ring: Int, zone: Zone, plotX: Double?, plotY: Double?) {
+        viewModelScope.launch {
+            val current = _state.value.arrows.firstOrNull { it.id == arrowId } ?: return@launch
+            val updated = current.copy(ring = ring, zone = zone, plotX = plotX, plotY = plotY)
+            plotRepo.savePlot(updated)
+            _state.update { st ->
+                st.copy(arrows = st.arrows.map { if (it.id == arrowId) updated else it })
+            }
+        }
+    }
+
+    /** Mirrors iOS `deleteArrow(id:)` — local + remote cleanup. */
+    fun deleteArrow(arrowId: String) {
+        viewModelScope.launch {
+            val target = _state.value.arrows.firstOrNull { it.id == arrowId } ?: return@launch
+            plotRepo.deletePlot(target)
+            // iOS Fix #19: also decrement session.arrowCount so the Log row
+            // header and the analytics aggregates don't double-count.
+            sessionRepo.getById(sessionId)?.let { s ->
+                if (s.arrowCount > 0) {
+                    sessionRepo.saveSession(s.copy(arrowCount = s.arrowCount - 1))
+                }
+            }
+            _state.update { st -> st.copy(arrows = st.arrows.filterNot { it.id == arrowId }) }
         }
     }
 }
