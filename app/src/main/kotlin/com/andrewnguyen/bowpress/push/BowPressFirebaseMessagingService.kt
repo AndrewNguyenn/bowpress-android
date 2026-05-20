@@ -18,6 +18,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.andrewnguyen.bowpress.R
 import com.andrewnguyen.bowpress.core.data.push.DeviceTokenRegistrar
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
+import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -50,6 +51,7 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject lateinit var deviceTokenRegistrar: DeviceTokenRegistrar
     @Inject lateinit var analyticsRefreshBus: AnalyticsRefreshBus
+    @Inject lateinit var socialBadgeRefreshBus: SocialBadgeRefreshBus
 
     // Backstop CoroutineExceptionHandler so a 401 from the bearer-less
     // /push/register call (FCM fires onNewToken before the user signs in)
@@ -83,6 +85,12 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
         ensureChannel(manager)
         manager.notify(message.messageId?.hashCode() ?: 0, notification)
 
+        // A friend-request / club-invite / league-invite push changes the
+        // Social-tab badge count — invalidate it so AppStateViewModel re-fetches.
+        if (message.data["type"] in NotificationIntentBuilder.BADGE_AFFECTING_PUSH_TYPES) {
+            socialBadgeRefreshBus.bump()
+        }
+
         if (isAppInForeground()) {
             triggerForegroundHaptic()
             analyticsRefreshBus.bump()
@@ -113,7 +121,7 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
         val title = message.notification?.title ?: message.data["title"] ?: "BowPress"
         val body = message.notification?.body ?: message.data["body"] ?: ""
         val type = message.data["type"] ?: ""
-        val channelId = if (type in setOf("friend_request", "friend_pr", "league_deadline", "club_activity")) {
+        val channelId = if (type in NotificationIntentBuilder.SOCIAL_PUSH_TYPES) {
             CHANNEL_SOCIAL
         } else {
             CHANNEL_ID
@@ -196,9 +204,27 @@ object NotificationIntentBuilder {
                 if (!clubId.isNullOrEmpty()) "bowpress://social/clubs/$clubId"
                 else "bowpress://social"
             }
+            // Invitation / accepted push types per contract §13
+            "friend_accepted" -> "bowpress://social/friends"
+            "club_invite" -> "bowpress://social/clubs"
+            "league_invite" -> "bowpress://social/leagues"
             else -> null
         }
     }
+
+    /** Push `type` values routed to the Social notification channel. */
+    val SOCIAL_PUSH_TYPES: Set<String> = setOf(
+        "friend_request", "friend_pr", "league_deadline", "club_activity",
+        "friend_accepted", "club_invite", "league_invite",
+    )
+
+    /**
+     * Push `type` values that change the Social-tab badge count — receipt
+     * should trigger a `/social/pending-count` re-fetch (§12).
+     */
+    val BADGE_AFFECTING_PUSH_TYPES: Set<String> = setOf(
+        "friend_request", "club_invite", "league_invite",
+    )
 
     /** The URI the tap deep-links to, given a payload map. */
     fun buildDeepLinkUri(data: Map<String, String>): Uri? =
