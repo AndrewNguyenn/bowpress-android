@@ -208,6 +208,12 @@ object NotificationIntentBuilder {
             "friend_accepted" -> "bowpress://social/friends"
             "club_invite" -> "bowpress://social/clubs"
             "league_invite" -> "bowpress://social/leagues"
+            // Club announcement board post — §17. Deep-links to the club.
+            "club_announcement" -> {
+                val clubId = data["clubId"]
+                if (!clubId.isNullOrEmpty()) "bowpress://social/clubs/$clubId"
+                else "bowpress://social/clubs"
+            }
             else -> null
         }
     }
@@ -215,7 +221,7 @@ object NotificationIntentBuilder {
     /** Push `type` values routed to the Social notification channel. */
     val SOCIAL_PUSH_TYPES: Set<String> = setOf(
         "friend_request", "friend_pr", "league_deadline", "club_activity",
-        "friend_accepted", "club_invite", "league_invite",
+        "friend_accepted", "club_invite", "league_invite", "club_announcement",
     )
 
     /**
