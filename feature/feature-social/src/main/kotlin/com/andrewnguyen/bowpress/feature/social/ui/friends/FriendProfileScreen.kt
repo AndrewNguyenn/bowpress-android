@@ -249,10 +249,11 @@ fun FriendProfileScreen(
                     Text("›", style = frauncesDisplay(30.sp).copy(color = AppPaper))
                 }
 
-                // Trophy case (§15)
+                // Trophy case (§15 / §18)
                 Spacer(Modifier.height(18.dp))
                 TrophyCaseSection(
                     achievements = trophyState.achievements,
+                    catalog = trophyState.catalog,
                     ownerLabel = "They need",
                 )
 

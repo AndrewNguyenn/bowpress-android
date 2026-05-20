@@ -32,20 +32,32 @@ import com.andrewnguyen.bowpress.core.model.AchievementKind
 fun AchievementKind.stamp(): String = when (this) {
     AchievementKind.score_pr -> "SCORE PR"
     AchievementKind.x_pr -> "X PR"
+    AchievementKind.flawless -> "FLAWLESS"
+    AchievementKind.sharpshooter -> "SHARP"
     AchievementKind.arrows_milestone -> "MILESTONE"
     AchievementKind.sessions_milestone -> "MILESTONE"
+    AchievementKind.marathon -> "MARATHON"
     AchievementKind.streak -> "STREAK"
+    AchievementKind.weeks_active -> "STREAK"
+    AchievementKind.comeback -> "COMEBACK"
     AchievementKind.first_distance -> "FIRST"
+    AchievementKind.distance_explorer -> "EXPLORER"
 }
 
 /** A single glyph that reads as the achievement's flavour. */
 fun AchievementKind.glyph(): String = when (this) {
     AchievementKind.score_pr -> "◎"
     AchievementKind.x_pr -> "✕"
+    AchievementKind.flawless -> "◈"
+    AchievementKind.sharpshooter -> "⊕"
     AchievementKind.arrows_milestone -> "↟"
     AchievementKind.sessions_milestone -> "❘❘"
+    AchievementKind.marathon -> "∞"
     AchievementKind.streak -> "▲"
+    AchievementKind.weeks_active -> "⬟"
+    AchievementKind.comeback -> "↺"
     AchievementKind.first_distance -> "✦"
+    AchievementKind.distance_explorer -> "⌖"
 }
 
 /**

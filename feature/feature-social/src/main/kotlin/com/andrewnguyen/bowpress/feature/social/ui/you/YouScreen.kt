@@ -107,10 +107,11 @@ fun YouScreen(
                 ProfileHeader(profile = profile)
             }
 
-            // Trophy case (§15)
+            // Trophy case (§15 / §18)
             Spacer(Modifier.height(18.dp))
             TrophyCaseSection(
                 achievements = trophyState.achievements,
+                catalog = trophyState.catalog,
                 ownerLabel = "Shoot",
             )
 
