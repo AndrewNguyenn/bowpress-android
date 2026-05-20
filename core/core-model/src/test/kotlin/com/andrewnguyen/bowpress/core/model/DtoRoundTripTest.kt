@@ -308,6 +308,100 @@ class DtoRoundTripTest {
         assertThat(legacyDecoded.targetLayout).isEqualTo(TargetLayout.SINGLE)
     }
 
+    // ── §18 trophy catalogue ──────────────────────────────────────────────────
+
+    @Test
+    fun `TrophyDef round-trips for all 12 known kinds`() {
+        val allKinds = listOf(
+            "score_pr", "x_pr", "flawless", "sharpshooter",
+            "arrows_milestone", "sessions_milestone", "marathon",
+            "streak", "weeks_active", "comeback",
+            "first_distance", "distance_explorer",
+        )
+        allKinds.forEach { kind ->
+            val def = TrophyDef(
+                kind = kind,
+                name = "Trophy $kind",
+                description = "Earn this by doing $kind things.",
+                tiers = listOf(1, 5, 10),
+                category = TrophyCategory.skill,
+            )
+            val encoded = json.encodeToString(TrophyDef.serializer(), def)
+            val decoded = json.decodeFromString(TrophyDef.serializer(), encoded)
+            assertThat(decoded).isEqualTo(def)
+        }
+    }
+
+    @Test
+    fun `TrophyDef tolerates an unknown category and unknown kind`() {
+        // A future server might add new categories or kinds — must not crash.
+        val raw = """
+            {
+              "kind": "future_kind",
+              "name": "Future Trophy",
+              "description": "Not yet invented.",
+              "tiers": [1, 3],
+              "category": "skill"
+            }
+        """.trimIndent()
+        val decoded = json.decodeFromString(TrophyDef.serializer(), raw)
+        assertThat(decoded.kind).isEqualTo("future_kind")
+        assertThat(decoded.name).isEqualTo("Future Trophy")
+        assertThat(decoded.category).isEqualTo(TrophyCategory.skill)
+    }
+
+    @Test
+    fun `TrophyDef defaults tiers to empty and category to skill when absent`() {
+        val raw = """{"kind": "score_pr", "name": "Score PR", "description": "Beat your score."}"""
+        val decoded = json.decodeFromString(TrophyDef.serializer(), raw)
+        assertThat(decoded.tiers).isEmpty()
+        assertThat(decoded.category).isEqualTo(TrophyCategory.skill)
+    }
+
+    @Test
+    fun `AchievementKind deserializes all 12 wire values`() {
+        val wireValues = listOf(
+            "score_pr" to AchievementKind.score_pr,
+            "x_pr" to AchievementKind.x_pr,
+            "flawless" to AchievementKind.flawless,
+            "sharpshooter" to AchievementKind.sharpshooter,
+            "arrows_milestone" to AchievementKind.arrows_milestone,
+            "sessions_milestone" to AchievementKind.sessions_milestone,
+            "marathon" to AchievementKind.marathon,
+            "streak" to AchievementKind.streak,
+            "weeks_active" to AchievementKind.weeks_active,
+            "comeback" to AchievementKind.comeback,
+            "first_distance" to AchievementKind.first_distance,
+            "distance_explorer" to AchievementKind.distance_explorer,
+        )
+        wireValues.forEach { (wire, expected) ->
+            val decoded = json.decodeFromString(AchievementKind.serializer(), "\"$wire\"")
+            assertThat(decoded).isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `Achievement round-trips for all 12 kinds`() {
+        val kinds = AchievementKind.entries
+        val now = Instant.parse("2026-05-20T10:00:00Z")
+        kinds.forEach { kind ->
+            val achievement = Achievement(
+                id = "a-$kind",
+                userId = "u-1",
+                sharedSessionId = "ss-$kind",
+                kind = kind,
+                label = "Label $kind",
+                value = 42,
+                sublabel = "sublabel",
+                createdAt = now,
+            )
+            val encoded = json.encodeToString(Achievement.serializer(), achievement)
+            val decoded = json.decodeFromString(Achievement.serializer(), encoded)
+            assertThat(decoded).isEqualTo(achievement)
+            assertThat(decoded.kind).isEqualTo(kind)
+        }
+    }
+
     @Test
     fun `ActivityItem round-trips routing fields and tolerates an older payload`() {
         val routed = ActivityItem(
