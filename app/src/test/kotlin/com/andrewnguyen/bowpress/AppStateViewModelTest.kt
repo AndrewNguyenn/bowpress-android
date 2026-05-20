@@ -13,6 +13,7 @@ import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.AuthProvider
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.Entitlement
+import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.core.model.User
 import com.andrewnguyen.bowpress.feature.subscription.PlayBillingManager
@@ -155,6 +156,77 @@ class AppStateViewModelTest {
             val s = awaitItem()
             assertThat(s.isAuthenticated).isTrue()
             assertThat(s.currentUser).isEqualTo(user)
+        }
+    }
+
+    @Test
+    fun `refreshSocialPendingCount publishes the badge total into uiState`() = runTest {
+        val userRepo = mockk<UserRepository>(relaxed = true) {
+            every { isSignedIn } returns false
+            every { currentUser } returns MutableStateFlow(null)
+        }
+        val suggestionRepo = mockk<SuggestionRepository> {
+            every { observeAll() } returns flowOf(emptyList())
+        }
+        val unitRepo = mockk<UnitPreferencesRepository>(relaxed = true) {
+            every { unitSystem } returns flowOf(UnitSystem.IMPERIAL)
+        }
+        val billing = mockk<PlayBillingManager>(relaxed = true) {
+            every { entitlement } returns MutableStateFlow(Entitlement.Inactive)
+        }
+        val socialRepo = mockk<SocialRepository>(relaxed = true) {
+            coEvery { getPendingCount() } returns
+                SocialPendingCount(friendRequests = 2, invitations = 1, total = 3)
+        }
+
+        val vm = AppStateViewModel(
+            userRepo, suggestionRepo, unitRepo,
+            mockk<ThemePreferencesRepository>(relaxed = true),
+            mockk(relaxed = true), billing, AnalyticsRefreshBus(),
+            mockk<DevMockDataSeeder>(relaxed = true),
+            socialRepo,
+            SocialBadgeRefreshBus(),
+        )
+        vm.refreshSocialPendingCount()
+
+        vm.uiState.test {
+            // expectMostRecentItem so we read the state after the
+            // refreshSocialPendingCount coroutine has settled.
+            assertThat(expectMostRecentItem().socialPendingCount).isEqualTo(3)
+        }
+    }
+
+    @Test
+    fun `socialPendingCount stays zero when the pending-count fetch fails`() = runTest {
+        val userRepo = mockk<UserRepository>(relaxed = true) {
+            every { isSignedIn } returns false
+            every { currentUser } returns MutableStateFlow(null)
+        }
+        val suggestionRepo = mockk<SuggestionRepository> {
+            every { observeAll() } returns flowOf(emptyList())
+        }
+        val unitRepo = mockk<UnitPreferencesRepository>(relaxed = true) {
+            every { unitSystem } returns flowOf(UnitSystem.IMPERIAL)
+        }
+        val billing = mockk<PlayBillingManager>(relaxed = true) {
+            every { entitlement } returns MutableStateFlow(Entitlement.Inactive)
+        }
+        val socialRepo = mockk<SocialRepository>(relaxed = true) {
+            coEvery { getPendingCount() } throws RuntimeException("boom")
+        }
+
+        val vm = AppStateViewModel(
+            userRepo, suggestionRepo, unitRepo,
+            mockk<ThemePreferencesRepository>(relaxed = true),
+            mockk(relaxed = true), billing, AnalyticsRefreshBus(),
+            mockk<DevMockDataSeeder>(relaxed = true),
+            socialRepo,
+            SocialBadgeRefreshBus(),
+        )
+        vm.refreshSocialPendingCount()
+
+        vm.uiState.test {
+            assertThat(expectMostRecentItem().socialPendingCount).isEqualTo(0)
         }
     }
 

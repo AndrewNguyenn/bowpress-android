@@ -112,4 +112,49 @@ class NotificationIntentBuilderTest {
         )
         assertThat(uri).isEqualTo("bowpress://social")
     }
+
+    // ── Invitation / accepted push types (§13) ───────────────────────────────
+
+    @Test
+    fun `friend_accepted deep links to social friends screen`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "friend_accepted"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/friends")
+    }
+
+    @Test
+    fun `club_invite deep links to the clubs screen`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "club_invite"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/clubs")
+    }
+
+    @Test
+    fun `league_invite deep links to the leagues screen`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "league_invite"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/leagues")
+    }
+
+    @Test
+    fun `invite push types are routed to the social channel`() {
+        assertThat(NotificationIntentBuilder.SOCIAL_PUSH_TYPES)
+            .containsAtLeast("club_invite", "league_invite", "friend_accepted")
+    }
+
+    @Test
+    fun `friend_request club_invite and league_invite affect the badge`() {
+        assertThat(NotificationIntentBuilder.BADGE_AFFECTING_PUSH_TYPES)
+            .containsExactly("friend_request", "club_invite", "league_invite")
+    }
+
+    @Test
+    fun `friend_accepted does not affect the badge count`() {
+        // Accepting a request you sent doesn't add a pending item for you.
+        assertThat(NotificationIntentBuilder.BADGE_AFFECTING_PUSH_TYPES)
+            .doesNotContain("friend_accepted")
+    }
 }
