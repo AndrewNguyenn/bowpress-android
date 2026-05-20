@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -44,6 +45,8 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementsViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.achievements.TrophyCaseSection
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 
 @Composable
@@ -56,8 +59,12 @@ fun YouScreen(
     onEquipmentClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     viewModel: YouViewModel = hiltViewModel(),
+    achievementsViewModel: AchievementsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val trophyState by achievementsViewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) { achievementsViewModel.loadMine() }
 
     Column(
         modifier = Modifier
@@ -100,6 +107,13 @@ fun YouScreen(
             state.profile?.let { profile ->
                 ProfileHeader(profile = profile)
             }
+
+            // Trophy case (§15)
+            Spacer(Modifier.height(18.dp))
+            TrophyCaseSection(
+                achievements = trophyState.achievements,
+                ownerLabel = "Shoot",
+            )
 
             // Personal section
             SectionHeader(title = "Personal", aside = "your data")

@@ -45,6 +45,8 @@ import com.andrewnguyen.bowpress.core.model.SessionSummary
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementsViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.achievements.TrophyCaseSection
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.MuteBlockAction
 
 @Composable
@@ -54,12 +56,15 @@ fun FriendProfileScreen(
     onCompare: (String) -> Unit,
     viewModel: FriendsViewModel = hiltViewModel(),
     blockViewModel: BlockViewModel = hiltViewModel(),
+    achievementsViewModel: AchievementsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.profileState.collectAsState()
     val blocksState by blockViewModel.uiState.collectAsState()
+    val trophyState by achievementsViewModel.uiState.collectAsState()
 
     LaunchedEffect(otherUserId) {
         viewModel.loadFriendProfile(otherUserId)
+        achievementsViewModel.loadForFriend(otherUserId)
     }
 
     Column(
@@ -232,6 +237,13 @@ fun FriendProfileScreen(
                     }
                     Text("›", style = frauncesDisplay(30.sp).copy(color = AppPaper))
                 }
+
+                // Trophy case (§15)
+                Spacer(Modifier.height(18.dp))
+                TrophyCaseSection(
+                    achievements = trophyState.achievements,
+                    ownerLabel = "They need",
+                )
 
                 // Mute / block (§14)
                 Spacer(Modifier.height(14.dp))
