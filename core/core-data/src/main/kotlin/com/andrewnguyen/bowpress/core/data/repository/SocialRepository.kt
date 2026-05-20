@@ -514,7 +514,7 @@ class SocialRepository @Inject constructor(
         return SharedSessionDetail(
             sharedSession = SharedSession(
                 id = sharedSessionId,
-                userId = feedRow.actorHandle,
+                userId = feedRow.actorUserId,
                 sessionId = activitySession.sessionId,
                 score = activitySession.score,
                 xCount = activitySession.xCount,
