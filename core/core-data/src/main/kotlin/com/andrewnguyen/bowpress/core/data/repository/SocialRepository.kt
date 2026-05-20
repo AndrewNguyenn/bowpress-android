@@ -10,6 +10,7 @@ import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
+import com.andrewnguyen.bowpress.core.model.Achievement
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.BlockKind
@@ -33,6 +34,8 @@ import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
+import com.andrewnguyen.bowpress.core.model.ShareSessionBody
+import com.andrewnguyen.bowpress.core.model.ShareSessionResult
 import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
@@ -402,4 +405,23 @@ class SocialRepository @Inject constructor(
         api.deleteBlock(id)
         blockDao.deleteById(id)
     }
+
+    // ── Shared sessions & achievements (§15) ─────────────────────────────────────
+
+    /**
+     * Publish a saved session to the friend feed. Server-authoritative: it
+     * records the session, runs the achievement engine, and writes a feed row.
+     * Idempotent per `sessionId`. Callers fire this on session save — see
+     * `SocialSessionSharer` in the app module.
+     */
+    suspend fun shareSession(body: ShareSessionBody): ShareSessionResult =
+        api.shareSession(body)
+
+    /** The signed-in user's trophy case. */
+    suspend fun getMyAchievements(): List<Achievement> =
+        api.getMyAchievements()
+
+    /** A friend's trophy case (visibility-gated server-side). */
+    suspend fun getFriendAchievements(otherUserId: String): List<Achievement> =
+        api.getFriendAchievements(otherUserId)
 }

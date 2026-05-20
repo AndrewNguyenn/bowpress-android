@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.core.database.entities
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.time.Instant
@@ -70,6 +71,13 @@ data class ActivityItemEntity(
     val meta: String? = null,
     val stamp: String? = null,
     val createdAt: Instant,
+    // §15 shared-session fields — JSON-encoded; nullable / defaulted so the
+    // v9→v10 AutoMigration is purely additive. `highlighted` needs an explicit
+    // SQL default for the NOT NULL column the migration adds.
+    val sessionJson: String? = null,        // JSON ActivitySession or null
+    val achievementsJson: String? = null,   // JSON List<AchievementBadge> or null
+    @ColumnInfo(defaultValue = "0")
+    val highlighted: Boolean = false,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

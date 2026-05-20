@@ -38,7 +38,8 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
 /**
  * Root Room database — entities matching iOS `PersistentModels.swift` plus
  * the Social Layer tables added in version 7, the invitations table in
- * version 8, and the blocks table in version 9.
+ * version 8, the blocks table in version 9, and the §15 shared-session
+ * columns on `activity_feed` in version 10.
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -65,7 +66,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // Social mutes/blocks — added v9
         BlockEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -78,6 +79,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         AutoMigration(from = 7, to = 8),
         // 8→9: added the blocks table. Pure additive.
         AutoMigration(from = 8, to = 9),
+        // 9→10: added §15 shared-session columns to activity_feed
+        // (sessionJson, achievementsJson, highlighted). Pure additive —
+        // all three have defaults.
+        AutoMigration(from = 9, to = 10),
     ],
 )
 @TypeConverters(Converters::class)

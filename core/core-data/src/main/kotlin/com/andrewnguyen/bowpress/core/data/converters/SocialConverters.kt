@@ -7,8 +7,10 @@ import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
 import com.andrewnguyen.bowpress.core.database.entities.InvitationEntity
 import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
 import com.andrewnguyen.bowpress.core.database.entities.SocialProfileEntity
+import com.andrewnguyen.bowpress.core.model.AchievementBadge
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
+import com.andrewnguyen.bowpress.core.model.ActivitySession
 import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.BlockMode
@@ -139,6 +141,11 @@ fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
     meta = meta,
     stamp = stamp,
     createdAt = createdAt,
+    session = sessionJson?.let { runCatching { json.decodeFromString<ActivitySession>(it) }.getOrNull() },
+    achievements = achievementsJson
+        ?.let { runCatching { json.decodeFromString<List<AchievementBadge>>(it) }.getOrNull() }
+        ?: emptyList(),
+    highlighted = highlighted,
 )
 
 fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
@@ -151,6 +158,9 @@ fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
     meta = meta,
     stamp = stamp,
     createdAt = createdAt,
+    sessionJson = session?.let { json.encodeToString(it) },
+    achievementsJson = if (achievements.isEmpty()) null else json.encodeToString(achievements),
+    highlighted = highlighted,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

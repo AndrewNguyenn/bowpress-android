@@ -357,14 +357,20 @@ data class SubmitScoreBody(
 
 @Serializable
 enum class ActivityKind {
-    friend_pr, club_session, league_event, friend_setup, club_member_joined
+    friend_pr, club_session, league_event, friend_setup, club_member_joined,
+    // §15: a friend shared a (non-PR) session.
+    friend_session,
 }
 
 @Serializable
 enum class ActivitySourceKind { friend, club, league }
 
 /**
- * Mirrors API §5 `ActivityItem`.
+ * Mirrors API §5 `ActivityItem`, extended in §15 with the shared-session
+ * payload, achievement badges, and the `highlighted` flag that drives the
+ * Strava-style highlighted-row treatment in the feed.
+ *
+ * All §15 fields have defaults so a feed row from an older API still decodes.
  */
 @Serializable
 data class ActivityItem(
@@ -378,6 +384,10 @@ data class ActivityItem(
     val stamp: String? = null,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant,
+    // ── §15 shared-session fields ──
+    val session: ActivitySession? = null,
+    val achievements: List<AchievementBadge> = emptyList(),
+    val highlighted: Boolean = false,
 )
 
 // ── §6 Handicap Math ─────────────────────────────────────────────────────────
@@ -530,4 +540,103 @@ data class CreateBlockBody(
     val kind: BlockKind,
     val targetId: String,
     val mode: BlockMode,
+)
+
+// ── §15 Shared sessions & achievements ───────────────────────────────────────
+
+/**
+ * The kind of standout an [Achievement] / [AchievementBadge] represents.
+ * Detection is server-only — clients only render these.
+ */
+@Serializable
+enum class AchievementKind {
+    score_pr, x_pr, arrows_milestone, sessions_milestone, streak, first_distance
+}
+
+/**
+ * Mirrors API §15 `SharedSession` — a session a user has published to the
+ * friend feed. `sessionId` is the client's `ShootingSession` id.
+ */
+@Serializable
+data class SharedSession(
+    val id: String,
+    val userId: String,
+    val sessionId: String,
+    val score: Int,
+    val xCount: Int,
+    val arrowCount: Int,
+    val distance: String? = null,
+    val face: String? = null,
+    val title: String? = null,
+    @Serializable(with = InstantSerializer::class)
+    val shotAt: Instant,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+)
+
+/**
+ * Mirrors API §15 `Achievement` — a server-detected standout, the unit of the
+ * profile trophy case.
+ */
+@Serializable
+data class Achievement(
+    val id: String,
+    val userId: String,
+    val sharedSessionId: String,
+    val kind: AchievementKind,
+    val label: String,
+    val value: Int,
+    val sublabel: String? = null,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+)
+
+/**
+ * Compact achievement descriptor embedded in an [ActivityItem] — the badge
+ * shown on a highlighted feed row.
+ */
+@Serializable
+data class AchievementBadge(
+    val kind: AchievementKind,
+    val label: String,
+    val value: Int,
+    val sublabel: String? = null,
+)
+
+/**
+ * Shared-session payload embedded in an [ActivityItem] — the stat line shown
+ * on a session feed row.
+ */
+@Serializable
+data class ActivitySession(
+    val sharedSessionId: String,
+    val sessionId: String,
+    val score: Int,
+    val xCount: Int,
+    val arrowCount: Int,
+    val distance: String? = null,
+    val face: String? = null,
+)
+
+/** Request body for `POST /social/sessions/share`. */
+@Serializable
+data class ShareSessionBody(
+    val sessionId: String,
+    val score: Int,
+    val xCount: Int,
+    val arrowCount: Int,
+    val distance: String? = null,
+    val face: String? = null,
+    val title: String? = null,
+    @Serializable(with = InstantSerializer::class)
+    val shotAt: Instant? = null,
+)
+
+/** Response from `POST /social/sessions/share`. */
+@Serializable
+data class ShareSessionResult(
+    val sharedSession: SharedSession,
+    val achievements: List<Achievement> = emptyList(),
+    val activityId: String? = null,
+    val headline: String? = null,
 )

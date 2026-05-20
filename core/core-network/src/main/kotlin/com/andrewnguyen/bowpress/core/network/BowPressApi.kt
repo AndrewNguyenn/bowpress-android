@@ -1,6 +1,7 @@
 package com.andrewnguyen.bowpress.core.network
 
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
+import com.andrewnguyen.bowpress.core.model.Achievement
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
@@ -32,6 +33,8 @@ import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.SessionEnd
+import com.andrewnguyen.bowpress.core.model.ShareSessionBody
+import com.andrewnguyen.bowpress.core.model.ShareSessionResult
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
@@ -484,6 +487,19 @@ interface BowPressApi {
 
     @DELETE("social/blocks/{id}")
     suspend fun deleteBlock(@Path("id") id: String)
+
+    // ---- Social — Shared sessions & achievements (§15) -------------------------
+
+    @POST("social/sessions/share")
+    suspend fun shareSession(@Body body: ShareSessionBody): ShareSessionResult
+
+    @GET("social/me/achievements")
+    suspend fun getMyAchievements(): List<Achievement>
+
+    @GET("social/friends/{otherUserId}/achievements")
+    suspend fun getFriendAchievements(
+        @Path("otherUserId") otherUserId: String,
+    ): List<Achievement>
 
     // ---- Social — Dev notify (for e2e tests) -----------------------------------
 
