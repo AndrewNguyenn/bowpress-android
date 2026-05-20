@@ -388,6 +388,11 @@ data class ActivityItem(
     val session: ActivitySession? = null,
     val achievements: List<AchievementBadge> = emptyList(),
     val highlighted: Boolean = false,
+    // ── Routing targets — every feed row drills somewhere. Defaulted so a
+    // feed row from an older API still decodes.
+    val actorUserId: String = "",
+    val clubId: String? = null,
+    val leagueId: String? = null,
 )
 
 // ── §6 Handicap Math ─────────────────────────────────────────────────────────

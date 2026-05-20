@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import java.time.Instant
 
 /**
@@ -32,6 +33,11 @@ data class SessionEntity(
     // it also makes the Room schema validator happy when diffing against the migration.
     @ColumnInfo(defaultValue = "SIX_RING")
     val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
+    // Target layout — single vs 3-spot triangle/vertical. Added in schema v12;
+    // the SQL DEFAULT keeps the additive AutoMigration NOT-NULL-safe and legacy
+    // rows render as a single face (the prior behaviour).
+    @ColumnInfo(defaultValue = "SINGLE")
+    val targetLayout: TargetLayout = TargetLayout.SINGLE,
     // Optional shooting distance (e.g. 20yd / 50m / 70m). Added in schema v3 — nullable
     // by design so legacy rows stay null and the analytics filter only matches when set.
     val distance: ShootingDistance? = null,

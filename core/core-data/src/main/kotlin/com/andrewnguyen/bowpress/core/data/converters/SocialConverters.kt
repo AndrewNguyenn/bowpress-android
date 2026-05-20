@@ -149,6 +149,9 @@ fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
         ?.let { runCatching { json.decodeFromString<List<AchievementBadge>>(it) }.getOrNull() }
         ?: emptyList(),
     highlighted = highlighted,
+    actorUserId = actorUserId,
+    clubId = clubId,
+    leagueId = leagueId,
 )
 
 fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
@@ -164,6 +167,9 @@ fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
     sessionJson = session?.let { json.encodeToString(it) },
     achievementsJson = if (achievements.isEmpty()) null else json.encodeToString(achievements),
     highlighted = highlighted,
+    actorUserId = actorUserId,
+    clubId = clubId,
+    leagueId = leagueId,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

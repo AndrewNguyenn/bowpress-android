@@ -18,6 +18,7 @@ fun SessionEntity.toDto(): ShootingSession = ShootingSession(
     conditions = if (windSpeed == null && tempF == null && lighting == null) null else SessionConditions(windSpeed, tempF, lighting),
     arrowCount = arrowCount,
     targetFaceType = targetFaceType,
+    targetLayout = targetLayout,
     distance = distance,
     title = title,
 )
@@ -36,6 +37,7 @@ fun ShootingSession.toEntity(pendingSync: Boolean = false): SessionEntity = Sess
     tempF = conditions?.tempF,
     lighting = conditions?.lighting,
     targetFaceType = targetFaceType,
+    targetLayout = targetLayout,
     distance = distance,
     title = title,
     pendingSync = pendingSync,

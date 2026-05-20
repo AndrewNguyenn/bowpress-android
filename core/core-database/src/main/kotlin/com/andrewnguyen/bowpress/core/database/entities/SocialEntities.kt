@@ -78,6 +78,13 @@ data class ActivityItemEntity(
     val achievementsJson: String? = null,   // JSON List<AchievementBadge> or null
     @ColumnInfo(defaultValue = "0")
     val highlighted: Boolean = false,
+    // Routing-target columns — added v12. `actorUserId` is NOT NULL so it
+    // needs an explicit SQL default for the AutoMigration; club/league are
+    // nullable. All purely additive.
+    @ColumnInfo(defaultValue = "")
+    val actorUserId: String = "",
+    val clubId: String? = null,
+    val leagueId: String? = null,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

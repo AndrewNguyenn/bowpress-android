@@ -31,6 +31,8 @@ data class ShootingSession(
     val conditions: SessionConditions? = null,
     val arrowCount: Int = 0,
     val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
+    /** How the faces are arranged on the boss. Defaulted for legacy rows. */
+    val targetLayout: TargetLayout = TargetLayout.SINGLE,
     /** Optional shooting distance — null for sessions that predate the field. */
     val distance: ShootingDistance? = null,
     /** Optional human-supplied title (e.g. "Long-distance work"). Null for legacy rows. */

@@ -40,6 +40,28 @@ enum class TargetFaceType {
 }
 
 /**
+ * Mirrors iOS `TargetLayout` — how the target faces are arranged on the boss.
+ *  - [SINGLE]: one face.
+ *  - [TRIANGLE]: a 3-spot Vegas triangle (two faces on top, one below).
+ *  - [VERTICAL]: a 3-spot vertical strip (three faces stacked).
+ *
+ * Wire values: `single` / `triangle` / `vertical`. Defaulted to [SINGLE] so
+ * sessions that predate the field decode unchanged.
+ */
+@Serializable
+enum class TargetLayout {
+    @SerialName("single") SINGLE,
+    @SerialName("triangle") TRIANGLE,
+    @SerialName("vertical") VERTICAL;
+
+    val label: String get() = when (this) {
+        SINGLE -> "Single"
+        TRIANGLE -> "3-spot triangle"
+        VERTICAL -> "3-spot vertical"
+    }
+}
+
+/**
  * Mirrors iOS `ShootingDistance`. Distance from the shooter to the target. Optional
  * on `ShootingSession` — sessions without a chosen distance stay null and the
  * analytics filter only includes a session in a specific-distance view when the

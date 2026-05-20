@@ -7,6 +7,7 @@ import com.andrewnguyen.bowpress.core.model.FletchingType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -71,6 +72,13 @@ class Converters {
     @TypeConverter
     fun stringToTargetFaceType(value: String?): TargetFaceType? =
         value?.let { runCatching { TargetFaceType.valueOf(it) }.getOrNull() }
+
+    @TypeConverter
+    fun targetLayoutToString(value: TargetLayout?): String? = value?.name
+
+    @TypeConverter
+    fun stringToTargetLayout(value: String?): TargetLayout? =
+        value?.let { runCatching { TargetLayout.valueOf(it) }.getOrNull() }
 
     @TypeConverter
     fun shootingDistanceToString(value: ShootingDistance?): String? = value?.name
