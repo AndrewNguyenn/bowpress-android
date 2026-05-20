@@ -64,6 +64,8 @@ import java.time.temporal.ChronoUnit
 fun FeedScreen(
     onAvatarClick: () -> Unit,
     onFriendsClick: () -> Unit,
+    onClubsIndexClick: () -> Unit,
+    onLeaguesIndexClick: () -> Unit,
     onClubClick: (String) -> Unit,
     onLeagueClick: (String) -> Unit,
     onSessionClick: (String) -> Unit,
@@ -89,6 +91,18 @@ fun FeedScreen(
         HorizontalDivider(color = AppLine, thickness = 1.dp)
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
+            // Option-A top strip — Friends / Clubs / Leagues nav cards.
+            item {
+                FeedNavStrip(
+                    friendCount = state.friends.size,
+                    clubs = state.clubs,
+                    leagueCount = state.leagues.size,
+                    leagueUrgent = state.leagueDeadlineNear,
+                    onFriendsClick = onFriendsClick,
+                    onClubsClick = onClubsIndexClick,
+                    onLeaguesClick = onLeaguesIndexClick,
+                )
+            }
             // Eyebrow
             item {
                 FeedEyebrow()
@@ -224,6 +238,97 @@ private fun FeedTopNav(
                 color = AppPondDk,
             )
         }
+    }
+}
+
+/**
+ * Option-A 3-card nav strip above the activity feed — Friends · Clubs ·
+ * Leagues. Mirrors `.nav-strip`/`.nc` in `SOCIAL_DESIGN_OPTION_A.html`: each
+ * card is a large Fraunces numeral, a label, and a mono sub-line. The League
+ * card takes the maple `urgent` tint/border when a deadline is near.
+ */
+@Composable
+private fun FeedNavStrip(
+    friendCount: Int,
+    clubs: List<Club>,
+    leagueCount: Int,
+    leagueUrgent: Boolean,
+    onFriendsClick: () -> Unit,
+    onClubsClick: () -> Unit,
+    onLeaguesClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp)
+            .padding(top = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        NavCard(
+            count = friendCount,
+            label = "Friends",
+            sub = "your circle",
+            onClick = onFriendsClick,
+            modifier = Modifier.weight(1f),
+        )
+        NavCard(
+            count = clubs.size,
+            label = "Clubs",
+            // First word of each club name, matching the prototype sub-line.
+            sub = clubs.takeIf { it.isNotEmpty() }
+                ?.joinToString(" · ") { it.name.substringBefore(' ') }
+                ?: "none yet",
+            onClick = onClubsClick,
+            modifier = Modifier.weight(1f),
+        )
+        NavCard(
+            count = leagueCount,
+            label = if (leagueCount == 1) "League" else "Leagues",
+            sub = if (leagueUrgent) "deadline near" else "standings",
+            urgent = leagueUrgent,
+            onClick = onLeaguesClick,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** One nav-strip card — `.nc` in the design CSS. */
+@Composable
+private fun NavCard(
+    count: Int,
+    label: String,
+    sub: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    urgent: Boolean = false,
+) {
+    val accent = if (urgent) AppMaple else AppPondDk
+    Column(
+        modifier = modifier
+            .border(1.dp, if (urgent) AppMaple else AppLine)
+            // Faint maple wash for the urgent card; plain paper-2 otherwise.
+            .background(if (urgent) AppMaple.copy(alpha = 0.08f) else AppPaper2)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 11.dp),
+    ) {
+        Text(
+            text = "$count",
+            style = frauncesDisplay(22.sp),
+            color = accent,
+        )
+        Text(
+            text = label,
+            style = frauncesDisplay(13.sp),
+            color = AppInk,
+            modifier = Modifier.padding(top = 3.dp),
+        )
+        Text(
+            text = sub,
+            style = jetbrainsMono(8.5.sp, if (urgent) FontWeight.Medium else FontWeight.Normal)
+                .copy(letterSpacing = 0.04.em),
+            color = if (urgent) AppMaple else AppInk3,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
 }
 

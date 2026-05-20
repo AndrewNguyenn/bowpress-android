@@ -7,6 +7,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.Friendship
 import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.LeagueStatus
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
 
 data class FeedUiState(
@@ -27,7 +30,25 @@ data class FeedUiState(
     val myProfile: SocialProfile? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-)
+) {
+    /**
+     * True when an active league's deadline is within the urgent window —
+     * drives the maple tint on the Social-landing League nav card.
+     */
+    val leagueDeadlineNear: Boolean
+        get() = leagues.any { it.status == LeagueStatus.active && it.deadlineWithin(URGENT_WINDOW) }
+
+    private companion object {
+        val URGENT_WINDOW: Duration = Duration.ofDays(3)
+    }
+}
+
+/** Whether this league's end date falls inside [window] from now (and hasn't passed). */
+fun League.deadlineWithin(window: Duration): Boolean {
+    val now = Instant.now()
+    val endsAt = schedule.endsAt
+    return endsAt.isAfter(now) && Duration.between(now, endsAt) <= window
+}
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(

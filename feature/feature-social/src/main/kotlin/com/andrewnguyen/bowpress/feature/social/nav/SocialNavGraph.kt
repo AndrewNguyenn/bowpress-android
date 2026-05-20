@@ -48,6 +48,8 @@ fun NavGraphBuilder.socialNavGraph(
         FeedScreen(
             onAvatarClick = { navController.navigate(SocialRoutes.YOU) },
             onFriendsClick = { navController.navigate(SocialRoutes.FRIENDS) },
+            onClubsIndexClick = { navController.navigate(SocialRoutes.CLUBS) },
+            onLeaguesIndexClick = { navController.navigate(SocialRoutes.LEAGUES) },
             onClubClick = { clubId -> navController.navigate(SocialRoutes.clubHome(clubId)) },
             onLeagueClick = { leagueId -> navController.navigate(SocialRoutes.leagueHome(leagueId)) },
             onSessionClick = { sharedSessionId ->
