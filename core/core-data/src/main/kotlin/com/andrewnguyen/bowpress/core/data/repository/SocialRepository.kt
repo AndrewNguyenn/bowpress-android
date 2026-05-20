@@ -60,6 +60,9 @@ import com.andrewnguyen.bowpress.core.model.UpdateLeagueBody
 import com.andrewnguyen.bowpress.core.model.UpdateSocialProfileRequest
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.network.BowPressApi
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -91,7 +94,11 @@ class SocialRepository @Inject constructor(
     private val sessionDao: SessionDao,
     private val sessionEndDao: SessionEndDao,
     private val plotDao: ArrowPlotDao,
+    @ApplicationContext private val context: Context,
 ) {
+
+    private val isDebugBuild: Boolean
+        get() = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
     // ── Profile ───────────────────────────────────────────────────────────────
 
@@ -542,7 +549,7 @@ class SocialRepository @Inject constructor(
      */
     suspend fun getClubAnnouncements(clubId: String): List<ClubAnnouncement> =
         runCatching { api.getClubAnnouncements(clubId) }
-            .getOrElse { DevMockData.clubAnnouncements[clubId].orEmpty() }
+            .getOrElse { if (isDebugBuild) DevMockData.clubAnnouncements[clubId].orEmpty() else emptyList() }
             .sortedWith(compareByDescending<ClubAnnouncement> { it.pinned }.thenByDescending { it.createdAt })
 
     /** Host-only: post a new announcement to a club's board. */
@@ -575,7 +582,7 @@ class SocialRepository @Inject constructor(
      */
     suspend fun getLeagueAttachments(leagueId: String): List<LeagueAttachment> =
         runCatching { api.getLeagueAttachments(leagueId) }
-            .getOrElse { DevMockData.leagueAttachments[leagueId].orEmpty() }
+            .getOrElse { if (isDebugBuild) DevMockData.leagueAttachments[leagueId].orEmpty() else emptyList() }
             .sortedByDescending { it.createdAt }
 
     /**
