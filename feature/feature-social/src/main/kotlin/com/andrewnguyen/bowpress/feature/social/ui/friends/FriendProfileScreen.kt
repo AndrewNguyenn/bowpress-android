@@ -43,6 +43,7 @@ import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.FriendProfile
 import com.andrewnguyen.bowpress.core.model.SessionSummary
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
+import com.andrewnguyen.bowpress.feature.social.ui.SocialUnavailableNotice
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementsViewModel
@@ -113,6 +114,16 @@ fun FriendProfileScreen(
                 style = frauncesDisplay(14.sp),
                 color = AppInk3,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            return
+        }
+
+        // Graceful failure — a friend profile is visibility-gated, so the
+        // fetch can 403 or fail. Show a quiet notice instead of a blank screen.
+        if (state.error != null && state.friendProfile == null) {
+            SocialUnavailableNotice(
+                title = "Profile unavailable",
+                detail = "This archer's profile isn't visible to you, or it's no longer reachable.",
             )
             return
         }

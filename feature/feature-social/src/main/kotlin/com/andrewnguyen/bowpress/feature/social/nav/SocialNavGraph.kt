@@ -53,6 +53,12 @@ fun NavGraphBuilder.socialNavGraph(
             onSessionClick = { sharedSessionId ->
                 navController.navigate(SocialRoutes.sessionDetail(sharedSessionId))
             },
+            onActorClick = { actorUserId ->
+                // A blank actorUserId (older API) has nowhere to drill — skip.
+                if (actorUserId.isNotBlank()) {
+                    navController.navigate(SocialRoutes.friendProfile(actorUserId))
+                }
+            },
         )
     }
 

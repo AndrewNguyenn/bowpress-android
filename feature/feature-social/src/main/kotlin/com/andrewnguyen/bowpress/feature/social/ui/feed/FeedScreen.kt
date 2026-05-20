@@ -67,6 +67,7 @@ fun FeedScreen(
     onClubClick: (String) -> Unit,
     onLeagueClick: (String) -> Unit,
     onSessionClick: (String) -> Unit,
+    onActorClick: (String) -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -100,9 +101,19 @@ fun FeedScreen(
             items(state.feed, key = { it.id }) { item ->
                 FeedItemRow(
                     item = item,
-                    onClubClick = onClubClick,
-                    onLeagueClick = onLeagueClick,
-                    onSessionClick = onSessionClick,
+                    // Routing precedence: a row drills to its session, else
+                    // its league, else its club, else the actor's profile.
+                    onItemClick = { row ->
+                        val session = row.session
+                        val leagueId = row.leagueId
+                        val clubId = row.clubId
+                        when {
+                            session != null -> onSessionClick(session.sharedSessionId)
+                            leagueId != null -> onLeagueClick(leagueId)
+                            clubId != null -> onClubClick(clubId)
+                            else -> onActorClick(row.actorUserId)
+                        }
+                    },
                 )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp, modifier = Modifier.padding(horizontal = 0.dp))
             }
@@ -254,9 +265,7 @@ private fun FeedEyebrow() {
 @Composable
 private fun FeedItemRow(
     item: ActivityItem,
-    onClubClick: (String) -> Unit,
-    onLeagueClick: (String) -> Unit,
-    onSessionClick: (String) -> Unit,
+    onItemClick: (ActivityItem) -> Unit,
 ) {
     val avatarInitials = when (item.sourceKind) {
         ActivitySourceKind.club -> avatarInitials(item.actorDisplayName)
@@ -284,11 +293,9 @@ private fun FeedItemRow(
     } else {
         Modifier.fillMaxWidth()
     }
-    // §16 — a row carrying a shared session is tappable; it drills into that
-    // friend's session detail. Non-session rows stay non-tappable.
-    val rowModifier = item.session?.let { s ->
-        baseModifier.clickable { onSessionClick(s.sharedSessionId) }
-    } ?: baseModifier
+    // Every feed row drills somewhere — the screen routes by precedence
+    // (session → league → club → actor profile).
+    val rowModifier = baseModifier.clickable { onItemClick(item) }
 
     Row(
         modifier = rowModifier.padding(horizontal = 18.dp, vertical = 12.dp),

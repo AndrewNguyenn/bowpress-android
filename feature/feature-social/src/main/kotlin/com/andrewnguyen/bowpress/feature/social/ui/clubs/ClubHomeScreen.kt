@@ -52,6 +52,7 @@ import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.ClubRole
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
+import com.andrewnguyen.bowpress.feature.social.ui.SocialUnavailableNotice
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.MuteBlockAction
@@ -137,6 +138,16 @@ fun ClubHomeScreen(
 
         if (state.isLoading) {
             Spacer(Modifier.height(32.dp))
+            return
+        }
+
+        // Graceful failure — the club home is member/visibility-gated, so a
+        // fetch can 403 or fail. Show a quiet notice instead of a blank list.
+        if (state.error != null && state.club == null) {
+            SocialUnavailableNotice(
+                title = "Club unavailable",
+                detail = "You may not have access to this club, or it's no longer reachable.",
+            )
             return
         }
 

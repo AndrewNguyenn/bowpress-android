@@ -3,6 +3,11 @@ package com.andrewnguyen.bowpress.feature.social.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk3
+import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
@@ -76,6 +83,36 @@ fun SocialAvatar(
                 italic = true,
             ),
             color = AppPondDk,
+        )
+    }
+}
+
+/**
+ * Quiet, framed "this couldn't load" panel — used when a member/visibility-
+ * gated destination (club / league / friend profile) fails or 403s after a
+ * feed drill-in. Keeps the screen from rendering blank.
+ */
+@Composable
+fun SocialUnavailableNotice(
+    title: String,
+    detail: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(18.dp)
+            .border(1.dp, AppLine)
+            .background(AppPaper2)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(title, style = frauncesDisplay(18.sp), color = AppInk)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            detail,
+            style = frauncesDisplay(13.sp, italic = true),
+            color = AppInk3,
         )
     }
 }
