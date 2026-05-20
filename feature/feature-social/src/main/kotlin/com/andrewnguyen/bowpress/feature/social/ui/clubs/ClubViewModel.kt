@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubAnnouncement
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
@@ -25,6 +26,7 @@ data class ClubHomeUiState(
     val club: Club? = null,
     val members: List<ClubMember> = emptyList(),
     val feed: List<ClubFeedItem> = emptyList(),
+    val announcements: List<ClubAnnouncement> = emptyList(),
     val leaderboard: List<LeaderboardRow> = emptyList(),
     val leaderboardScope: String = "30d",
     val isLoading: Boolean = false,
@@ -32,6 +34,8 @@ data class ClubHomeUiState(
     /** Host-only invite-by-handle dialog state. */
     val inviteError: String? = null,
     val inviteSent: Boolean = false,
+    /** Host-only announcement composer error. */
+    val announcementError: String? = null,
 )
 
 @HiltViewModel
@@ -68,11 +72,17 @@ class ClubViewModel @Inject constructor(
                 val members = socialRepository.getClubMembers(clubId)
                 val feed = socialRepository.getClubFeed(clubId)
                 val leaderboard = socialRepository.getClubLeaderboard(clubId, _clubHomeState.value.leaderboardScope)
+                // Announcements are member-gated and best-effort — a fetch
+                // failure leaves the board empty without sinking the screen.
+                val announcements = runCatching {
+                    socialRepository.getClubAnnouncements(clubId)
+                }.getOrDefault(emptyList())
                 _clubHomeState.update {
                     it.copy(
                         club = club,
                         members = members,
                         feed = feed,
+                        announcements = announcements,
                         leaderboard = leaderboard,
                         isLoading = false,
                     )
@@ -81,6 +91,53 @@ class ClubViewModel @Inject constructor(
                 _clubHomeState.update { it.copy(error = e.message, isLoading = false) }
             }
         }
+    }
+
+    /** Reload just the announcement board (after a post / pin / delete). */
+    private fun refreshAnnouncements(clubId: String) {
+        viewModelScope.launch {
+            runCatching { socialRepository.getClubAnnouncements(clubId) }
+                .onSuccess { list -> _clubHomeState.update { it.copy(announcements = list) } }
+        }
+    }
+
+    /** Host-only: post a new announcement to the club board. */
+    fun postAnnouncement(clubId: String, body: String, pinned: Boolean, onPosted: () -> Unit) {
+        viewModelScope.launch {
+            _clubHomeState.update { it.copy(announcementError = null) }
+            runCatching { socialRepository.postClubAnnouncement(clubId, body, pinned) }
+                .onSuccess {
+                    refreshAnnouncements(clubId)
+                    onPosted()
+                }
+                .onFailure { e -> _clubHomeState.update { it.copy(announcementError = e.message) } }
+        }
+    }
+
+    /** Host-only: pin or unpin an announcement. */
+    fun setAnnouncementPinned(clubId: String, announcementId: String, pinned: Boolean) {
+        viewModelScope.launch {
+            runCatching { socialRepository.setClubAnnouncementPinned(clubId, announcementId, pinned) }
+                .onSuccess { refreshAnnouncements(clubId) }
+                .onFailure { e -> _clubHomeState.update { it.copy(error = e.message) } }
+        }
+    }
+
+    /** Host-only: delete an announcement. */
+    fun deleteAnnouncement(clubId: String, announcementId: String) {
+        viewModelScope.launch {
+            runCatching { socialRepository.deleteClubAnnouncement(clubId, announcementId) }
+                .onSuccess {
+                    _clubHomeState.update { s ->
+                        s.copy(announcements = s.announcements.filterNot { it.id == announcementId })
+                    }
+                }
+                .onFailure { e -> _clubHomeState.update { it.copy(error = e.message) } }
+        }
+    }
+
+    fun resetAnnouncementError() {
+        _clubHomeState.update { it.copy(announcementError = null) }
     }
 
     fun setLeaderboardScope(clubId: String, scope: String) {

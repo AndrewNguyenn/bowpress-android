@@ -28,6 +28,8 @@ import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppStone
 
@@ -114,5 +116,17 @@ fun SocialUnavailableNotice(
             style = frauncesDisplay(13.sp, italic = true),
             color = AppInk3,
         )
+    }
+}
+
+/** Compact relative timestamp for social rows — "just now" / "3h ago" / "5d ago". */
+fun socialRelativeTime(at: Instant, now: Instant = Instant.now()): String {
+    val minutes = ChronoUnit.MINUTES.between(at, now)
+    return when {
+        minutes < 1 -> "just now"
+        minutes < 60 -> "${minutes}m ago"
+        minutes < 60 * 24 -> "${minutes / 60}h ago"
+        minutes < 60 * 24 * 7 -> "${minutes / (60 * 24)}d ago"
+        else -> "${minutes / (60 * 24 * 7)}w ago"
     }
 }

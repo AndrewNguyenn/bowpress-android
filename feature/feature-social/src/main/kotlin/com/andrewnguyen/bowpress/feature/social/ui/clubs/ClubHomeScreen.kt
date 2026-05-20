@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -68,6 +69,7 @@ fun ClubHomeScreen(
     val state by viewModel.clubHomeState.collectAsState()
     val blocksState by blockViewModel.uiState.collectAsState()
     var showInviteDialog by remember { mutableStateOf(false) }
+    var showAnnouncementComposer by remember { mutableStateOf(false) }
     val isHost = state.club?.myRole == ClubRole.host
 
     LaunchedEffect(clubId) {
@@ -83,6 +85,21 @@ fun ClubHomeScreen(
             onDismiss = {
                 showInviteDialog = false
                 viewModel.resetInviteState()
+            },
+        )
+    }
+
+    if (showAnnouncementComposer) {
+        AnnouncementComposerDialog(
+            error = state.announcementError,
+            onSubmit = { body, pinned ->
+                viewModel.postAnnouncement(clubId, body, pinned) {
+                    showAnnouncementComposer = false
+                }
+            },
+            onDismiss = {
+                showAnnouncementComposer = false
+                viewModel.resetAnnouncementError()
             },
         )
     }
@@ -176,6 +193,81 @@ fun ClubHomeScreen(
                 }
             }
 
+            // ── Announcement board (§17) ──
+            item {
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        "BOARD",
+                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                        color = AppInk3,
+                    )
+                    Text(
+                        "${state.announcements.size} posts · " +
+                            if (isHost) "host can post" else "host-only posts",
+                        style = jetbrainsMono(9.sp),
+                        color = AppInk3,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = AppLine, thickness = 1.dp)
+            }
+            if (state.announcements.isEmpty()) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "No posts yet.",
+                        style = frauncesDisplay(13.sp, italic = true),
+                        color = AppInk3,
+                    )
+                }
+            } else {
+                items(state.announcements, key = { it.id }) { ann ->
+                    Spacer(Modifier.height(8.dp))
+                    AnnouncementCard(
+                        announcement = ann,
+                        isHost = isHost,
+                        onDelete = { viewModel.deleteAnnouncement(clubId, ann.id) },
+                        onTogglePin = {
+                            viewModel.setAnnouncementPinned(clubId, ann.id, !ann.pinned)
+                        },
+                    )
+                }
+            }
+            if (isHost) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, AppLine)
+                            .background(AppPaper2)
+                            .clickable { showAnnouncementComposer = true }
+                            .padding(11.dp, 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .border(1.dp, AppPondDk),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("+", style = frauncesDisplay(18.sp), color = AppPondDk)
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Post to the board — only members see it.",
+                            style = frauncesDisplay(13.5.sp, italic = true),
+                            color = AppInk2,
+                        )
+                    }
+                }
+            }
+
             // Leaderboard
             item {
                 Spacer(Modifier.height(14.dp))
@@ -217,15 +309,26 @@ fun ClubHomeScreen(
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
             }
 
-            // Activity feed
+            // ── Member activity (§17) — the club-only member feed ──
             if (state.feed.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(14.dp))
-                    Text(
-                        "RECENT ACTIVITY",
-                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
-                        color = AppInk3,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Text(
+                            "MEMBER ACTIVITY",
+                            style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                            color = AppInk3,
+                        )
+                        Text(
+                            "members · last 30d",
+                            style = jetbrainsMono(9.sp),
+                            color = AppInk3,
+                        )
+                    }
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
