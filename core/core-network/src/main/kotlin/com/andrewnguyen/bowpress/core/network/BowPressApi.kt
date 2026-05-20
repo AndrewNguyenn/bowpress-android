@@ -45,6 +45,7 @@ import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.core.model.TrophyDef
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
 import com.andrewnguyen.bowpress.core.model.TimelineResponse
@@ -493,6 +494,12 @@ interface BowPressApi {
 
     @DELETE("social/blocks/{id}")
     suspend fun deleteBlock(@Path("id") id: String)
+
+    // ---- Social — Trophy catalogue (§18) ----------------------------------------
+
+    /** Full catalogue of 12 trophy kinds with name, description, tiers, category. */
+    @GET("social/trophies")
+    suspend fun getTrophyCatalog(): List<TrophyDef>
 
     // ---- Social — Shared sessions & achievements (§15) -------------------------
 
