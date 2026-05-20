@@ -134,6 +134,7 @@ dependencies {
     implementation(project(":feature:feature-analytics"))
     implementation(project(":feature:feature-subscription"))
     implementation(project(":feature:feature-settings"))
+    implementation(project(":feature:feature-social"))
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

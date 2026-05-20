@@ -1,0 +1,167 @@
+package com.andrewnguyen.bowpress.feature.social.nav
+
+import androidx.navigation.NavController
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavType
+import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubHomeScreen
+import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubsScreen
+import com.andrewnguyen.bowpress.feature.social.ui.feed.FeedScreen
+import com.andrewnguyen.bowpress.feature.social.ui.friends.CompareScreen
+import com.andrewnguyen.bowpress.feature.social.ui.friends.FriendProfileScreen
+import com.andrewnguyen.bowpress.feature.social.ui.friends.FriendsScreen
+import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueAdminScreen
+import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueComposerScreen
+import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueHomeScreen
+import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeaguesScreen
+import com.andrewnguyen.bowpress.feature.social.ui.privacy.PrivacyScreen
+import com.andrewnguyen.bowpress.feature.social.ui.you.YouScreen
+
+/**
+ * Install the social feature's full route set into the root [NavGraphBuilder].
+ *
+ * [onSignedOut] is forwarded from the host — the You screen offers a sign-out
+ * action that the app layer translates into routing back to auth.
+ *
+ * [onAccountClick], [onSubscriptionClick], [onEquipmentClick],
+ * [onNotificationsClick] let the You screen deep-link into other feature tabs
+ * without the social feature knowing their routes directly.
+ */
+fun NavGraphBuilder.socialNavGraph(
+    navController: NavController,
+    onSignedOut: () -> Unit,
+    onAccountClick: () -> Unit,
+    onSubscriptionClick: () -> Unit,
+    onEquipmentClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+) {
+    // ── Feed (landing) ────────────────────────────────────────────────────────
+
+    composable(SocialRoutes.FEED) {
+        FeedScreen(
+            onAvatarClick = { navController.navigate(SocialRoutes.YOU) },
+            onFriendsClick = { navController.navigate(SocialRoutes.FRIENDS) },
+            onClubClick = { clubId -> navController.navigate(SocialRoutes.clubHome(clubId)) },
+            onLeagueClick = { leagueId -> navController.navigate(SocialRoutes.leagueHome(leagueId)) },
+        )
+    }
+
+    // ── You / Privacy ─────────────────────────────────────────────────────────
+
+    composable(SocialRoutes.YOU) {
+        YouScreen(
+            onBack = { navController.popBackStack() },
+            onPrivacyClick = { navController.navigate(SocialRoutes.YOU_PRIVACY) },
+            onSignOut = onSignedOut,
+            onAccountClick = onAccountClick,
+            onSubscriptionClick = onSubscriptionClick,
+            onEquipmentClick = onEquipmentClick,
+            onNotificationsClick = onNotificationsClick,
+        )
+    }
+
+    composable(SocialRoutes.YOU_PRIVACY) {
+        PrivacyScreen(
+            onBack = { navController.popBackStack() },
+        )
+    }
+
+    // ── Friends ───────────────────────────────────────────────────────────────
+
+    composable(SocialRoutes.FRIENDS) {
+        FriendsScreen(
+            onBack = { navController.popBackStack() },
+            onFriendClick = { userId ->
+                navController.navigate(SocialRoutes.friendProfile(userId))
+            },
+        )
+    }
+
+    composable(
+        route = SocialRoutes.FRIEND_PROFILE,
+        arguments = listOf(navArgument("otherUserId") { type = NavType.StringType }),
+    ) { entry ->
+        val otherUserId = entry.arguments?.getString("otherUserId").orEmpty()
+        FriendProfileScreen(
+            otherUserId = otherUserId,
+            onBack = { navController.popBackStack() },
+            onCompare = { userId -> navController.navigate(SocialRoutes.friendCompare(userId)) },
+        )
+    }
+
+    composable(
+        route = SocialRoutes.FRIEND_COMPARE,
+        arguments = listOf(navArgument("otherUserId") { type = NavType.StringType }),
+    ) { entry ->
+        val otherUserId = entry.arguments?.getString("otherUserId").orEmpty()
+        CompareScreen(
+            otherUserId = otherUserId,
+            onBack = { navController.popBackStack() },
+        )
+    }
+
+    // ── Clubs ─────────────────────────────────────────────────────────────────
+
+    composable(SocialRoutes.CLUBS) {
+        ClubsScreen(
+            onBack = { navController.popBackStack() },
+            onClubClick = { clubId -> navController.navigate(SocialRoutes.clubHome(clubId)) },
+        )
+    }
+
+    composable(
+        route = SocialRoutes.CLUB_HOME,
+        arguments = listOf(navArgument("clubId") { type = NavType.StringType }),
+    ) { entry ->
+        val clubId = entry.arguments?.getString("clubId").orEmpty()
+        ClubHomeScreen(
+            clubId = clubId,
+            onBack = { navController.popBackStack() },
+        )
+    }
+
+    // ── Leagues ───────────────────────────────────────────────────────────────
+
+    composable(SocialRoutes.LEAGUES) {
+        LeaguesScreen(
+            onBack = { navController.popBackStack() },
+            onLeagueClick = { leagueId -> navController.navigate(SocialRoutes.leagueHome(leagueId)) },
+            onCreateClick = { navController.navigate(SocialRoutes.LEAGUE_CREATE) },
+        )
+    }
+
+    composable(
+        route = SocialRoutes.LEAGUE_HOME,
+        arguments = listOf(navArgument("leagueId") { type = NavType.StringType }),
+    ) { entry ->
+        val leagueId = entry.arguments?.getString("leagueId").orEmpty()
+        LeagueHomeScreen(
+            leagueId = leagueId,
+            onBack = { navController.popBackStack() },
+            onAdminClick = { id -> navController.navigate(SocialRoutes.leagueAdmin(id)) },
+        )
+    }
+
+    composable(SocialRoutes.LEAGUE_CREATE) {
+        LeagueComposerScreen(
+            onBack = { navController.popBackStack() },
+            onCreated = { leagueId ->
+                navController.navigate(SocialRoutes.leagueHome(leagueId)) {
+                    popUpTo(SocialRoutes.LEAGUE_CREATE) { inclusive = true }
+                }
+            },
+        )
+    }
+
+    composable(
+        route = SocialRoutes.LEAGUE_ADMIN,
+        arguments = listOf(navArgument("leagueId") { type = NavType.StringType }),
+    ) { entry ->
+        val leagueId = entry.arguments?.getString("leagueId").orEmpty()
+        LeagueAdminScreen(
+            leagueId = leagueId,
+            onBack = { navController.popBackStack() },
+        )
+    }
+}

@@ -1,16 +1,15 @@
 package com.andrewnguyen.bowpress
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Badge
@@ -56,6 +55,8 @@ import com.andrewnguyen.bowpress.feature.session.SessionRoutes
 import com.andrewnguyen.bowpress.feature.session.sessionNavGraph
 import com.andrewnguyen.bowpress.feature.settings.SettingsRoutes
 import com.andrewnguyen.bowpress.feature.settings.settingsNavGraph
+import com.andrewnguyen.bowpress.feature.social.nav.SocialRoutes
+import com.andrewnguyen.bowpress.feature.social.nav.socialNavGraph
 import com.andrewnguyen.bowpress.feature.subscription.subscriptionNavGraph
 
 /**
@@ -193,6 +194,34 @@ fun MainScaffold(
             }
 
             navigation(
+                route = TopTab.Social.graphRoute,
+                startDestination = SocialRoutes.FEED,
+            ) {
+                socialNavGraph(
+                    navController = navController,
+                    onSignedOut = onSignedOut,
+                    onAccountClick = {
+                        navController.navigate(SettingsRoutes.ACCOUNT)
+                    },
+                    onSubscriptionClick = {
+                        navController.navigate(SettingsRoutes.PAYWALL)
+                    },
+                    onEquipmentClick = {
+                        navController.navigate(TopTab.Equipment.graphRoute) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNotificationsClick = { /* no-op: handled in Settings */ },
+                )
+                // Settings screens reachable from YouScreen (behind the avatar)
+                settingsNavGraph(navController, onSignedOut = onSignedOut)
+            }
+
+            navigation(
                 route = TopTab.Equipment.graphRoute,
                 startDestination = EquipmentRoutes.HOME,
             ) {
@@ -200,13 +229,6 @@ fun MainScaffold(
                     navController = navController,
                     currentUserId = { uiState.currentUser?.id.orEmpty() },
                 )
-            }
-
-            navigation(
-                route = TopTab.Settings.graphRoute,
-                startDestination = SettingsRoutes.HOME,
-            ) {
-                settingsNavGraph(navController, onSignedOut = onSignedOut)
             }
 
             // Paywall lives outside a single tab so it can be reached from
@@ -222,10 +244,11 @@ private enum class TopTab(
     val label: String,
     val icon: ImageVector,
 ) {
-    // Order mirrors iOS MainTabView: Analytics, Log, Session, Equipment, Settings.
+    // Bottom bar: Analytics, Log, Session, Social, Equipment.
+    // Settings is behind the avatar in the Social feed's You screen.
     Analytics("tab/analytics", "Analytics", Icons.Filled.BarChart),
     Log("tab/log", "Log", Icons.Filled.Assignment),
     Session("tab/session", "Session", Icons.Filled.TrackChanges),
+    Social("tab/social", "Social", Icons.Filled.Group),
     Equipment("tab/equipment", "Equipment", Icons.Filled.Tune),
-    Settings("tab/settings", "Settings", Icons.Filled.AccountCircle),
 }
