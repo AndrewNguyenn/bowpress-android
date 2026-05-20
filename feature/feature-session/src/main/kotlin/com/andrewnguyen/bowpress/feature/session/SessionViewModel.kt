@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
+import com.andrewnguyen.bowpress.core.data.social.SocialSessionSharer
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
@@ -47,6 +48,7 @@ class SessionViewModel @Inject constructor(
     private val sessionRepo: SessionRepository,
     private val plotRepo: PlotRepository,
     private val sessionEndRepo: SessionEndRepository,
+    private val socialSessionSharer: SocialSessionSharer,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -328,6 +330,9 @@ class SessionViewModel @Inject constructor(
 
     suspend fun endSession(notes: String, feelTags: List<String>) {
         val session = _uiState.value.activeSession ?: return
+        // Capture the arrow plots before the UI state is cleared below — the
+        // §15 share needs the score/X line off the just-finished session.
+        val arrows = _uiState.value.currentArrows
         _uiState.update { it.copy(isLoading = true, error = null) }
         sessionRepo.endSession(
             sessionId = session.id,
@@ -353,6 +358,31 @@ class SessionViewModel @Inject constructor(
                 pendingArrowConfig = null,
                 currentArrows = emptyList(),
                 userOverrodeFace = false,
+            )
+        }
+        // §15 — publish the saved session to friends' feeds. Fire-and-forget:
+        // SocialSessionSharer self-gates on visibility and never throws, so a
+        // share failure can't affect the already-persisted save above.
+        shareSessionToFeed(session, arrows)
+    }
+
+    /**
+     * Publishes the just-finalized [session] to the friend feed (§15). Scored
+     * from the session's [arrows] — score is the ring sum, X count is ring-11
+     * hits — counting only non-excluded plots.
+     */
+    private fun shareSessionToFeed(session: ShootingSession, arrows: List<ArrowPlot>) {
+        val scored = arrows.filterNot { it.excluded }
+        viewModelScope.launch {
+            socialSessionSharer.shareCompletedSession(
+                sessionId = session.id,
+                score = scored.sumOf { it.ring },
+                xCount = scored.count { it.ring == 11 },
+                arrowCount = scored.size,
+                distance = session.distance?.label,
+                face = session.targetFaceType.label,
+                title = session.title?.takeIf { it.isNotBlank() },
+                shotAt = session.startedAt,
             )
         }
     }
