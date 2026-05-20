@@ -281,4 +281,63 @@ class DtoRoundTripTest {
         assertThat(decoded.arrows).isEmpty()
         assertThat(decoded.sharedSession.score).isEqualTo(540)
     }
+
+    @Test
+    fun `ShootingSession round-trips the targetLayout, and legacy rows default to SINGLE`() {
+        val triangle = ShootingSession(
+            id = "sess-1",
+            bowId = "bow-1",
+            bowConfigId = "cfg-1",
+            arrowConfigId = "arrow-1",
+            startedAt = Instant.parse("2026-05-19T08:00:00Z"),
+            targetFaceType = TargetFaceType.TEN_RING,
+            targetLayout = TargetLayout.TRIANGLE,
+        )
+        val encoded = json.encodeToString(ShootingSession.serializer(), triangle)
+        val decoded = json.decodeFromString(ShootingSession.serializer(), encoded)
+        assertThat(decoded.targetLayout).isEqualTo(TargetLayout.TRIANGLE)
+
+        // A pre-field row (no targetLayout key) decodes as SINGLE.
+        val legacy = """
+            {
+              "id": "sess-2", "bowId": "b1", "bowConfigId": "c1", "arrowConfigId": "a1",
+              "startedAt": "2026-05-19T08:00:00Z"
+            }
+        """.trimIndent()
+        val legacyDecoded = json.decodeFromString(ShootingSession.serializer(), legacy)
+        assertThat(legacyDecoded.targetLayout).isEqualTo(TargetLayout.SINGLE)
+    }
+
+    @Test
+    fun `ActivityItem round-trips routing fields and tolerates an older payload`() {
+        val routed = ActivityItem(
+            id = "act-1",
+            kind = ActivityKind.club_session,
+            sourceKind = ActivitySourceKind.club,
+            actorHandle = "marcus.t",
+            actorDisplayName = "Marcus T",
+            title = "Logged a club session",
+            createdAt = Instant.parse("2026-05-19T08:00:00Z"),
+            actorUserId = "u-9",
+            clubId = "club-7",
+        )
+        val encoded = json.encodeToString(ActivityItem.serializer(), routed)
+        val decoded = json.decodeFromString(ActivityItem.serializer(), encoded)
+        assertThat(decoded.actorUserId).isEqualTo("u-9")
+        assertThat(decoded.clubId).isEqualTo("club-7")
+        assertThat(decoded.leagueId).isNull()
+
+        // A pre-routing-fields payload still decodes — fields take their defaults.
+        val legacy = """
+            {
+              "id": "act-2", "kind": "friend_setup", "sourceKind": "friend",
+              "actorHandle": "jake.t", "actorDisplayName": "Jake T",
+              "title": "Updated bow setup", "createdAt": "2026-05-19T08:00:00Z"
+            }
+        """.trimIndent()
+        val legacyDecoded = json.decodeFromString(ActivityItem.serializer(), legacy)
+        assertThat(legacyDecoded.actorUserId).isEqualTo("")
+        assertThat(legacyDecoded.clubId).isNull()
+        assertThat(legacyDecoded.leagueId).isNull()
+    }
 }

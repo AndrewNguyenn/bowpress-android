@@ -101,17 +101,13 @@ fun FeedScreen(
             items(state.feed, key = { it.id }) { item ->
                 FeedItemRow(
                     item = item,
-                    // Routing precedence: a row drills to its session, else
-                    // its league, else its club, else the actor's profile.
+                    // Routing precedence lives in feedItemDestination().
                     onItemClick = { row ->
-                        val session = row.session
-                        val leagueId = row.leagueId
-                        val clubId = row.clubId
-                        when {
-                            session != null -> onSessionClick(session.sharedSessionId)
-                            leagueId != null -> onLeagueClick(leagueId)
-                            clubId != null -> onClubClick(clubId)
-                            else -> onActorClick(row.actorUserId)
+                        when (val dest = feedItemDestination(row)) {
+                            is FeedItemDestination.Session -> onSessionClick(dest.sharedSessionId)
+                            is FeedItemDestination.League -> onLeagueClick(dest.leagueId)
+                            is FeedItemDestination.Club -> onClubClick(dest.clubId)
+                            is FeedItemDestination.Actor -> onActorClick(dest.actorUserId)
                         }
                     },
                 )

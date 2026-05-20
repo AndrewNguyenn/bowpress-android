@@ -23,6 +23,8 @@ import org.junit.runner.RunWith
  * - [migrate_9_to_11_adds_shared_session_columns_and_achievements]: Verifies the
  *   v9→v10 (§15 activity_feed columns) and v10→v11 (achievements table)
  *   AutoMigrations chain without data loss.
+ * - [migrate_11_to_12_adds_routing_and_layout_columns]: Verifies the v11→v12
+ *   AutoMigration adds activity_feed routing columns + sessions.targetLayout.
  *
  * Schema JSON snapshots under `core-database/schemas/` are exposed to this test as
  * assets via `sourceSets["androidTest"].assets.srcDirs` in `build.gradle.kts`.
@@ -230,6 +232,74 @@ class BowPressDatabaseMigrationTest {
         db.query("SELECT value FROM achievements WHERE id = 'ach-1'").use { cursor ->
             assertThat(cursor.moveToFirst()).isTrue()
             assertThat(cursor.getInt(0)).isEqualTo(558)
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate_11_to_12_adds_routing_and_layout_columns() {
+        val dbName = "migration-11-12-test.db"
+
+        // Create a v11 DB with an activity_feed row and a sessions row, to
+        // confirm both survive the v12 column additions.
+        helper.createDatabase(dbName, 11).apply {
+            execSQL(
+                """
+                INSERT INTO activity_feed (
+                    id, kind, sourceKind, actorHandle, actorDisplayName,
+                    title, createdAt, highlighted
+                ) VALUES (
+                    'act-1', 'friend_pr', 'friend', 'sara.l', 'Sara Lin',
+                    'Hit a new PR', 1700000000000, 0
+                )
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO sessions (
+                    id, bowId, bowConfigId, arrowConfigId, startedAt,
+                    notes, feelTags, arrowCount, targetFaceType, pendingSync
+                ) VALUES (
+                    'sess-1', 'bow-1', 'cfg-1', 'arrow-1', 1700000000000,
+                    '', '[]', 0, 'TEN_RING', 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // 11→12 adds activity_feed routing columns + sessions.targetLayout.
+        val db = helper.runMigrationsAndValidate(dbName, 12, /* validateDroppedTables = */ true)
+
+        // The legacy activity_feed row gets the routing-column defaults.
+        db.query("SELECT actorUserId, clubId, leagueId FROM activity_feed WHERE id = 'act-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("")   // actorUserId defaults to ""
+            assertThat(cursor.isNull(1)).isTrue()           // clubId defaults to null
+            assertThat(cursor.isNull(2)).isTrue()           // leagueId defaults to null
+        }
+        // The legacy sessions row gets the SINGLE layout default.
+        db.query("SELECT targetLayout FROM sessions WHERE id = 'sess-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("SINGLE")
+        }
+
+        // A routed feed row + a 3-spot session can be written.
+        db.execSQL(
+            """
+            INSERT INTO activity_feed (
+                id, kind, sourceKind, actorHandle, actorDisplayName,
+                title, createdAt, highlighted, actorUserId, clubId, leagueId
+            ) VALUES (
+                'act-2', 'club_session', 'club', 'marcus.t', 'Marcus T',
+                'Club session', 1700000000000, 0, 'u-9', 'club-7', NULL
+            )
+            """.trimIndent(),
+        )
+        db.query("SELECT clubId FROM activity_feed WHERE id = 'act-2'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("club-7")
         }
 
         db.close()

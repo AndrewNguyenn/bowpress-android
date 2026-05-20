@@ -6,6 +6,8 @@ import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.SharedSession
 import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
 import com.andrewnguyen.bowpress.feature.social.ui.session.FriendSessionDetailViewModel
 import com.google.common.truth.Truth.assertThat
@@ -43,7 +45,11 @@ class FriendSessionDetailViewModelTest {
         createdAt = Instant.now(),
     )
 
-    private fun populatedDetail(id: String) = SharedSessionDetail(
+    private fun populatedDetail(
+        id: String,
+        faceType: TargetFaceType = TargetFaceType.TEN_RING,
+        layout: TargetLayout = TargetLayout.SINGLE,
+    ) = SharedSessionDetail(
         sharedSession = sharedSession(id),
         ownerHandle = "sara.l",
         ownerDisplayName = "Sara Lin",
@@ -53,6 +59,8 @@ class FriendSessionDetailViewModelTest {
             bowConfigId = "cfg-1",
             arrowConfigId = "arrow-1",
             startedAt = Instant.now(),
+            targetFaceType = faceType,
+            targetLayout = layout,
         ),
         ends = listOf(
             SessionEnd(id = "end-1", sessionId = "sess-1", endNumber = 1, completedAt = Instant.now()),
@@ -128,5 +136,23 @@ class FriendSessionDetailViewModelTest {
         assertThat(state.error).isEqualTo("not found")
         assertThat(state.isLoading).isFalse()
         assertThat(state.detail).isNull()
+    }
+
+    @Test
+    fun `the session's target face type and layout flow through to uiState`() = runTest {
+        // A 6-ring inner face shot on a 3-spot Vegas triangle.
+        coEvery { repository.getSharedSessionDetail("ss-3") } returns populatedDetail(
+            id = "ss-3",
+            faceType = TargetFaceType.SIX_RING,
+            layout = TargetLayout.TRIANGLE,
+        )
+
+        val vm = FriendSessionDetailViewModel(repository)
+        vm.load("ss-3")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val session = vm.uiState.value.detail?.session
+        assertThat(session?.targetFaceType).isEqualTo(TargetFaceType.SIX_RING)
+        assertThat(session?.targetLayout).isEqualTo(TargetLayout.TRIANGLE)
     }
 }
