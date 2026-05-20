@@ -4,14 +4,18 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
+import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.FletchingType
-import com.andrewnguyen.bowpress.core.model.ShaftDiameter
+import com.andrewnguyen.bowpress.core.model.ShaftDiameterValidation
+import com.andrewnguyen.bowpress.core.model.UnitFormatting
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentArgs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +28,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ArrowDetailViewModel @Inject constructor(
     private val repository: ArrowConfigRepository,
+    private val unitPrefs: UnitPreferencesRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -41,7 +46,8 @@ class ArrowDetailViewModel @Inject constructor(
         val fletchingOffset: Double = 1.5,
         val nockType: String = "",
         val totalWeightText: String = "",
-        val shaftDiameter: ShaftDiameter? = null,
+        // Free-input shaft diameter — parsed/validated on save. See UnitFormatting.
+        val shaftDiameterText: String = "",
         val notes: String = "",
         val isLoading: Boolean = true,
         val isSaving: Boolean = false,
@@ -58,6 +64,7 @@ class ArrowDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val arrow = repository.getById(arrowId)
+            val system = unitPrefs.unitSystem.first()
             if (arrow == null) {
                 _state.update { it.copy(isLoading = false, errorMessage = "Arrow not found") }
             } else {
@@ -73,10 +80,29 @@ class ArrowDetailViewModel @Inject constructor(
                     fletchingOffset = arrow.fletchingOffset,
                     nockType = arrow.nockType.orEmpty(),
                     totalWeightText = arrow.totalWeight?.toString().orEmpty(),
-                    shaftDiameter = arrow.shaftDiameterEnum,
+                    shaftDiameterText = arrow.shaftDiameter
+                        ?.let { UnitFormatting.shaftDiameterValue(it, system) }.orEmpty(),
                     notes = arrow.notes.orEmpty(),
                     isLoading = false,
                 )
+            }
+        }
+        // Re-render the in-flight diameter text on unit-system changes.
+        viewModelScope.launch {
+            var prev: UnitSystem? = null
+            unitPrefs.unitSystem.collect { system ->
+                val from = prev
+                if (from != null && from != system) {
+                    _state.update { st ->
+                        val mm = UnitFormatting.parseShaftDiameter(st.shaftDiameterText, from)
+                        if (mm != null) {
+                            st.copy(shaftDiameterText = UnitFormatting.shaftDiameterValue(mm, system))
+                        } else {
+                            st
+                        }
+                    }
+                }
+                prev = system
             }
         }
     }
@@ -91,7 +117,7 @@ class ArrowDetailViewModel @Inject constructor(
     fun updateFletchingOffset(v: Double) = _state.update { it.copy(fletchingOffset = v.coerceIn(0.0, 10.0)) }
     fun updateNockType(v: String) = _state.update { it.copy(nockType = v) }
     fun updateTotalWeight(v: String) = _state.update { it.copy(totalWeightText = v.filter(Char::isDigit)) }
-    fun updateShaftDiameter(v: ShaftDiameter?) = _state.update { it.copy(shaftDiameter = v) }
+    fun updateShaftDiameter(v: String) = _state.update { it.copy(shaftDiameterText = v) }
     fun updateNotes(v: String) = _state.update { it.copy(notes = v) }
 
     fun dismissSavedBanner() = _state.update { it.copy(showSavedBanner = false) }
@@ -103,6 +129,17 @@ class ArrowDetailViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             try {
+                val system = unitPrefs.unitSystem.first()
+                val diameterMm: Double? = when (
+                    val result = UnitFormatting.validateShaftDiameter(current.shaftDiameterText, system)
+                ) {
+                    is ShaftDiameterValidation.Empty -> null
+                    is ShaftDiameterValidation.Valid -> result.mm
+                    is ShaftDiameterValidation.Invalid -> {
+                        _state.update { it.copy(isSaving = false, errorMessage = result.message) }
+                        return@launch
+                    }
+                }
                 val updated = arrow.copy(
                     label = current.label.trim(),
                     brand = current.brand.trim().ifEmpty { null },
@@ -114,7 +151,7 @@ class ArrowDetailViewModel @Inject constructor(
                     fletchingOffset = current.fletchingOffset,
                     nockType = current.nockType.trim().ifEmpty { null },
                     totalWeight = current.totalWeightText.toIntOrNull(),
-                    shaftDiameter = current.shaftDiameter?.rawValue,
+                    shaftDiameter = diameterMm,
                     notes = current.notes.trim().ifEmpty { null },
                 )
                 repository.saveArrowConfig(updated)

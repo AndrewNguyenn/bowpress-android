@@ -15,6 +15,16 @@ object UnitConversion {
 
 // ─── Display formatting + parsing ──────────────────────────────────────────
 
+/** Outcome of validating the editable shaft-diameter field. */
+sealed interface ShaftDiameterValidation {
+    /** Field blank — diameter unset. */
+    data object Empty : ShaftDiameterValidation
+    /** In-range value, millimetres. */
+    data class Valid(val mm: Double) : ShaftDiameterValidation
+    /** User-facing error message. */
+    data class Invalid(val message: String) : ShaftDiameterValidation
+}
+
 object UnitFormatting {
 
     // ── Length (storage: inches, Double) ───────────────────────────────────
@@ -73,6 +83,99 @@ object UnitFormatting {
             val sign = if (mm > 0) "+" else ""
             "$sign${trimTrailingZeros(mm, digits)} mm"
         }
+    }
+
+    // ── Shaft diameter (storage: mm, Double — free input) ──────────────────
+
+    /** Allowed arrow shaft (outside) diameter range, in millimetres: 1 mm … 30/64". */
+    val SHAFT_DIAMETER_RANGE_MM: ClosedFloatingPointRange<Double> =
+        1.0..(30.0 / 64.0 * UnitConversion.INCH_TO_MM)
+
+    /**
+     * Editable text for a diameter stored in millimetres — rendered in the
+     * active system's unit, without a suffix (drawn separately).
+     */
+    fun shaftDiameterValue(mm: Double, system: UnitSystem): String = when (system) {
+        UnitSystem.IMPERIAL -> trimTrailingZeros(mm / UnitConversion.INCH_TO_MM, 3)
+        UnitSystem.METRIC -> trimTrailingZeros(mm, 2)
+    }
+
+    /** Unit suffix shown beside the diameter field. */
+    fun shaftDiameterSuffix(system: UnitSystem): String =
+        if (system == UnitSystem.IMPERIAL) "\"" else "mm"
+
+    private enum class ShaftUnit { MM, CM, INCH }
+
+    /**
+     * Parses a user-entered shaft diameter and returns the value in millimetres,
+     * or null if the text is empty or cannot be parsed.
+     *
+     * Accepts fractions (`30/64`), decimals, and explicit unit suffixes
+     * (`mm`, `cm`, `in`, `"`). A bare number is read in the active system's
+     * unit; a bare fraction is always inches (archery convention). The result
+     * is not range-checked — callers compare against [SHAFT_DIAMETER_RANGE_MM].
+     */
+    fun parseShaftDiameter(text: String, system: UnitSystem): Double? {
+        var s = text.trim().lowercase()
+        if (s.isEmpty()) return null
+
+        // An explicit unit suffix overrides the active system.
+        var unit: ShaftUnit? = null
+        when {
+            s.endsWith("mm") -> { unit = ShaftUnit.MM; s = s.dropLast(2) }
+            s.endsWith("cm") -> { unit = ShaftUnit.CM; s = s.dropLast(2) }
+            s.endsWith("in") -> { unit = ShaftUnit.INCH; s = s.dropLast(2) }
+            s.endsWith("\"") || s.endsWith("”") || s.endsWith("″") -> {
+                unit = ShaftUnit.INCH; s = s.dropLast(1)
+            }
+        }
+        s = s.trim()
+        if (s.isEmpty()) return null
+
+        val value: Double
+        if (s.contains("/")) {
+            val parts = s.split("/", limit = 2)
+            val num = parts[0].trim().toDoubleOrNull() ?: return null
+            val den = parts.getOrNull(1)?.trim()?.toDoubleOrNull() ?: return null
+            if (den == 0.0) return null
+            value = num / den
+            // A bare fraction with no explicit unit is inches.
+            if (unit == null) unit = ShaftUnit.INCH
+        } else {
+            value = s.toDoubleOrNull() ?: return null
+        }
+
+        return when (unit ?: if (system == UnitSystem.IMPERIAL) ShaftUnit.INCH else ShaftUnit.MM) {
+            ShaftUnit.MM -> value
+            ShaftUnit.CM -> value * 10.0
+            ShaftUnit.INCH -> value * UnitConversion.INCH_TO_MM
+        }
+    }
+
+    // Display rounding (2-dp mm / 3-dp inch) can nudge a boundary value a few
+    // thousandths of a millimetre past the range; accept within this tolerance
+    // and clamp back, so re-saving a max/min value is never spuriously rejected.
+    private const val SHAFT_DIAMETER_TOLERANCE_MM = 0.05
+
+    /**
+     * Validates the editable shaft-diameter field for save. A valid result is
+     * clamped into [SHAFT_DIAMETER_RANGE_MM] so stored values stay within bounds.
+     */
+    fun validateShaftDiameter(text: String, system: UnitSystem): ShaftDiameterValidation {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return ShaftDiameterValidation.Empty
+        val mm = parseShaftDiameter(trimmed, system)
+            ?: return ShaftDiameterValidation.Invalid(
+                "Enter a valid arrow diameter — e.g. 30/64, 0.46\", or 9 mm.",
+            )
+        val lo = SHAFT_DIAMETER_RANGE_MM.start
+        val hi = SHAFT_DIAMETER_RANGE_MM.endInclusive
+        if (mm < lo - SHAFT_DIAMETER_TOLERANCE_MM || mm > hi + SHAFT_DIAMETER_TOLERANCE_MM) {
+            return ShaftDiameterValidation.Invalid(
+                "Arrow diameter must be between 1 mm and 30/64\" (11.9 mm).",
+            )
+        }
+        return ShaftDiameterValidation.Valid(mm.coerceIn(lo, hi))
     }
 
     // ── Arrow mass (storage: grains, Int) ──────────────────────────────────

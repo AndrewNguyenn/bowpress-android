@@ -392,7 +392,7 @@ private fun TargetSection(
     modifier: Modifier = Modifier,
 ) {
     val faceType = state.targetFaceType
-    val arrowDiameterMm = state.activeArrowConfig?.shaftDiameterEnum?.rawValue ?: 5.0
+    val arrowDiameterMm = state.activeArrowConfig?.shaftDiameter ?: 5.0
 
     Column(modifier = modifier) {
         Row(

@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Mirrors iOS `ArrowConfiguration`. `shaftDiameter` is wire-transported as a Double
- * millimetre value — see [ShaftDiameter.rawValue].
+ * millimetre value — free-input, see [UnitFormatting.parseShaftDiameter].
  */
 @Serializable
 data class ArrowConfiguration(
@@ -20,18 +20,10 @@ data class ArrowConfiguration(
     val fletchingOffset: Double,
     val nockType: String? = null,
     val totalWeight: Int? = null,
-    /**
-     * Wire value is a Double matching one of [ShaftDiameter.rawValue]. We keep the raw
-     * number on the DTO so unfamiliar values don't blow up decoding; use
-     * [shaftDiameter] to snap to the enum.
-     */
+    /** Outside shaft diameter in millimetres. Free-input — see [UnitFormatting.parseShaftDiameter]. */
     val shaftDiameter: Double? = null,
     val notes: String? = null,
 ) {
-    /** Enum resolution of [shaftDiameter]. Returns null if the raw value doesn't match a known entry. */
-    val shaftDiameterEnum: ShaftDiameter?
-        get() = ShaftDiameter.fromRaw(shaftDiameter)
-
     /**
      * One-line arrow spec used in Session and Log surfaces.
      * e.g. `28.5" · 110 gr · vane` (imperial) or `72.4 cm · 7.1 g · vane` (metric).

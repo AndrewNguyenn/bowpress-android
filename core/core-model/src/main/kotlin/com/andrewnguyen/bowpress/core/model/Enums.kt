@@ -116,56 +116,6 @@ enum class FletchingType {
 }
 
 /**
- * Shaft diameter — mirrors iOS `ArrowConfiguration.ShaftDiameter`. Wire is a Double
- * representing millimetres; fractional-inch sizes are encoded as their mm value
- * (e.g. 19/64" ≈ 7.540625). Use [rawValue] when serialising to JSON.
- */
-@Serializable
-enum class ShaftDiameter(val rawValue: Double) {
-    MM3_2(3.2),
-    MM4_0(4.0),
-    MM5_0(5.0),
-    IN19_64(7.540625),
-    IN21_64(8.334375),
-    IN22_64(8.731250),
-    IN23_64(9.128125),
-    IN24_64(9.525000),
-    IN25_64(9.921875),
-    IN26_64(10.318750),
-    IN27_64(10.715625);
-
-    /**
-     * Unit-aware display label.
-     *  - Metric: every case renders as `"{mm} mm"`.
-     *  - Imperial: 1/64" cases keep their fraction; pure-mm cases fall back to
-     *    decimal inches so the user never sees mixed units in imperial mode.
-     */
-    fun displayName(system: UnitSystem): String = when (system) {
-        UnitSystem.METRIC -> {
-            val formatted = if (rawValue == rawValue.toLong().toDouble())
-                "%.0f".format(rawValue) else "%.1f".format(rawValue)
-            "$formatted mm"
-        }
-        UnitSystem.IMPERIAL -> when (this) {
-            MM3_2, MM4_0, MM5_0 -> "%.3f\"".format(rawValue / UnitConversion.INCH_TO_MM)
-            IN19_64 -> "19/64\""
-            IN21_64 -> "21/64\""
-            IN22_64 -> "22/64\""
-            IN23_64 -> "23/64\""
-            IN24_64 -> "24/64\""
-            IN25_64 -> "25/64\""
-            IN26_64 -> "26/64\""
-            IN27_64 -> "27/64\""
-        }
-    }
-
-    companion object {
-        fun fromRaw(raw: Double?): ShaftDiameter? =
-            if (raw == null) null else entries.firstOrNull { it.rawValue == raw }
-    }
-}
-
-/**
  * Period selector for analytics endpoints. Wire values are short codes
  * (`3d`, `7d`, `14d`, `30d`, `90d`, `180d`, `365d`) — mirrors iOS.
  */

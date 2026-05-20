@@ -6,7 +6,7 @@ import kotlin.math.abs
 
 /**
  * Mirrors the iOS UnitFormattingTests suite — round-trips, parser symmetry,
- * sixteenths exactness, ShaftDiameter rendering, UnitRange sanity.
+ * sixteenths exactness, shaft-diameter parsing, UnitRange sanity.
  */
 class UnitFormattingTest {
 
@@ -152,24 +152,89 @@ class UnitFormattingTest {
         assertThat(UnitScale.OUNCE_TO_GRAM.toDisplay(6.0, UnitSystem.IMPERIAL)).isEqualTo(6.0)
     }
 
-    // ── ShaftDiameter ─────────────────────────────────────────────────
+    // ── Shaft diameter (free input) ───────────────────────────────────
 
     @Test
-    fun `shaftDiameter metric renders all cases in mm`() {
-        for (d in ShaftDiameter.entries) {
-            assertThat(d.displayName(UnitSystem.METRIC)).endsWith(" mm")
+    fun `shaftDiameter parses fraction as inches`() {
+        // 30/64" = 11.90625 mm — also the upper bound.
+        assertThat(UnitFormatting.parseShaftDiameter("30/64", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(11.90625)
+        assertThat(UnitFormatting.parseShaftDiameter("19/64", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(7.540625)
+    }
+
+    @Test
+    fun `shaftDiameter bare number uses active system`() {
+        assertThat(UnitFormatting.parseShaftDiameter("9", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(9.0)
+        assertThat(UnitFormatting.parseShaftDiameter("0.3", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(0.3 * 25.4)
+    }
+
+    @Test
+    fun `shaftDiameter explicit suffix overrides system`() {
+        assertThat(UnitFormatting.parseShaftDiameter("9mm", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(9.0)
+        assertThat(UnitFormatting.parseShaftDiameter("0.3in", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(0.3 * 25.4)
+        assertThat(UnitFormatting.parseShaftDiameter("0.3\"", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(0.3 * 25.4)
+        assertThat(UnitFormatting.parseShaftDiameter("1cm", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(10.0)
+    }
+
+    @Test
+    fun `shaftDiameter rejects garbage`() {
+        assertThat(UnitFormatting.parseShaftDiameter("", UnitSystem.METRIC)).isNull()
+        assertThat(UnitFormatting.parseShaftDiameter("abc", UnitSystem.METRIC)).isNull()
+        assertThat(UnitFormatting.parseShaftDiameter("5/0", UnitSystem.METRIC)).isNull()
+        assertThat(UnitFormatting.parseShaftDiameter("5/", UnitSystem.METRIC)).isNull()
+        assertThat(UnitFormatting.parseShaftDiameter("/64", UnitSystem.IMPERIAL)).isNull()
+    }
+
+    @Test
+    fun `shaftDiameter boundary round-trips stay valid`() {
+        // The 30/64" max and 1 mm min lose a few thousandths to display
+        // rounding; re-validating the displayed text must still pass.
+        for (system in listOf(UnitSystem.IMPERIAL, UnitSystem.METRIC)) {
+            for (bound in listOf(
+                UnitFormatting.SHAFT_DIAMETER_RANGE_MM.start,
+                UnitFormatting.SHAFT_DIAMETER_RANGE_MM.endInclusive,
+            )) {
+                val text = UnitFormatting.shaftDiameterValue(bound, system)
+                assertThat(UnitFormatting.validateShaftDiameter(text, system))
+                    .isInstanceOf(ShaftDiameterValidation.Valid::class.java)
+            }
         }
     }
 
     @Test
-    fun `shaftDiameter imperial keeps inch cases as fractions`() {
-        assertThat(ShaftDiameter.IN19_64.displayName(UnitSystem.IMPERIAL)).isEqualTo("19/64\"")
-        assertThat(ShaftDiameter.IN27_64.displayName(UnitSystem.IMPERIAL)).isEqualTo("27/64\"")
+    fun `shaftDiameter validation accepts in-range values`() {
+        assertThat(UnitFormatting.validateShaftDiameter("", UnitSystem.METRIC))
+            .isEqualTo(ShaftDiameterValidation.Empty)
+        assertThat(UnitFormatting.validateShaftDiameter("9", UnitSystem.METRIC))
+            .isEqualTo(ShaftDiameterValidation.Valid(9.0))
+        assertThat(UnitFormatting.validateShaftDiameter("30/64", UnitSystem.IMPERIAL))
+            .isEqualTo(ShaftDiameterValidation.Valid(11.90625))
     }
 
     @Test
-    fun `shaftDiameter imperial shows decimal inches for mm-only cases`() {
-        assertThat(ShaftDiameter.MM3_2.displayName(UnitSystem.IMPERIAL)).isEqualTo("0.126\"")
+    fun `shaftDiameter validation rejects out-of-range values`() {
+        assertThat(UnitFormatting.validateShaftDiameter("31/64", UnitSystem.IMPERIAL))
+            .isInstanceOf(ShaftDiameterValidation.Invalid::class.java)
+        assertThat(UnitFormatting.validateShaftDiameter("0.5", UnitSystem.METRIC))
+            .isInstanceOf(ShaftDiameterValidation.Invalid::class.java)
+        assertThat(UnitFormatting.validateShaftDiameter("nonsense", UnitSystem.METRIC))
+            .isInstanceOf(ShaftDiameterValidation.Invalid::class.java)
+    }
+
+    @Test
+    fun `shaftDiameter value round-trips through text`() {
+        for (system in listOf(UnitSystem.IMPERIAL, UnitSystem.METRIC)) {
+            val text = UnitFormatting.shaftDiameterValue(9.5, system)
+            assertThat(UnitFormatting.parseShaftDiameter(text, system)!!)
+                .isWithin(0.01).of(9.5)
+        }
     }
 
     // ── UnitRange ─────────────────────────────────────────────────────

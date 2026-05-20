@@ -7,13 +7,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -26,9 +23,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,7 +34,6 @@ import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
 import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
 import com.andrewnguyen.bowpress.core.model.FletchingType
-import com.andrewnguyen.bowpress.core.model.ShaftDiameter
 import com.andrewnguyen.bowpress.core.model.UnitFormatting
 import com.andrewnguyen.bowpress.core.model.UnitRange
 import com.andrewnguyen.bowpress.core.model.UnitSystem
@@ -108,7 +101,7 @@ fun AddArrowScreen(
                 fletchingLength = state.fletchingLength, onFletchingLength = viewModel::updateFletchingLength,
                 fletchingOffset = state.fletchingOffset, onFletchingOffset = viewModel::updateFletchingOffset,
                 nockType = state.nockType, onNockType = viewModel::updateNockType,
-                shaftDiameter = state.shaftDiameter, onShaftDiameter = viewModel::updateShaftDiameter,
+                shaftDiameterText = state.shaftDiameterText, onShaftDiameter = viewModel::updateShaftDiameter,
                 unitSystem = unitSystem,
             )
             state.errorMessage?.let { msg ->
@@ -143,7 +136,7 @@ internal fun ArrowFormBody(
     fletchingLength: Double, onFletchingLength: (Double) -> Unit,
     fletchingOffset: Double, onFletchingOffset: (Double) -> Unit,
     nockType: String, onNockType: (String) -> Unit,
-    shaftDiameter: ShaftDiameter?, onShaftDiameter: (ShaftDiameter?) -> Unit,
+    shaftDiameterText: String, onShaftDiameter: (String) -> Unit,
     unitSystem: UnitSystem,
     style: ArrowFormStyle = ArrowFormStyle.ADD,
     totalWeightText: String = "",
@@ -185,7 +178,7 @@ internal fun ArrowFormBody(
         range = UnitRange.POINT_WEIGHT, unitSystem = unitSystem,
     )
     if (style == ArrowFormStyle.DETAIL) {
-        ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
+        ShaftDiameterField(value = shaftDiameterText, onValueChange = onShaftDiameter, unitSystem = unitSystem)
     }
 
     SectionHeader("Fletching")
@@ -212,7 +205,7 @@ internal fun ArrowFormBody(
     if (style == ArrowFormStyle.ADD) {
         // iOS AddArrowView has its own "Shaft Diameter" section after Fletching.
         SectionHeader("Shaft Diameter")
-        ShaftDiameterPicker(selected = shaftDiameter, onSelect = onShaftDiameter, unitSystem = unitSystem)
+        ShaftDiameterField(value = shaftDiameterText, onValueChange = onShaftDiameter, unitSystem = unitSystem)
         SectionHeader("Nock")
         OutlinedTextField(
             value = nockType, onValueChange = onNockType,
@@ -243,28 +236,25 @@ internal fun ArrowFormBody(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Free-input shaft (outside) diameter. Accepts fractions (`30/64`), decimals,
+ * and explicit mm/cm/in/" suffixes; a bare number follows the active unit
+ * system. The value is validated against the 1 mm … 30/64" range on save.
+ */
 @Composable
-private fun ShaftDiameterPicker(
-    selected: ShaftDiameter?,
-    onSelect: (ShaftDiameter?) -> Unit,
+private fun ShaftDiameterField(
+    value: String,
+    onValueChange: (String) -> Unit,
     unitSystem: UnitSystem,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        OutlinedTextField(
-            value = selected?.displayName(unitSystem) ?: "Not set",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Diameter") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor().padding(vertical = 4.dp),
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(text = { Text("Not set") }, onClick = { onSelect(null); expanded = false })
-            ShaftDiameter.entries.forEach { d ->
-                DropdownMenuItem(text = { Text(d.displayName(unitSystem)) }, onClick = { onSelect(d); expanded = false })
-            }
-        }
-    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text("Diameter (${UnitFormatting.shaftDiameterSuffix(unitSystem)})") },
+        placeholder = { Text("e.g. 30/64") },
+        supportingText = { Text("Up to 30/64\". Fraction, decimal, mm, or inches.") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("arrow_diameter_field"),
+    )
 }

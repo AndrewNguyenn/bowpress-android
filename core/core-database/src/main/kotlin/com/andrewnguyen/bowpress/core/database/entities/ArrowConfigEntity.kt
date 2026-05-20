@@ -19,7 +19,7 @@ data class ArrowConfigEntity(
     val fletchingOffset: Double,
     val nockType: String? = null,
     val totalWeight: Int? = null,
-    /** Shaft diameter is stored as the raw mm value (see [com.andrewnguyen.bowpress.core.model.ShaftDiameter.rawValue]). */
+    /** Outside shaft diameter, stored as a millimetre value. */
     val shaftDiameter: Double? = null,
     val notes: String? = null,
     val pendingSync: Boolean = false,

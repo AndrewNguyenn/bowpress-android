@@ -121,7 +121,7 @@ fun ArrowDetailScreen(
                     fletchingLength = state.fletchingLength, onFletchingLength = viewModel::updateFletchingLength,
                     fletchingOffset = state.fletchingOffset, onFletchingOffset = viewModel::updateFletchingOffset,
                     nockType = state.nockType, onNockType = viewModel::updateNockType,
-                    shaftDiameter = state.shaftDiameter, onShaftDiameter = viewModel::updateShaftDiameter,
+                    shaftDiameterText = state.shaftDiameterText, onShaftDiameter = viewModel::updateShaftDiameter,
                     unitSystem = unitSystem,
                     style = ArrowFormStyle.DETAIL,
                     totalWeightText = state.totalWeightText, onTotalWeight = viewModel::updateTotalWeight,
