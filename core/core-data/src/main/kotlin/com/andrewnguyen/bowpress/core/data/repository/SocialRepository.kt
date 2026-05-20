@@ -7,6 +7,7 @@ import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
+import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.Club
@@ -25,6 +26,9 @@ import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
+import com.andrewnguyen.bowpress.core.model.SendInvitationBody
+import com.andrewnguyen.bowpress.core.model.SocialInvitation
+import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
@@ -276,4 +280,36 @@ class SocialRepository @Inject constructor(
         feedDao.clear()
         feedDao.upsertAll(remote.map { it.toEntity() })
     }
+
+    // ── Invitations (§11) ──────────────────────────────────────────────────────
+    //
+    // Invitations are online-first and not Room-cached — they are short-lived
+    // badge-driven state, fetched fresh on the Invites surfaces.
+
+    suspend fun getInvitations(): List<SocialInvitation> =
+        api.getInvitations()
+
+    /**
+     * Accept a club/league invitation. [division] is only relevant for league
+     * invites; it defaults server-side to the league's first division.
+     */
+    suspend fun acceptInvitation(id: String, division: Division? = null): SocialInvitation =
+        api.acceptInvitation(id, AcceptInvitationBody(division))
+
+    /** Decline (invitee) or revoke (inviter) an invitation. */
+    suspend fun declineInvitation(id: String) {
+        api.declineInvitation(id)
+    }
+
+    suspend fun inviteToClub(clubId: String, handle: String): SocialInvitation =
+        api.inviteToClub(clubId, SendInvitationBody(handle))
+
+    suspend fun inviteToLeague(leagueId: String, handle: String): SocialInvitation =
+        api.inviteToLeague(leagueId, SendInvitationBody(handle))
+
+    // ── Pending count (§12) ─────────────────────────────────────────────────────
+
+    /** Fetch the Social-tab badge count (incoming friend requests + invitations). */
+    suspend fun getPendingCount(): SocialPendingCount =
+        api.getPendingCount()
 }

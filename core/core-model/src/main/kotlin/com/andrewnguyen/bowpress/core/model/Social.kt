@@ -440,3 +440,54 @@ object HandicapCalculator {
         allowancePct: Double?,
     ): Int = (rawScore + rawAllowance(equation, baseline, allowancePct)).roundToInt()
 }
+
+// ── §11 Invitations (club + league) ──────────────────────────────────────────
+
+/** Whether an invitation targets a club or a league. */
+@Serializable
+enum class InvitationKind { club, league }
+
+/** Lifecycle status of a [SocialInvitation]. */
+@Serializable
+enum class InvitationStatus { pending, accepted, declined }
+
+/**
+ * Mirrors API §11 `SocialInvitation`. The club/league analogue of a friend
+ * request — a host directly invites a specific archer by handle.
+ */
+@Serializable
+data class SocialInvitation(
+    val id: String,
+    val kind: InvitationKind,
+    val targetId: String,
+    val targetName: String,
+    val inviterUserId: String,
+    val inviterHandle: String,
+    val inviteeUserId: String,
+    val status: InvitationStatus,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+    @Serializable(with = InstantSerializer::class)
+    val respondedAt: Instant? = null,
+)
+
+/** Request body for `POST /social/{clubs|leagues}/:id/invites`. */
+@Serializable
+data class SendInvitationBody(val handle: String)
+
+/** Optional request body for `POST /social/invitations/:id/accept`. */
+@Serializable
+data class AcceptInvitationBody(val division: Division? = null)
+
+// ── §12 Pending count (Social tab badge) ─────────────────────────────────────
+
+/**
+ * Mirrors API §12 `SocialPendingCount`. Drives the Social tab badge — the
+ * badge shows when [total] > 0.
+ */
+@Serializable
+data class SocialPendingCount(
+    val friendRequests: Int = 0,
+    val invitations: Int = 0,
+    val total: Int = 0,
+)

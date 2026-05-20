@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.core.network
 
+import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
@@ -28,8 +29,11 @@ import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
+import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialInvitation
+import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
@@ -436,6 +440,37 @@ interface BowPressApi {
 
     @GET("social/feed")
     suspend fun getActivityFeed(): List<ActivityItem>
+
+    // ---- Social — Invitations (§11) --------------------------------------------
+
+    @GET("social/invitations")
+    suspend fun getInvitations(): List<SocialInvitation>
+
+    @POST("social/invitations/{id}/accept")
+    suspend fun acceptInvitation(
+        @Path("id") id: String,
+        @Body body: AcceptInvitationBody = AcceptInvitationBody(),
+    ): SocialInvitation
+
+    @DELETE("social/invitations/{id}")
+    suspend fun declineInvitation(@Path("id") id: String)
+
+    @POST("social/clubs/{id}/invites")
+    suspend fun inviteToClub(
+        @Path("id") id: String,
+        @Body body: SendInvitationBody,
+    ): SocialInvitation
+
+    @POST("social/leagues/{id}/invites")
+    suspend fun inviteToLeague(
+        @Path("id") id: String,
+        @Body body: SendInvitationBody,
+    ): SocialInvitation
+
+    // ---- Social — Pending count (§12) ------------------------------------------
+
+    @GET("social/pending-count")
+    suspend fun getPendingCount(): SocialPendingCount
 
     // ---- Social — Dev notify (for e2e tests) -----------------------------------
 
