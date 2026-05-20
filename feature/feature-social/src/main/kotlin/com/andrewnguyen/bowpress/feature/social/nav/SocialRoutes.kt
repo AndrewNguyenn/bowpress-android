@@ -22,6 +22,11 @@ object SocialRoutes {
     fun friendProfile(otherUserId: String) = "social/friends/$otherUserId/profile"
     fun friendCompare(otherUserId: String) = "social/friends/$otherUserId/compare"
 
+    // Friend session detail (§16) — drilled into from a feed session row.
+    const val SESSION_DETAIL = "social/sessions/{sharedSessionId}"
+
+    fun sessionDetail(sharedSessionId: String) = "social/sessions/$sharedSessionId"
+
     // Clubs
     const val CLUBS = "social/clubs"
     const val CLUB_HOME = "social/clubs/{clubId}"

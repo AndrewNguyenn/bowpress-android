@@ -18,6 +18,7 @@ import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueComposerScreen
 import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueHomeScreen
 import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeaguesScreen
 import com.andrewnguyen.bowpress.feature.social.ui.privacy.PrivacyScreen
+import com.andrewnguyen.bowpress.feature.social.ui.session.FriendSessionDetailScreen
 import com.andrewnguyen.bowpress.feature.social.ui.you.YouScreen
 
 /**
@@ -49,6 +50,9 @@ fun NavGraphBuilder.socialNavGraph(
             onFriendsClick = { navController.navigate(SocialRoutes.FRIENDS) },
             onClubClick = { clubId -> navController.navigate(SocialRoutes.clubHome(clubId)) },
             onLeagueClick = { leagueId -> navController.navigate(SocialRoutes.leagueHome(leagueId)) },
+            onSessionClick = { sharedSessionId ->
+                navController.navigate(SocialRoutes.sessionDetail(sharedSessionId))
+            },
         )
     }
 
@@ -112,6 +116,19 @@ fun NavGraphBuilder.socialNavGraph(
         val otherUserId = entry.arguments?.getString("otherUserId").orEmpty()
         CompareScreen(
             otherUserId = otherUserId,
+            onBack = { navController.popBackStack() },
+        )
+    }
+
+    // ── Friend session detail (§16) ─────────────────────────────────────────────
+
+    composable(
+        route = SocialRoutes.SESSION_DETAIL,
+        arguments = listOf(navArgument("sharedSessionId") { type = NavType.StringType }),
+    ) { entry ->
+        val sharedSessionId = entry.arguments?.getString("sharedSessionId").orEmpty()
+        FriendSessionDetailScreen(
+            sharedSessionId = sharedSessionId,
             onBack = { navController.popBackStack() },
         )
     }

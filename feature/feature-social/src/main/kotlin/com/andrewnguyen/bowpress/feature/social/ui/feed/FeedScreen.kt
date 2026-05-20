@@ -66,6 +66,7 @@ fun FeedScreen(
     onFriendsClick: () -> Unit,
     onClubClick: (String) -> Unit,
     onLeagueClick: (String) -> Unit,
+    onSessionClick: (String) -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -101,6 +102,7 @@ fun FeedScreen(
                     item = item,
                     onClubClick = onClubClick,
                     onLeagueClick = onLeagueClick,
+                    onSessionClick = onSessionClick,
                 )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp, modifier = Modifier.padding(horizontal = 0.dp))
             }
@@ -254,6 +256,7 @@ private fun FeedItemRow(
     item: ActivityItem,
     onClubClick: (String) -> Unit,
     onLeagueClick: (String) -> Unit,
+    onSessionClick: (String) -> Unit,
 ) {
     val avatarInitials = when (item.sourceKind) {
         ActivitySourceKind.club -> avatarInitials(item.actorDisplayName)
@@ -273,7 +276,7 @@ private fun FeedItemRow(
 
     // §15 — a highlighted row (achievements present) gets the maple Strava
     // treatment: a left maple rule + a tinted paper ground.
-    val rowModifier = if (item.highlighted) {
+    val baseModifier = if (item.highlighted) {
         Modifier
             .fillMaxWidth()
             .background(AppPaper2)
@@ -281,6 +284,11 @@ private fun FeedItemRow(
     } else {
         Modifier.fillMaxWidth()
     }
+    // §16 — a row carrying a shared session is tappable; it drills into that
+    // friend's session detail. Non-session rows stay non-tappable.
+    val rowModifier = item.session?.let { s ->
+        baseModifier.clickable { onSessionClick(s.sharedSessionId) }
+    } ?: baseModifier
 
     Row(
         modifier = rowModifier.padding(horizontal = 18.dp, vertical = 12.dp),
