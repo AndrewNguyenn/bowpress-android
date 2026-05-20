@@ -30,6 +30,8 @@ data class BowConfigEntity(
     val restDepth: Double,
 
     val sightPosition: Int? = null,
+    /** Measured riser-to-pin distance, stored as an inches value. */
+    val sightPinDistance: Double? = null,
     val gripAngle: Double,
     val nockingHeight: Int,
 

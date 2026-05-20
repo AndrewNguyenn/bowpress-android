@@ -203,7 +203,7 @@ class UnitFormattingTest {
             )) {
                 val text = UnitFormatting.shaftDiameterValue(bound, system)
                 assertThat(UnitFormatting.validateShaftDiameter(text, system))
-                    .isInstanceOf(ShaftDiameterValidation.Valid::class.java)
+                    .isInstanceOf(MeasurementValidation.Valid::class.java)
             }
         }
     }
@@ -211,21 +211,21 @@ class UnitFormattingTest {
     @Test
     fun `shaftDiameter validation accepts in-range values`() {
         assertThat(UnitFormatting.validateShaftDiameter("", UnitSystem.METRIC))
-            .isEqualTo(ShaftDiameterValidation.Empty)
+            .isEqualTo(MeasurementValidation.Empty)
         assertThat(UnitFormatting.validateShaftDiameter("9", UnitSystem.METRIC))
-            .isEqualTo(ShaftDiameterValidation.Valid(9.0))
+            .isEqualTo(MeasurementValidation.Valid(9.0))
         assertThat(UnitFormatting.validateShaftDiameter("30/64", UnitSystem.IMPERIAL))
-            .isEqualTo(ShaftDiameterValidation.Valid(11.90625))
+            .isEqualTo(MeasurementValidation.Valid(11.90625))
     }
 
     @Test
     fun `shaftDiameter validation rejects out-of-range values`() {
         assertThat(UnitFormatting.validateShaftDiameter("31/64", UnitSystem.IMPERIAL))
-            .isInstanceOf(ShaftDiameterValidation.Invalid::class.java)
+            .isInstanceOf(MeasurementValidation.Invalid::class.java)
         assertThat(UnitFormatting.validateShaftDiameter("0.5", UnitSystem.METRIC))
-            .isInstanceOf(ShaftDiameterValidation.Invalid::class.java)
+            .isInstanceOf(MeasurementValidation.Invalid::class.java)
         assertThat(UnitFormatting.validateShaftDiameter("nonsense", UnitSystem.METRIC))
-            .isInstanceOf(ShaftDiameterValidation.Invalid::class.java)
+            .isInstanceOf(MeasurementValidation.Invalid::class.java)
     }
 
     @Test
@@ -234,6 +234,132 @@ class UnitFormattingTest {
             val text = UnitFormatting.shaftDiameterValue(9.5, system)
             assertThat(UnitFormatting.parseShaftDiameter(text, system)!!)
                 .isWithin(0.01).of(9.5)
+        }
+    }
+
+    // ── Sight pin distance (free input) ───────────────────────────────
+
+    @Test
+    fun `sightPinDistance parses decimal as inches in imperial`() {
+        assertThat(UnitFormatting.parseSightPinDistance("6.5", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(6.5)
+    }
+
+    @Test
+    fun `sightPinDistance parses fraction as inches regardless of system`() {
+        // A bare fraction is always inches (archery convention).
+        assertThat(UnitFormatting.parseSightPinDistance("13/2", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(6.5)
+        assertThat(UnitFormatting.parseSightPinDistance("13/2", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(6.5)
+    }
+
+    @Test
+    fun `sightPinDistance parses mixed-number fractions as inches`() {
+        // A mixed number `<whole> a/b` reads as whole + a/b inches.
+        assertThat(UnitFormatting.parseSightPinDistance("6 1/2", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(6.5)
+        assertThat(UnitFormatting.parseSightPinDistance("6 3/4", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(6.75)
+        // A simple fraction with no whole part still works.
+        assertThat(UnitFormatting.parseSightPinDistance("1/2", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(0.5)
+    }
+
+    @Test
+    fun `sightPinDistance mixed number honours an explicit suffix`() {
+        // `6 1/2 cm` = 6.5 cm.
+        assertThat(UnitFormatting.parseSightPinDistance("6 1/2 cm", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(6.5 / UnitConversion.INCH_TO_CM)
+    }
+
+    @Test
+    fun `sightPinDistance rejects a malformed mixed number`() {
+        // Three tokens around a `/` is not a valid mixed number.
+        assertThat(UnitFormatting.parseSightPinDistance("6 1/2 3", UnitSystem.IMPERIAL)).isNull()
+    }
+
+    @Test
+    fun `sightPinDistance bare number in imperial is inches`() {
+        assertThat(UnitFormatting.parseSightPinDistance("7", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(7.0)
+    }
+
+    @Test
+    fun `sightPinDistance bare number in metric is cm`() {
+        // Differs from shaft diameter, whose bare metric unit is mm.
+        assertThat(UnitFormatting.parseSightPinDistance("16", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(16.0 / UnitConversion.INCH_TO_CM)
+    }
+
+    @Test
+    fun `sightPinDistance explicit suffix overrides system`() {
+        assertThat(UnitFormatting.parseSightPinDistance("16cm", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(16.0 / UnitConversion.INCH_TO_CM)
+        assertThat(UnitFormatting.parseSightPinDistance("160mm", UnitSystem.IMPERIAL)!!)
+            .isWithin(1e-9).of(160.0 / UnitConversion.INCH_TO_MM)
+        assertThat(UnitFormatting.parseSightPinDistance("6.5in", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(6.5)
+        assertThat(UnitFormatting.parseSightPinDistance("6.5\"", UnitSystem.METRIC)!!)
+            .isWithin(1e-9).of(6.5)
+    }
+
+    @Test
+    fun `sightPinDistance rejects garbage`() {
+        assertThat(UnitFormatting.parseSightPinDistance("", UnitSystem.METRIC)).isNull()
+        assertThat(UnitFormatting.parseSightPinDistance("abc", UnitSystem.METRIC)).isNull()
+        assertThat(UnitFormatting.parseSightPinDistance("5/0", UnitSystem.METRIC)).isNull()
+        assertThat(UnitFormatting.parseSightPinDistance("/2", UnitSystem.IMPERIAL)).isNull()
+    }
+
+    @Test
+    fun `sightPinDistance validation reports empty for blank`() {
+        assertThat(UnitFormatting.validateSightPinDistance("", UnitSystem.IMPERIAL))
+            .isEqualTo(MeasurementValidation.Empty)
+        assertThat(UnitFormatting.validateSightPinDistance("   ", UnitSystem.METRIC))
+            .isEqualTo(MeasurementValidation.Empty)
+    }
+
+    @Test
+    fun `sightPinDistance validation accepts in-range values`() {
+        assertThat(UnitFormatting.validateSightPinDistance("6.5", UnitSystem.IMPERIAL))
+            .isEqualTo(MeasurementValidation.Valid(6.5))
+        assertThat(UnitFormatting.validateSightPinDistance("13/2", UnitSystem.METRIC))
+            .isEqualTo(MeasurementValidation.Valid(6.5))
+    }
+
+    @Test
+    fun `sightPinDistance validation rejects out-of-range and unparseable`() {
+        // 41" is past the 40" ceiling.
+        assertThat(UnitFormatting.validateSightPinDistance("41", UnitSystem.IMPERIAL))
+            .isInstanceOf(MeasurementValidation.Invalid::class.java)
+        // 110 cm > 101.6 cm (40").
+        assertThat(UnitFormatting.validateSightPinDistance("110", UnitSystem.METRIC))
+            .isInstanceOf(MeasurementValidation.Invalid::class.java)
+        assertThat(UnitFormatting.validateSightPinDistance("nonsense", UnitSystem.IMPERIAL))
+            .isInstanceOf(MeasurementValidation.Invalid::class.java)
+    }
+
+    @Test
+    fun `sightPinDistance boundary round-trips stay valid`() {
+        for (system in listOf(UnitSystem.IMPERIAL, UnitSystem.METRIC)) {
+            for (bound in listOf(
+                UnitFormatting.SIGHT_PIN_DISTANCE_RANGE_IN.start,
+                UnitFormatting.SIGHT_PIN_DISTANCE_RANGE_IN.endInclusive,
+            )) {
+                val text = UnitFormatting.sightPinDistanceValue(bound, system)
+                assertThat(UnitFormatting.validateSightPinDistance(text, system))
+                    .isInstanceOf(MeasurementValidation.Valid::class.java)
+            }
+        }
+    }
+
+    @Test
+    fun `sightPinDistance value round-trips through text`() {
+        for (system in listOf(UnitSystem.IMPERIAL, UnitSystem.METRIC)) {
+            val text = UnitFormatting.sightPinDistanceValue(6.5, system)
+            assertThat(UnitFormatting.parseSightPinDistance(text, system)!!)
+                .isWithin(0.01).of(6.5)
         }
     }
 

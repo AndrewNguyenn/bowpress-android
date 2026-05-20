@@ -25,6 +25,9 @@ import org.junit.runner.RunWith
  *   AutoMigrations chain without data loss.
  * - [migrate_11_to_12_adds_routing_and_layout_columns]: Verifies the v11→v12
  *   AutoMigration adds activity_feed routing columns + sessions.targetLayout.
+ * - [migrate_12_to_13_adds_sight_pin_distance_column]: Verifies the v12→v13
+ *   AutoMigration adds the nullable `sightPinDistance` column to
+ *   `bow_configurations` without data loss.
  *
  * Schema JSON snapshots under `core-database/schemas/` are exposed to this test as
  * assets via `sourceSets["androidTest"].assets.srcDirs` in `build.gradle.kts`.
@@ -300,6 +303,64 @@ class BowPressDatabaseMigrationTest {
         db.query("SELECT clubId FROM activity_feed WHERE id = 'act-2'").use { cursor ->
             assertThat(cursor.moveToFirst()).isTrue()
             assertThat(cursor.getString(0)).isEqualTo("club-7")
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate_12_to_13_adds_sight_pin_distance_column() {
+        val dbName = "migration-12-13-test.db"
+
+        // Create a v12 DB with a bow_configurations row to confirm it survives
+        // the v13 column addition.
+        helper.createDatabase(dbName, 12).apply {
+            execSQL(
+                """
+                INSERT INTO bow_configurations (
+                    id, bowId, createdAt, label, drawLength,
+                    restVertical, restHorizontal, restDepth,
+                    sightPosition, gripAngle, nockingHeight,
+                    isReference, referenceManuallyPinned, scoreable, pendingSync
+                ) VALUES (
+                    'cfg-1', 'bow-1', 1700000000000, 'Initial', 28.5,
+                    0, 0, 0.0,
+                    2, 0.0, 0,
+                    0, 0, 0, 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // AutoMigration 12→13 adds the nullable sightPinDistance column.
+        val db = helper.runMigrationsAndValidate(dbName, 13, /* validateDroppedTables = */ true)
+
+        // The legacy row survives, with sightPinDistance defaulting to null.
+        db.query("SELECT sightPinDistance FROM bow_configurations WHERE id = 'cfg-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.isNull(0)).isTrue()
+        }
+
+        // A row carrying a pin distance can be written.
+        db.execSQL(
+            """
+            INSERT INTO bow_configurations (
+                id, bowId, createdAt, label, drawLength,
+                restVertical, restHorizontal, restDepth,
+                sightPosition, sightPinDistance, gripAngle, nockingHeight,
+                isReference, referenceManuallyPinned, scoreable, pendingSync
+            ) VALUES (
+                'cfg-2', 'bow-1', 1700000000000, 'With pin distance', 28.5,
+                0, 0, 0.0,
+                2, 6.5, 0.0, 0,
+                0, 0, 0, 0
+            )
+            """.trimIndent(),
+        )
+        db.query("SELECT sightPinDistance FROM bow_configurations WHERE id = 'cfg-2'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getDouble(0)).isEqualTo(6.5)
         }
 
         db.close()

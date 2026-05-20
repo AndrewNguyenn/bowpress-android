@@ -190,6 +190,10 @@ private fun ReadOnlyBody(
             SectionHeader("Sight, Grip & Nock")
             SectionCard {
                 LabeledValueRow("Sight Position", sightPositionLabel(config.sightPosition ?: 0))
+                // Pin distance is optional — only render the row when it's set.
+                config.sightPinDistance?.let {
+                    LabeledValueRow("Pin Distance", UnitFormatting.length(it, unitSystem))
+                }
                 LabeledValueRow("Grip Angle", UnitFormatting.degrees(config.gripAngle))
                 LabeledValueRow("Nocking Height", UnitFormatting.sixteenths(config.nockingHeight, unitSystem))
             }

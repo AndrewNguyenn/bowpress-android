@@ -111,6 +111,41 @@ class DtoRoundTripTest {
     }
 
     @Test
+    fun `BowConfiguration round-trips sightPinDistance and legacy payload decodes null`() {
+        val cfg = BowConfiguration(
+            id = "c3",
+            bowId = "b1",
+            createdAt = Instant.parse("2026-04-22T12:34:56Z"),
+            label = "With pin distance",
+            drawLength = 28.5,
+            restVertical = 0,
+            restHorizontal = 0,
+            restDepth = 0.0,
+            sightPosition = 2,
+            sightPinDistance = 6.5,
+            gripAngle = 0.0,
+            nockingHeight = 0,
+        )
+        val encoded = json.encodeToString(BowConfiguration.serializer(), cfg)
+        // The camelCase key is on the wire.
+        assertThat(encoded).contains("\"sightPinDistance\":6.5")
+        val decoded = json.decodeFromString(BowConfiguration.serializer(), encoded)
+        assertThat(decoded).isEqualTo(cfg)
+        assertThat(decoded.sightPinDistance).isEqualTo(6.5)
+
+        // A legacy payload without the key decodes to null — must not break.
+        val legacy = """
+            {
+              "id": "c4", "bowId": "b1", "createdAt": "2026-04-22T12:34:56Z",
+              "drawLength": 28.0, "restVertical": 0, "restHorizontal": 0,
+              "restDepth": 0.0, "gripAngle": 0.0, "nockingHeight": 0
+            }
+        """.trimIndent()
+        val legacyDecoded = json.decodeFromString(BowConfiguration.serializer(), legacy)
+        assertThat(legacyDecoded.sightPinDistance).isNull()
+    }
+
+    @Test
     fun `ArrowPlot round-trips with zone enum`() {
         val plot = ArrowPlot(
             id = "p1",

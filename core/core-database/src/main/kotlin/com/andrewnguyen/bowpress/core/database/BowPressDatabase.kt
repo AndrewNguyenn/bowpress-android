@@ -41,8 +41,9 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
  * Root Room database — entities matching iOS `PersistentModels.swift` plus
  * the Social Layer tables added in version 7, the invitations table in
  * version 8, the blocks table in version 9, the §15 shared-session columns on
- * `activity_feed` in version 10, the achievements table in version 11, and
- * the activity-feed routing-target columns in version 12.
+ * `activity_feed` in version 10, the achievements table in version 11, the
+ * activity-feed routing-target columns in version 12, and the
+ * `sightPinDistance` column on `bow_configurations` in version 13.
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -71,7 +72,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // Social achievements — added v11
         AchievementEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -93,6 +94,9 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 11→12: added activity_feed routing-target columns (actorUserId,
         // clubId, leagueId). Pure additive — all defaulted.
         AutoMigration(from = 11, to = 12),
+        // 12→13: added the sightPinDistance column to bow_configurations.
+        // Pure additive — nullable, defaults to NULL.
+        AutoMigration(from = 12, to = 13),
     ],
 )
 @TypeConverters(Converters::class)

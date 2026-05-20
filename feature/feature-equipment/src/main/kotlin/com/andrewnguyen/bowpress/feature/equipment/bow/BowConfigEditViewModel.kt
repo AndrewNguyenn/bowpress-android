@@ -5,10 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.BowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
+import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.BowType
+import com.andrewnguyen.bowpress.core.model.MeasurementValidation
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.UnitFormatting
+import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentArgs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +47,7 @@ import javax.inject.Inject
 class BowConfigEditViewModel @Inject constructor(
     private val bowRepository: BowRepository,
     private val bowConfigRepository: BowConfigRepository,
+    private val unitPrefs: UnitPreferencesRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -63,6 +68,9 @@ class BowConfigEditViewModel @Inject constructor(
         val restHorizontal: Int = 0,
         val restDepth: Double = 0.0,
         val sightPosition: Int = 0,
+        // Free-input riser-to-pin distance — parsed/validated on save (inches).
+        // Empty string means unset; coexists with sightPosition.
+        val sightPinDistanceText: String = "",
         val gripAngle: Double = 0.0,
         val nockingHeight: Int = 0,
 
@@ -177,13 +185,34 @@ class BowConfigEditViewModel @Inject constructor(
                     .maxByOrNull { it.createdAt }
             }
             if (bow != null && base != null) {
-                _state.value = seedFromBase(bow, base)
+                _state.value = seedFromBase(bow, base, unitPrefs.unitSystem.first())
             } else if (bow != null) {
                 // Bow exists but no configs yet (new bow path) — show defaults so
                 // the inline form is still usable.
                 _state.value = UiState(bow = bow, baseConfig = null, isLoading = false)
             } else {
                 _state.value = UiState(isLoading = false, errorMessage = "Bow or config not found")
+            }
+        }
+
+        // Re-render the in-flight pin-distance text when the user flips unit
+        // systems, so a value typed as cm reads back correctly once shown in
+        // inches (mirrors AddArrowViewModel's shaft-diameter re-render).
+        viewModelScope.launch {
+            var prev: UnitSystem? = null
+            unitPrefs.unitSystem.collect { system ->
+                val from = prev
+                if (from != null && from != system) {
+                    _state.update { st ->
+                        val inches = UnitFormatting.parseSightPinDistance(st.sightPinDistanceText, from)
+                        if (inches != null) {
+                            st.copy(sightPinDistanceText = UnitFormatting.sightPinDistanceValue(inches, system))
+                        } else {
+                            st
+                        }
+                    }
+                }
+                prev = system
             }
         }
     }
@@ -195,6 +224,7 @@ class BowConfigEditViewModel @Inject constructor(
     fun updateRestHorizontal(v: Int) = _state.update { it.copy(restHorizontal = v.coerceIn(-16, 16)) }
     fun updateRestDepth(v: Double) = _state.update { it.copy(restDepth = v.coerceIn(-5.0, 5.0)) }
     fun updateSightPosition(v: Int) = _state.update { it.copy(sightPosition = v.coerceIn(-15, 15)) }
+    fun updateSightPinDistance(v: String) = _state.update { it.copy(sightPinDistanceText = v) }
     fun updateGripAngle(v: Double) = _state.update { it.copy(gripAngle = v.coerceIn(0.0, 90.0)) }
     fun updateNockingHeight(v: Int) = _state.update { it.copy(nockingHeight = v.coerceIn(-80, 80)) }
     fun updateLetOff(v: Double) = _state.update { it.copy(letOffPct = v.coerceIn(40.0, 99.0)) }
@@ -240,7 +270,26 @@ class BowConfigEditViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             try {
-                val newConfig = buildConfig(bow, current)
+                val system = unitPrefs.unitSystem.first()
+                // Pin distance is a compound-only field (mirrors iOS, which
+                // validates/assigns it only in its `.compound` case). For
+                // recurve/barebow it's always null and the text is never read,
+                // so a stale value on those forms can't block the save.
+                val pinDistanceIn: Double? = if (bow.bowType == BowType.COMPOUND) {
+                    when (
+                        val result = UnitFormatting.validateSightPinDistance(current.sightPinDistanceText, system)
+                    ) {
+                        is MeasurementValidation.Empty -> null
+                        is MeasurementValidation.Valid -> result.value
+                        is MeasurementValidation.Invalid -> {
+                            _state.update { it.copy(isSaving = false, errorMessage = result.message) }
+                            return@launch
+                        }
+                    }
+                } else {
+                    null
+                }
+                val newConfig = buildConfig(bow, current, pinDistanceIn)
                 bowConfigRepository.saveConfig(newConfig)
                 _state.update { it.copy(isSaving = false, savedConfigId = newConfig.id) }
             } catch (t: Throwable) {
@@ -249,7 +298,7 @@ class BowConfigEditViewModel @Inject constructor(
         }
     }
 
-    private fun buildConfig(bow: Bow, s: UiState): BowConfiguration {
+    private fun buildConfig(bow: Bow, s: UiState, pinDistanceIn: Double?): BowConfiguration {
         val trimmedLabel = s.label.trim().takeIf { it.isNotEmpty() }
         val base = BowConfiguration(
             id = UUID.randomUUID().toString(),
@@ -266,6 +315,8 @@ class BowConfigEditViewModel @Inject constructor(
         return when (bow.bowType) {
             BowType.COMPOUND -> base.copy(
                 sightPosition = s.sightPosition,
+                // Pin distance is compound-only — recurve/barebow leave it null.
+                sightPinDistance = pinDistanceIn,
                 letOffPct = s.letOffPct,
                 peepHeight = s.peepHeight,
                 dLoopLength = s.dLoopLength,
@@ -312,8 +363,11 @@ class BowConfigEditViewModel @Inject constructor(
     }
 
     /** Seed new-form state from the provided [base]. Mirrors iOS `seedFromBase`. */
-    private fun seedFromBase(bow: Bow, base: BowConfiguration): UiState {
+    private fun seedFromBase(bow: Bow, base: BowConfiguration, system: UnitSystem): UiState {
         // Shared — always start tuning rest/sight at zero (iOS seeds 0 here too).
+        // sightPinDistance is a compound-only field (the UI control and data
+        // path are both compound-gated, mirroring iOS), so it's seeded from the
+        // base config only for compound bows; recurve/barebow leave it blank.
         val seed = UiState(
             bow = bow,
             baseConfig = base,
@@ -324,6 +378,13 @@ class BowConfigEditViewModel @Inject constructor(
             restHorizontal = 0,
             restDepth = 0.0,
             sightPosition = 0,
+            sightPinDistanceText = if (bow.bowType == BowType.COMPOUND) {
+                base.sightPinDistance
+                    ?.let { UnitFormatting.sightPinDistanceValue(it, system) }
+                    .orEmpty()
+            } else {
+                ""
+            },
             gripAngle = 0.0,
             nockingHeight = 0,
         )

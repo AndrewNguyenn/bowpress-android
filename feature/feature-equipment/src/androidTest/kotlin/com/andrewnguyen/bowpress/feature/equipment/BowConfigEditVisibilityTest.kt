@@ -33,6 +33,7 @@ class BowConfigEditVisibilityTest {
         override fun updateRestHorizontal(v: Int) = Unit
         override fun updateRestDepth(v: Double) = Unit
         override fun updateSightPosition(v: Int) = Unit
+        override fun updateSightPinDistance(v: String) = Unit
         override fun updateGripAngle(v: Double) = Unit
         override fun updateNockingHeight(v: Int) = Unit
         override fun updateLetOff(v: Double) = Unit
@@ -57,6 +58,8 @@ class BowConfigEditVisibilityTest {
         override fun updateClickerPosition(v: Double) = Unit
         override fun updateRearStabLeftWeight(v: Double) = Unit
         override fun updateRearStabRightWeight(v: Double) = Unit
+        override fun updateSpecificGrip(v: String) = Unit
+        override fun updateSpecificLimbs(v: String) = Unit
     }
 
     private fun baseState() = BowConfigEditViewModel.UiState(isLoading = false)

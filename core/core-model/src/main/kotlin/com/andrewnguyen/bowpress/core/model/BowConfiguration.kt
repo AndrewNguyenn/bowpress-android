@@ -45,6 +45,12 @@ data class BowConfiguration(
 
     // Sight / grip / nock
     val sightPosition: Int? = null,
+    /**
+     * Measured riser-to-pin distance in **inches** — free-input, optional for
+     * all bow types. Coexists with [sightPosition]; neither replaces the other.
+     * See [UnitFormatting.parseSightPinDistance].
+     */
+    val sightPinDistance: Double? = null,
     val gripAngle: Double,
     val nockingHeight: Int,
 
@@ -87,7 +93,8 @@ data class BowConfiguration(
             mainStringTopTwists == other.mainStringTopTwists && mainStringBottomTwists == other.mainStringBottomTwists &&
             topLimbTurns == other.topLimbTurns && bottomLimbTurns == other.bottomLimbTurns &&
             restVertical == other.restVertical && restHorizontal == other.restHorizontal && restDepth == other.restDepth &&
-            sightPosition == other.sightPosition && gripAngle == other.gripAngle && nockingHeight == other.nockingHeight &&
+            sightPosition == other.sightPosition && sightPinDistance == other.sightPinDistance &&
+            gripAngle == other.gripAngle && nockingHeight == other.nockingHeight &&
             specificGrip == other.specificGrip && specificLimbs == other.specificLimbs &&
             frontStabWeight == other.frontStabWeight && frontStabAngle == other.frontStabAngle &&
             rearStabSide == other.rearStabSide && rearStabWeight == other.rearStabWeight &&

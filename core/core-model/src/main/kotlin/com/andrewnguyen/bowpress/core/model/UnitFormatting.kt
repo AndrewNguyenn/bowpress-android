@@ -15,14 +15,18 @@ object UnitConversion {
 
 // ─── Display formatting + parsing ──────────────────────────────────────────
 
-/** Outcome of validating the editable shaft-diameter field. */
-sealed interface ShaftDiameterValidation {
-    /** Field blank — diameter unset. */
-    data object Empty : ShaftDiameterValidation
-    /** In-range value, millimetres. */
-    data class Valid(val mm: Double) : ShaftDiameterValidation
+/**
+ * Outcome of validating a free-input measurement field (shaft diameter, sight
+ * pin distance, …). [Valid.value] is in the field's canonical storage unit —
+ * millimetres for shaft diameter, inches for sight pin distance.
+ */
+sealed interface MeasurementValidation {
+    /** Field blank — measurement unset. */
+    data object Empty : MeasurementValidation
+    /** In-range value, in the field's canonical storage unit. */
+    data class Valid(val value: Double) : MeasurementValidation
     /** User-facing error message. */
-    data class Invalid(val message: String) : ShaftDiameterValidation
+    data class Invalid(val message: String) : MeasurementValidation
 }
 
 object UnitFormatting {
@@ -104,29 +108,36 @@ object UnitFormatting {
     fun shaftDiameterSuffix(system: UnitSystem): String =
         if (system == UnitSystem.IMPERIAL) "\"" else "mm"
 
-    private enum class ShaftUnit { MM, CM, INCH }
+    private enum class LengthUnit { MM, CM, INCH }
 
     /**
-     * Parses a user-entered shaft diameter and returns the value in millimetres,
-     * or null if the text is empty or cannot be parsed.
+     * Shared core for the free-input length parsers. Parses [text] into
+     * millimetres, or returns null if it is empty or unparseable.
      *
-     * Accepts fractions (`30/64`), decimals, and explicit unit suffixes
-     * (`mm`, `cm`, `in`, `"`). A bare number is read in the active system's
-     * unit; a bare fraction is always inches (archery convention). The result
-     * is not range-checked — callers compare against [SHAFT_DIAMETER_RANGE_MM].
+     * Accepts simple fractions (`13/2`), mixed numbers (`6 1/2`), decimals,
+     * and explicit unit suffixes (`mm`, `cm`, `in`, `"`/`”`/`″`). An explicit
+     * suffix always overrides the active system. A bare fraction or mixed
+     * number is always inches (archery convention). A bare number with no
+     * suffix follows the active system: inches in imperial, and
+     * [metricBareUnit] in metric — the one knob that differs between fields
+     * (shaft diameter treats bare metric as mm; sight pin distance as cm).
      */
-    fun parseShaftDiameter(text: String, system: UnitSystem): Double? {
+    private fun parseLengthToMm(
+        text: String,
+        system: UnitSystem,
+        metricBareUnit: LengthUnit,
+    ): Double? {
         var s = text.trim().lowercase()
         if (s.isEmpty()) return null
 
         // An explicit unit suffix overrides the active system.
-        var unit: ShaftUnit? = null
+        var unit: LengthUnit? = null
         when {
-            s.endsWith("mm") -> { unit = ShaftUnit.MM; s = s.dropLast(2) }
-            s.endsWith("cm") -> { unit = ShaftUnit.CM; s = s.dropLast(2) }
-            s.endsWith("in") -> { unit = ShaftUnit.INCH; s = s.dropLast(2) }
+            s.endsWith("mm") -> { unit = LengthUnit.MM; s = s.dropLast(2) }
+            s.endsWith("cm") -> { unit = LengthUnit.CM; s = s.dropLast(2) }
+            s.endsWith("in") -> { unit = LengthUnit.INCH; s = s.dropLast(2) }
             s.endsWith("\"") || s.endsWith("”") || s.endsWith("″") -> {
-                unit = ShaftUnit.INCH; s = s.dropLast(1)
+                unit = LengthUnit.INCH; s = s.dropLast(1)
             }
         }
         s = s.trim()
@@ -134,23 +145,50 @@ object UnitFormatting {
 
         val value: Double
         if (s.contains("/")) {
-            val parts = s.split("/", limit = 2)
+            // Tokenize on whitespace: one token is a simple fraction `a/b`;
+            // two tokens are a mixed number `<whole> a/b`. Any other shape
+            // (e.g. `6 1/2 3`) is malformed.
+            val tokens = s.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            val (whole, fraction) = when (tokens.size) {
+                1 -> 0.0 to tokens[0]
+                2 -> {
+                    // The whole part must be a plain number, not itself a fraction.
+                    if (tokens[0].contains("/")) return null
+                    val w = tokens[0].toDoubleOrNull() ?: return null
+                    w to tokens[1]
+                }
+                else -> return null
+            }
+            val parts = fraction.split("/", limit = 2)
             val num = parts[0].trim().toDoubleOrNull() ?: return null
             val den = parts.getOrNull(1)?.trim()?.toDoubleOrNull() ?: return null
             if (den == 0.0) return null
-            value = num / den
-            // A bare fraction with no explicit unit is inches.
-            if (unit == null) unit = ShaftUnit.INCH
+            value = whole + num / den
+            // A bare fraction or mixed number with no explicit unit is inches.
+            if (unit == null) unit = LengthUnit.INCH
         } else {
             value = s.toDoubleOrNull() ?: return null
         }
 
-        return when (unit ?: if (system == UnitSystem.IMPERIAL) ShaftUnit.INCH else ShaftUnit.MM) {
-            ShaftUnit.MM -> value
-            ShaftUnit.CM -> value * 10.0
-            ShaftUnit.INCH -> value * UnitConversion.INCH_TO_MM
+        return when (unit ?: if (system == UnitSystem.IMPERIAL) LengthUnit.INCH else metricBareUnit) {
+            LengthUnit.MM -> value
+            LengthUnit.CM -> value * 10.0
+            LengthUnit.INCH -> value * UnitConversion.INCH_TO_MM
         }
     }
+
+    /**
+     * Parses a user-entered shaft diameter and returns the value in millimetres,
+     * or null if the text is empty or cannot be parsed.
+     *
+     * Accepts fractions (`30/64`), decimals, and explicit unit suffixes
+     * (`mm`, `cm`, `in`, `"`). A bare number is read in the active system's
+     * unit (a bare metric number is **mm**); a bare fraction is always inches
+     * (archery convention). The result is not range-checked — callers compare
+     * against [SHAFT_DIAMETER_RANGE_MM].
+     */
+    fun parseShaftDiameter(text: String, system: UnitSystem): Double? =
+        parseLengthToMm(text, system, metricBareUnit = LengthUnit.MM)
 
     // Display rounding (2-dp mm / 3-dp inch) can nudge a boundary value a few
     // thousandths of a millimetre past the range; accept within this tolerance
@@ -161,21 +199,81 @@ object UnitFormatting {
      * Validates the editable shaft-diameter field for save. A valid result is
      * clamped into [SHAFT_DIAMETER_RANGE_MM] so stored values stay within bounds.
      */
-    fun validateShaftDiameter(text: String, system: UnitSystem): ShaftDiameterValidation {
+    fun validateShaftDiameter(text: String, system: UnitSystem): MeasurementValidation {
         val trimmed = text.trim()
-        if (trimmed.isEmpty()) return ShaftDiameterValidation.Empty
+        if (trimmed.isEmpty()) return MeasurementValidation.Empty
         val mm = parseShaftDiameter(trimmed, system)
-            ?: return ShaftDiameterValidation.Invalid(
+            ?: return MeasurementValidation.Invalid(
                 "Enter a valid arrow diameter — e.g. 30/64, 0.46\", or 9 mm.",
             )
         val lo = SHAFT_DIAMETER_RANGE_MM.start
         val hi = SHAFT_DIAMETER_RANGE_MM.endInclusive
         if (mm < lo - SHAFT_DIAMETER_TOLERANCE_MM || mm > hi + SHAFT_DIAMETER_TOLERANCE_MM) {
-            return ShaftDiameterValidation.Invalid(
+            return MeasurementValidation.Invalid(
                 "Arrow diameter must be between 1 mm and 30/64\" (11.9 mm).",
             )
         }
-        return ShaftDiameterValidation.Valid(mm.coerceIn(lo, hi))
+        return MeasurementValidation.Valid(mm.coerceIn(lo, hi))
+    }
+
+    // ── Sight pin distance (storage: inches, Double — free input) ──────────
+
+    /** Allowed sight pin (riser-to-pin) distance range, in inches: 0 … 40". */
+    val SIGHT_PIN_DISTANCE_RANGE_IN: ClosedFloatingPointRange<Double> = 0.0..40.0
+
+    /**
+     * Editable text for a pin distance stored in inches — rendered in the
+     * active system's length unit, without a suffix (drawn separately).
+     * Reuses the inch-based [lengthValue] helper.
+     */
+    fun sightPinDistanceValue(inches: Double, system: UnitSystem): String =
+        lengthValue(inches, system)
+
+    /** Unit suffix shown beside the pin-distance field — reuses [lengthSuffix]. */
+    fun sightPinDistanceSuffix(system: UnitSystem): String = lengthSuffix(system)
+
+    /**
+     * Parses a user-entered sight pin distance and returns the value in inches,
+     * or null if the text is empty or cannot be parsed.
+     *
+     * Accepts fractions (`13/2`), decimals, and explicit unit suffixes
+     * (`mm`, `cm`, `in`, `"`). A bare number is read in the active system's
+     * length unit — a bare metric number is **cm** (unlike shaft diameter,
+     * whose bare metric unit is mm). A bare fraction is always inches. The
+     * result is not range-checked — callers compare against
+     * [SIGHT_PIN_DISTANCE_RANGE_IN].
+     */
+    fun parseSightPinDistance(text: String, system: UnitSystem): Double? =
+        parseLengthToMm(text, system, metricBareUnit = LengthUnit.CM)
+            ?.let { it / UnitConversion.INCH_TO_MM }
+
+    // Display rounding can nudge a boundary value a few thousandths of an inch
+    // past the range; accept within this tolerance and clamp back so re-saving
+    // a max/min value is never spuriously rejected.
+    private const val SIGHT_PIN_DISTANCE_TOLERANCE_IN = 0.01
+
+    /**
+     * Validates the editable sight-pin-distance field for save. A valid result
+     * is clamped into [SIGHT_PIN_DISTANCE_RANGE_IN] so stored values stay in
+     * bounds. [Valid.value] is in inches.
+     */
+    fun validateSightPinDistance(text: String, system: UnitSystem): MeasurementValidation {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return MeasurementValidation.Empty
+        val inches = parseSightPinDistance(trimmed, system)
+            ?: return MeasurementValidation.Invalid(
+                "Enter a valid pin distance — e.g. 6.5, 6 1/2\", or 16 cm.",
+            )
+        val lo = SIGHT_PIN_DISTANCE_RANGE_IN.start
+        val hi = SIGHT_PIN_DISTANCE_RANGE_IN.endInclusive
+        if (inches < lo - SIGHT_PIN_DISTANCE_TOLERANCE_IN ||
+            inches > hi + SIGHT_PIN_DISTANCE_TOLERANCE_IN
+        ) {
+            return MeasurementValidation.Invalid(
+                "Pin distance must be between 0 and 40\" (101.6 cm).",
+            )
+        }
+        return MeasurementValidation.Valid(inches.coerceIn(lo, hi))
     }
 
     // ── Arrow mass (storage: grains, Int) ──────────────────────────────────

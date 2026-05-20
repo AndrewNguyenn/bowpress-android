@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -31,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,6 +72,7 @@ interface BowConfigEditCallbacks {
     fun updateRestHorizontal(v: Int)
     fun updateRestDepth(v: Double)
     fun updateSightPosition(v: Int)
+    fun updateSightPinDistance(v: String)
     fun updateGripAngle(v: Double)
     fun updateNockingHeight(v: Int)
     fun updateLetOff(v: Double)
@@ -331,11 +334,23 @@ internal fun BowConfigEditFormBody(
             SectionHeader("Sight, Grip & Nock")
             SectionCard {
                 IntStepperRow("Sight Position", state.sightPosition, callbacks::updateSightPosition, sightPositionLabel(state.sightPosition), -15, 15)
+                SightPinDistanceField(
+                    value = state.sightPinDistanceText,
+                    onValueChange = callbacks::updateSightPinDistance,
+                    unitSystem = unitSystem,
+                )
                 DoubleStepperRow("Grip Angle", state.gripAngle, callbacks::updateGripAngle,
                     UnitFormatting.degrees(state.gripAngle), 0.0, 90.0, 0.5)
                 IntStepperRow("Nocking Height", state.nockingHeight, callbacks::updateNockingHeight,
                     UnitFormatting.sixteenths(state.nockingHeight, unitSystem), -80, 80)
             }
+            Text(
+                "Pin distance is the measured riser-to-pin distance — " +
+                    "enter a fraction, decimal, mm, or inches.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, start = 4.dp, end = 4.dp),
+            )
         }
 
         if (EquipmentFieldRules.sectionVisible(Section.TILLER, bowType, isSetup)) {
@@ -445,6 +460,32 @@ internal fun BowConfigEditFormBody(
     }
 }
 
+/**
+ * Free-input riser-to-pin sight distance. Accepts fractions (`13/2`), decimals,
+ * and explicit mm/cm/in/" suffixes; a bare number follows the active unit
+ * system (inches imperial, cm metric). Optional — blank leaves the value unset.
+ * Validated against the 0…40" range on save.
+ */
+@Composable
+private fun SightPinDistanceField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    unitSystem: UnitSystem,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text("Pin Distance (${UnitFormatting.sightPinDistanceSuffix(unitSystem)})") },
+        placeholder = { Text("Optional") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .testTag("sight_pin_distance_field"),
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RearStabSidePicker(selected: RearStabSide, onSelect: (RearStabSide) -> Unit) {
@@ -477,6 +518,7 @@ internal fun BowConfigEditViewModel.asCallbacks(): BowConfigEditCallbacks = obje
     override fun updateRestHorizontal(v: Int) = this@asCallbacks.updateRestHorizontal(v)
     override fun updateRestDepth(v: Double) = this@asCallbacks.updateRestDepth(v)
     override fun updateSightPosition(v: Int) = this@asCallbacks.updateSightPosition(v)
+    override fun updateSightPinDistance(v: String) = this@asCallbacks.updateSightPinDistance(v)
     override fun updateGripAngle(v: Double) = this@asCallbacks.updateGripAngle(v)
     override fun updateNockingHeight(v: Int) = this@asCallbacks.updateNockingHeight(v)
     override fun updateLetOff(v: Double) = this@asCallbacks.updateLetOff(v)

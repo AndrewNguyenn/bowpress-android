@@ -7,7 +7,7 @@ import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.FletchingType
-import com.andrewnguyen.bowpress.core.model.ShaftDiameterValidation
+import com.andrewnguyen.bowpress.core.model.MeasurementValidation
 import com.andrewnguyen.bowpress.core.model.UnitFormatting
 import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentArgs
@@ -133,9 +133,9 @@ class ArrowDetailViewModel @Inject constructor(
                 val diameterMm: Double? = when (
                     val result = UnitFormatting.validateShaftDiameter(current.shaftDiameterText, system)
                 ) {
-                    is ShaftDiameterValidation.Empty -> null
-                    is ShaftDiameterValidation.Valid -> result.mm
-                    is ShaftDiameterValidation.Invalid -> {
+                    is MeasurementValidation.Empty -> null
+                    is MeasurementValidation.Valid -> result.value
+                    is MeasurementValidation.Invalid -> {
                         _state.update { it.copy(isSaving = false, errorMessage = result.message) }
                         return@launch
                     }
