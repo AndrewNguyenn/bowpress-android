@@ -42,6 +42,7 @@ import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.TeamConfig
 import com.andrewnguyen.bowpress.core.model.TeamScoring
 import com.andrewnguyen.bowpress.core.model.Friendship
+import java.time.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
@@ -178,9 +179,12 @@ fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
 fun LeagueEntity.toDto(): League {
     val divisions = json.decodeFromString<List<String>>(divisions)
         .mapNotNull { runCatching { Division.valueOf(it) }.getOrNull() }
-    val round = json.decodeFromString<RoundDef>(roundJson)
-    val schedule = json.decodeFromString<LeagueSchedule>(scheduleJson)
-    val handicap = json.decodeFromString<HandicapConfig>(handicapJson)
+    val round = runCatching { json.decodeFromString<RoundDef>(roundJson) }
+        .getOrDefault(RoundDef(endCount = 0, arrowsPerEnd = 0))
+    val schedule = runCatching { json.decodeFromString<LeagueSchedule>(scheduleJson) }
+        .getOrDefault(LeagueSchedule(kind = LeagueScheduleKind.single, startsAt = Instant.EPOCH, endsAt = Instant.EPOCH))
+    val handicap = runCatching { json.decodeFromString<HandicapConfig>(handicapJson) }
+        .getOrDefault(HandicapConfig())
     val team = teamJson?.let { runCatching { json.decodeFromString<TeamConfig>(it) }.getOrNull() }
     val myEntry = myEntryJson?.let { runCatching { json.decodeFromString<LeagueEntry>(it) }.getOrNull() }
     return League(
