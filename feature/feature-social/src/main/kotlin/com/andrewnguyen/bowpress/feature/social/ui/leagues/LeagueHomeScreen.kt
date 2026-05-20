@@ -279,7 +279,6 @@ fun LeagueHomeScreen(
                     Spacer(Modifier.height(6.dp))
                     MuteBlockAction(
                         kind = BlockKind.league,
-                        targetId = lg.id,
                         targetName = lg.name,
                         block = blocksState.blockFor(lg.id),
                         onSetMode = { mode ->

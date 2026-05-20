@@ -243,7 +243,6 @@ fun FriendProfileScreen(
                 Spacer(Modifier.height(6.dp))
                 MuteBlockAction(
                     kind = BlockKind.archer,
-                    targetId = otherUserId,
                     targetName = "@${fp.profile.handle}",
                     block = blocksState.blockFor(otherUserId),
                     onSetMode = { mode ->

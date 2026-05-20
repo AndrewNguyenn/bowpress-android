@@ -254,7 +254,6 @@ fun ClubHomeScreen(
                     Spacer(Modifier.height(6.dp))
                     MuteBlockAction(
                         kind = BlockKind.club,
-                        targetId = club.id,
                         targetName = club.name,
                         block = blocksState.blockFor(club.id),
                         onSetMode = { mode ->

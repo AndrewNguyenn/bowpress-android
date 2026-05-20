@@ -58,19 +58,20 @@ fun BlockMode.label(): String = when (this) {
  *
  * When [block] is null the row offers the action; when set it shows the
  * current state (`MUTED` / `BLOCKED`) and tapping opens the manage dialog.
- * Wire it to a [BlockViewModel]:
+ * [targetName] is shown in the dialog header; target identity for the API
+ * call is captured by the caller in [onSetMode] / [onRemove]. Wire it to a
+ * [BlockViewModel]:
  *
  *   MuteBlockAction(
- *     kind = BlockKind.archer, targetId = userId, targetName = handle,
+ *     kind = BlockKind.archer, targetName = "@${handle}",
  *     block = blocksState.blockFor(userId),
- *     onSetMode = { mode -> blockVm.setBlock(kind, id, name, mode) },
+ *     onSetMode = { mode -> blockVm.setBlock(BlockKind.archer, userId, handle, mode) },
  *     onRemove = { id -> blockVm.removeBlock(id) },
  *   )
  */
 @Composable
 fun MuteBlockAction(
     kind: BlockKind,
-    targetId: String,
     targetName: String,
     block: SocialBlock?,
     onSetMode: (BlockMode) -> Unit,
