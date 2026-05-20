@@ -207,4 +207,78 @@ class DtoRoundTripTest {
         assertThat(decoded.bowId).isEqualTo("b1")
         assertThat(decoded.strength).isEqualTo(TagStrength.MODERATE)
     }
+
+    @Test
+    fun `SharedSessionDetail round-trips with nested session, ends, and arrows`() {
+        val detail = SharedSessionDetail(
+            sharedSession = SharedSession(
+                id = "ss-1",
+                userId = "u-1",
+                sessionId = "sess-1",
+                score = 196,
+                xCount = 9,
+                arrowCount = 18,
+                distance = "50m",
+                face = "10-Ring",
+                title = "Pre-comp check",
+                shotAt = Instant.parse("2026-05-19T08:00:00Z"),
+                createdAt = Instant.parse("2026-05-19T09:00:00Z"),
+            ),
+            ownerHandle = "sara.l",
+            ownerDisplayName = "Sara Lin",
+            session = ShootingSession(
+                id = "sess-1",
+                bowId = "bow-1",
+                bowConfigId = "cfg-1",
+                arrowConfigId = "arrow-1",
+                startedAt = Instant.parse("2026-05-19T08:00:00Z"),
+            ),
+            ends = listOf(
+                SessionEnd(
+                    id = "end-1",
+                    sessionId = "sess-1",
+                    endNumber = 1,
+                    completedAt = Instant.parse("2026-05-19T08:05:00Z"),
+                ),
+            ),
+            arrows = listOf(
+                ArrowPlot(
+                    id = "p1",
+                    sessionId = "sess-1",
+                    bowConfigId = "cfg-1",
+                    arrowConfigId = "arrow-1",
+                    ring = 11,
+                    zone = Zone.CENTER,
+                    plotX = 0.01,
+                    plotY = -0.02,
+                    endId = "end-1",
+                    shotAt = Instant.parse("2026-05-19T08:01:00Z"),
+                ),
+            ),
+        )
+        val encoded = json.encodeToString(SharedSessionDetail.serializer(), detail)
+        val decoded = json.decodeFromString(SharedSessionDetail.serializer(), encoded)
+        assertThat(decoded).isEqualTo(detail)
+    }
+
+    @Test
+    fun `SharedSessionDetail tolerates a deleted session with empty defaults`() {
+        // The owner deleted the underlying session — session/ends/arrows absent.
+        val raw = """
+            {
+              "sharedSession": {
+                "id": "ss-2", "userId": "u-1", "sessionId": "sess-2",
+                "score": 540, "xCount": 12, "arrowCount": 60,
+                "shotAt": "2026-05-18T10:00:00Z", "createdAt": "2026-05-18T11:00:00Z"
+              },
+              "ownerHandle": "marcus.t",
+              "ownerDisplayName": "Marcus T"
+            }
+        """.trimIndent()
+        val decoded = json.decodeFromString(SharedSessionDetail.serializer(), raw)
+        assertThat(decoded.session).isNull()
+        assertThat(decoded.ends).isEmpty()
+        assertThat(decoded.arrows).isEmpty()
+        assertThat(decoded.sharedSession.score).isEqualTo(540)
+    }
 }

@@ -4,11 +4,14 @@ import com.andrewnguyen.bowpress.core.data.converters.toDto
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
 import com.andrewnguyen.bowpress.core.database.dao.AchievementDao
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
+import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
 import com.andrewnguyen.bowpress.core.database.dao.BlockDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
 import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
+import com.andrewnguyen.bowpress.core.database.dao.SessionDao
+import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.Achievement
@@ -37,6 +40,7 @@ import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.ShareSessionBody
 import com.andrewnguyen.bowpress.core.model.ShareSessionResult
+import com.andrewnguyen.bowpress.core.model.SharedSession
 import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
 import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
@@ -77,6 +81,9 @@ class SocialRepository @Inject constructor(
     private val invitationDao: InvitationDao,
     private val blockDao: BlockDao,
     private val achievementDao: AchievementDao,
+    private val sessionDao: SessionDao,
+    private val sessionEndDao: SessionEndDao,
+    private val plotDao: ArrowPlotDao,
 ) {
 
     // ── Profile ───────────────────────────────────────────────────────────────
@@ -456,10 +463,66 @@ class SocialRepository @Inject constructor(
 
     /**
      * A friend's full shared-session detail — scorecard ends + plotted arrows
-     * for the target face. Online-only (transient drill-in detail, like
-     * [getFriendProfile]); `session`/`ends`/`arrows` come back empty when the
-     * owner deleted the underlying session.
+     * for the target face. API-first; on failure (offline / DEBUG fake token)
+     * it falls back to assembling the detail from the cached activity feed +
+     * the local session/ends/arrows tables, so the screen still renders in
+     * DEBUG. `session`/`ends`/`arrows` come back empty when the owner deleted
+     * the underlying session.
      */
-    suspend fun getSharedSessionDetail(sharedSessionId: String): SharedSessionDetail =
-        api.getSharedSessionDetail(sharedSessionId)
+    suspend fun getSharedSessionDetail(sharedSessionId: String): SharedSessionDetail {
+        return runCatching { api.getSharedSessionDetail(sharedSessionId) }
+            .getOrElse {
+                buildSharedSessionDetailFromCache(sharedSessionId)
+                    ?: throw it
+            }
+    }
+
+    /**
+     * Offline/DEBUG fallback for [getSharedSessionDetail]: locate the tapped
+     * shared session in the cached activity feed (the §15 feed rows carry an
+     * `ActivitySession` payload), then join the local session/ends/arrows
+     * tables by its `sessionId`.
+     */
+    private suspend fun buildSharedSessionDetailFromCache(
+        sharedSessionId: String,
+    ): SharedSessionDetail? {
+        val feedRow = feedDao.getAll()
+            .map { it.toDto() }
+            .firstOrNull { it.session?.sharedSessionId == sharedSessionId }
+            ?: return null
+        val activitySession = feedRow.session ?: return null
+
+        val session = sessionDao.findById(activitySession.sessionId)?.toDto()
+        val ends = if (session != null) {
+            sessionEndDao.findBySession(activitySession.sessionId).map { it.toDto() }
+        } else {
+            emptyList()
+        }
+        val arrows = if (session != null) {
+            plotDao.findBySession(activitySession.sessionId).map { it.toDto() }
+        } else {
+            emptyList()
+        }
+
+        return SharedSessionDetail(
+            sharedSession = SharedSession(
+                id = sharedSessionId,
+                userId = feedRow.actorHandle,
+                sessionId = activitySession.sessionId,
+                score = activitySession.score,
+                xCount = activitySession.xCount,
+                arrowCount = activitySession.arrowCount,
+                distance = activitySession.distance,
+                face = activitySession.face,
+                title = session?.title,
+                shotAt = session?.startedAt ?: feedRow.createdAt,
+                createdAt = feedRow.createdAt,
+            ),
+            ownerHandle = feedRow.actorHandle,
+            ownerDisplayName = feedRow.actorDisplayName,
+            session = session,
+            ends = ends,
+            arrows = arrows,
+        )
+    }
 }

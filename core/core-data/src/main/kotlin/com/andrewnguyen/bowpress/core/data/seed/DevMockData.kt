@@ -822,18 +822,21 @@ private object DevMockData {
             createdAt = daysAgo(0).minus(2, ChronoUnit.HOURS),
             session = ActivitySession(
                 sharedSessionId = "ss_sara_1",
-                sessionId = "sess_sara_1",
-                score = 574,
-                xCount = 24,
-                arrowCount = 30,
+                // §16 — points at a seeded session (dev_s1_8: 18 plots + ends)
+                // so the friend session detail renders a real scorecard +
+                // plotted target in DEBUG.
+                sessionId = "dev_s1_8",
+                score = 196,
+                xCount = 9,
+                arrowCount = 18,
                 distance = "50m",
                 face = "10-Ring",
             ),
             achievements = listOf(
                 AchievementBadge(
                     kind = AchievementKind.score_pr,
-                    label = "Score PR · 574",
-                    value = 574,
+                    label = "Score PR · 196",
+                    value = 196,
                     sublabel = "50m · 10-Ring",
                 ),
             ),
