@@ -132,3 +132,17 @@ data class BlockEntity(
     val mode: String,                // BlockMode.name
     val createdAt: Instant,
 )
+
+// ── Achievement (§15) ────────────────────────────────────────────────────────
+
+@Entity(tableName = "achievements")
+data class AchievementEntity(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val sharedSessionId: String,
+    val kind: String,                // AchievementKind.name
+    val label: String,
+    val value: Int,
+    val sublabel: String? = null,
+    val createdAt: Instant,
+)

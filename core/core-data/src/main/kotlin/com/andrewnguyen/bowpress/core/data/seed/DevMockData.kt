@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.data.seed
 
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
+import com.andrewnguyen.bowpress.core.database.dao.AchievementDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
 import com.andrewnguyen.bowpress.core.database.dao.BlockDao
@@ -14,8 +15,12 @@ import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.database.dao.SuggestionDao
+import com.andrewnguyen.bowpress.core.model.Achievement
+import com.andrewnguyen.bowpress.core.model.AchievementBadge
+import com.andrewnguyen.bowpress.core.model.AchievementKind
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
+import com.andrewnguyen.bowpress.core.model.ActivitySession
 import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
@@ -96,6 +101,7 @@ class DevMockDataSeeder @Inject constructor(
     private val activityFeedDao: ActivityFeedDao,
     private val invitationDao: InvitationDao,
     private val blockDao: BlockDao,
+    private val achievementDao: AchievementDao,
 ) {
 
     suspend fun seedIfEmpty() {
@@ -118,6 +124,8 @@ class DevMockDataSeeder @Inject constructor(
         invitationDao.upsertAll(DevMockData.invitations.map { it.toEntity() })
         // Mutes / blocks (§14) — one muted archer + one muted club
         blockDao.upsertAll(DevMockData.blocks.map { it.toEntity() })
+        // Achievements (§15) — the dev user's trophy case + a friend's
+        achievementDao.upsertAll(DevMockData.achievements.map { it.toEntity() })
     }
 }
 
@@ -801,16 +809,35 @@ private object DevMockData {
     )
 
     val activityFeed: List<ActivityItem> = listOf(
+        // §15 — a highlighted shared-session row with achievement badges.
         ActivityItem(
             id = "act_001",
             kind = ActivityKind.friend_pr,
             sourceKind = ActivitySourceKind.friend,
             actorHandle = "sara.l",
             actorDisplayName = "Sara Lin",
-            title = "Hit a new personal best · 574",
-            meta = "50m · CMP · 30 arrows",
-            stamp = "2h ago",
+            title = "Shared a session — new personal best",
+            meta = "50m · CMP",
+            stamp = "PR",
             createdAt = daysAgo(0).minus(2, ChronoUnit.HOURS),
+            session = ActivitySession(
+                sharedSessionId = "ss_sara_1",
+                sessionId = "sess_sara_1",
+                score = 574,
+                xCount = 24,
+                arrowCount = 30,
+                distance = "50m",
+                face = "10-Ring",
+            ),
+            achievements = listOf(
+                AchievementBadge(
+                    kind = AchievementKind.score_pr,
+                    label = "Score PR · 574",
+                    value = 574,
+                    sublabel = "50m · 10-Ring",
+                ),
+            ),
+            highlighted = true,
         ),
         ActivityItem(
             id = "act_002",
@@ -854,16 +881,62 @@ private object DevMockData {
             stamp = "5d ago",
             createdAt = daysAgo(5),
         ),
+        // §15 — a highlighted multi-achievement shared session.
         ActivityItem(
             id = "act_006",
             kind = ActivityKind.friend_pr,
             sourceKind = ActivitySourceKind.friend,
             actorHandle = "dev.ch",
             actorDisplayName = "Devon Chen",
-            title = "Hit a new personal best · 561",
-            meta = "20yd · Indoor · 60 arrows",
-            stamp = "1w ago",
+            title = "Shared a session — milestone reached",
+            meta = "20yd · Indoor",
+            stamp = "PR",
             createdAt = daysAgo(7),
+            session = ActivitySession(
+                sharedSessionId = "ss_devon_1",
+                sessionId = "sess_devon_1",
+                score = 561,
+                xCount = 19,
+                arrowCount = 60,
+                distance = "20yd",
+                face = "6-Ring",
+            ),
+            achievements = listOf(
+                AchievementBadge(
+                    kind = AchievementKind.score_pr,
+                    label = "Score PR · 561",
+                    value = 561,
+                    sublabel = "20yd · 6-Ring",
+                ),
+                AchievementBadge(
+                    kind = AchievementKind.arrows_milestone,
+                    label = "5,000 arrows",
+                    value = 5000,
+                    sublabel = "cumulative",
+                ),
+            ),
+            highlighted = true,
+        ),
+        // §15 — a non-PR shared session (plain stat line, not highlighted).
+        ActivityItem(
+            id = "act_007",
+            kind = ActivityKind.friend_session,
+            sourceKind = ActivitySourceKind.friend,
+            actorHandle = "luca.m",
+            actorDisplayName = "Luca Moretti",
+            title = "Shared a session",
+            meta = "70m · REC",
+            stamp = "4d ago",
+            createdAt = daysAgo(4),
+            session = ActivitySession(
+                sharedSessionId = "ss_luca_1",
+                sessionId = "sess_luca_1",
+                score = 512,
+                xCount = 8,
+                arrowCount = 36,
+                distance = "70m",
+                face = "10-Ring",
+            ),
         ),
     )
 
@@ -922,6 +995,55 @@ private object DevMockData {
             targetName = "Metro Indoor League",
             mode = BlockMode.mute,
             createdAt = daysAgo(6),
+        ),
+    )
+
+    // --- Achievements (§15) -----------------------------------------------
+    //
+    // The dev user's trophy case (three earned) plus one for a friend so the
+    // friend-profile trophy case is non-empty in DEBUG.
+
+    val achievements: List<Achievement> = listOf(
+        Achievement(
+            id = "ach_001",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_1",
+            kind = AchievementKind.score_pr,
+            label = "Score PR · 558",
+            value = 558,
+            sublabel = "50m · 10-Ring",
+            createdAt = daysAgo(2),
+        ),
+        Achievement(
+            id = "ach_002",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_1",
+            kind = AchievementKind.streak,
+            label = "7-day streak",
+            value = 7,
+            sublabel = "a session every day this week",
+            createdAt = daysAgo(2),
+        ),
+        Achievement(
+            id = "ach_003",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_old",
+            kind = AchievementKind.arrows_milestone,
+            label = "2,500 arrows",
+            value = 2500,
+            sublabel = "cumulative across shared sessions",
+            createdAt = daysAgo(20),
+        ),
+        // A friend's trophy case (Sara Lin = u_001).
+        Achievement(
+            id = "ach_004",
+            userId = "u_001",
+            sharedSessionId = "ss_sara_1",
+            kind = AchievementKind.score_pr,
+            label = "Score PR · 574",
+            value = 574,
+            sublabel = "50m · 10-Ring",
+            createdAt = daysAgo(0).minus(2, ChronoUnit.HOURS),
         ),
     )
 

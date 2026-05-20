@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.data.repository
 
 import com.andrewnguyen.bowpress.core.data.converters.toDto
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
+import com.andrewnguyen.bowpress.core.database.dao.AchievementDao
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.BlockDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
@@ -74,6 +75,7 @@ class SocialRepository @Inject constructor(
     private val leagueDao: LeagueDao,
     private val invitationDao: InvitationDao,
     private val blockDao: BlockDao,
+    private val achievementDao: AchievementDao,
 ) {
 
     // ── Profile ───────────────────────────────────────────────────────────────
@@ -417,11 +419,35 @@ class SocialRepository @Inject constructor(
     suspend fun shareSession(body: ShareSessionBody): ShareSessionResult =
         api.shareSession(body)
 
-    /** The signed-in user's trophy case. */
-    suspend fun getMyAchievements(): List<Achievement> =
-        api.getMyAchievements()
+    /**
+     * The signed-in user's trophy case. Online-first: a successful fetch
+     * replaces the cached rows for the user; on failure (offline / DEBUG
+     * fake token) the cached/seeded rows are returned. The cache is keyed by
+     * the user id carried on the achievement rows themselves.
+     */
+    suspend fun getMyAchievements(): List<Achievement> {
+        return runCatching { api.getMyAchievements() }
+            .onSuccess { remote -> cacheAchievements(remote) }
+            .getOrElse {
+                val myUserId = runCatching { getMyProfile().userId }.getOrNull()
+                if (myUserId != null) {
+                    achievementDao.getForUser(myUserId).map { it.toDto() }
+                } else {
+                    emptyList()
+                }
+            }
+    }
 
-    /** A friend's trophy case (visibility-gated server-side). */
-    suspend fun getFriendAchievements(otherUserId: String): List<Achievement> =
-        api.getFriendAchievements(otherUserId)
+    /** A friend's trophy case (visibility-gated server-side). Same caching. */
+    suspend fun getFriendAchievements(otherUserId: String): List<Achievement> {
+        return runCatching { api.getFriendAchievements(otherUserId) }
+            .onSuccess { remote -> cacheAchievements(remote) }
+            .getOrElse { achievementDao.getForUser(otherUserId).map { it.toDto() } }
+    }
+
+    /** Replace the cached achievement rows for every user id present in [remote]. */
+    private suspend fun cacheAchievements(remote: List<Achievement>) {
+        remote.map { it.userId }.toSet().forEach { achievementDao.clearForUser(it) }
+        achievementDao.upsertAll(remote.map { it.toEntity() })
+    }
 }

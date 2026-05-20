@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.core.data.converters
 
+import com.andrewnguyen.bowpress.core.database.entities.AchievementEntity
 import com.andrewnguyen.bowpress.core.database.entities.ActivityItemEntity
 import com.andrewnguyen.bowpress.core.database.entities.BlockEntity
 import com.andrewnguyen.bowpress.core.database.entities.ClubEntity
@@ -7,7 +8,9 @@ import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
 import com.andrewnguyen.bowpress.core.database.entities.InvitationEntity
 import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
 import com.andrewnguyen.bowpress.core.database.entities.SocialProfileEntity
+import com.andrewnguyen.bowpress.core.model.Achievement
 import com.andrewnguyen.bowpress.core.model.AchievementBadge
+import com.andrewnguyen.bowpress.core.model.AchievementKind
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySession
@@ -260,5 +263,29 @@ fun SocialBlock.toEntity(): BlockEntity = BlockEntity(
     targetId = targetId,
     targetName = targetName,
     mode = mode.name,
+    createdAt = createdAt,
+)
+
+// ── Achievement (§15) ────────────────────────────────────────────────────────
+
+fun AchievementEntity.toDto(): Achievement = Achievement(
+    id = id,
+    userId = userId,
+    sharedSessionId = sharedSessionId,
+    kind = runCatching { AchievementKind.valueOf(kind) }.getOrDefault(AchievementKind.score_pr),
+    label = label,
+    value = value,
+    sublabel = sublabel,
+    createdAt = createdAt,
+)
+
+fun Achievement.toEntity(): AchievementEntity = AchievementEntity(
+    id = id,
+    userId = userId,
+    sharedSessionId = sharedSessionId,
+    kind = kind.name,
+    label = label,
+    value = value,
+    sublabel = sublabel,
     createdAt = createdAt,
 )

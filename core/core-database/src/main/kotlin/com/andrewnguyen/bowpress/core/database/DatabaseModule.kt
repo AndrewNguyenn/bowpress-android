@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.database
 
 import android.content.Context
 import androidx.room.Room
+import com.andrewnguyen.bowpress.core.database.dao.AchievementDao
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
@@ -56,4 +57,5 @@ object DatabaseModule {
     @Provides fun provideLeagueDao(db: BowPressDatabase): LeagueDao = db.leagueDao()
     @Provides fun provideInvitationDao(db: BowPressDatabase): InvitationDao = db.invitationDao()
     @Provides fun provideBlockDao(db: BowPressDatabase): BlockDao = db.blockDao()
+    @Provides fun provideAchievementDao(db: BowPressDatabase): AchievementDao = db.achievementDao()
 }

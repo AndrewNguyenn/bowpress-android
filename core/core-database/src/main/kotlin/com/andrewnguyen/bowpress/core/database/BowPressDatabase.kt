@@ -4,6 +4,7 @@ import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.andrewnguyen.bowpress.core.database.dao.AchievementDao
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
@@ -19,6 +20,7 @@ import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
 import com.andrewnguyen.bowpress.core.database.dao.SightMarkDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.database.dao.SuggestionDao
+import com.andrewnguyen.bowpress.core.database.entities.AchievementEntity
 import com.andrewnguyen.bowpress.core.database.entities.ActivityItemEntity
 import com.andrewnguyen.bowpress.core.database.entities.ArrowConfigEntity
 import com.andrewnguyen.bowpress.core.database.entities.ArrowPlotEntity
@@ -38,8 +40,8 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
 /**
  * Root Room database — entities matching iOS `PersistentModels.swift` plus
  * the Social Layer tables added in version 7, the invitations table in
- * version 8, the blocks table in version 9, and the §15 shared-session
- * columns on `activity_feed` in version 10.
+ * version 8, the blocks table in version 9, the §15 shared-session columns on
+ * `activity_feed` in version 10, and the achievements table in version 11.
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -65,8 +67,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         InvitationEntity::class,
         // Social mutes/blocks — added v9
         BlockEntity::class,
+        // Social achievements — added v11
+        AchievementEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -83,6 +87,8 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // (sessionJson, achievementsJson, highlighted). Pure additive —
         // all three have defaults.
         AutoMigration(from = 9, to = 10),
+        // 10→11: added the achievements table. Pure additive.
+        AutoMigration(from = 10, to = 11),
     ],
 )
 @TypeConverters(Converters::class)
@@ -104,6 +110,7 @@ abstract class BowPressDatabase : RoomDatabase() {
     abstract fun leagueDao(): LeagueDao
     abstract fun invitationDao(): InvitationDao
     abstract fun blockDao(): BlockDao
+    abstract fun achievementDao(): AchievementDao
 
     companion object {
         const val NAME = "bowpress.db"
