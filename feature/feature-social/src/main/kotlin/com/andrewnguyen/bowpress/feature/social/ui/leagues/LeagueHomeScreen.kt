@@ -52,8 +52,11 @@ import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueStatus
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
+import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.blocks.MuteBlockAction
 import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteByHandleDialog
 import com.andrewnguyen.bowpress.feature.social.ui.label
 
@@ -63,8 +66,10 @@ fun LeagueHomeScreen(
     onBack: () -> Unit,
     onAdminClick: (String) -> Unit,
     viewModel: LeagueViewModel = hiltViewModel(),
+    blockViewModel: BlockViewModel = hiltViewModel(),
 ) {
     val state by viewModel.leagueHomeState.collectAsState()
+    val blocksState by blockViewModel.uiState.collectAsState()
     var showInviteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(leagueId) {
@@ -259,6 +264,29 @@ fun LeagueHomeScreen(
                 items(state.mySubmissions, key = { it.id }) { sub ->
                     SubmissionRow(sub = sub)
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                }
+            }
+
+            // Mute / block (§14)
+            league?.let { lg ->
+                item {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "MANAGE",
+                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                        color = AppInk3,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    MuteBlockAction(
+                        kind = BlockKind.league,
+                        targetId = lg.id,
+                        targetName = lg.name,
+                        block = blocksState.blockFor(lg.id),
+                        onSetMode = { mode ->
+                            blockViewModel.setBlock(BlockKind.league, lg.id, lg.name, mode)
+                        },
+                        onRemove = { blockViewModel.removeBlock(it) },
+                    )
                 }
             }
 

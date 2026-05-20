@@ -11,6 +11,7 @@ object SocialRoutes {
     // You (settings/profile)
     const val YOU = "social/you"
     const val YOU_PRIVACY = "social/you/privacy"
+    const val YOU_BLOCKS = "social/you/blocks"
 
     // Friends
     const val FRIENDS = "social/friends"

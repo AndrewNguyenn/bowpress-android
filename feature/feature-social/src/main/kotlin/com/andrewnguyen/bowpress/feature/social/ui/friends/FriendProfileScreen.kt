@@ -39,10 +39,13 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
+import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.FriendProfile
 import com.andrewnguyen.bowpress.core.model.SessionSummary
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.blocks.MuteBlockAction
 
 @Composable
 fun FriendProfileScreen(
@@ -50,8 +53,10 @@ fun FriendProfileScreen(
     onBack: () -> Unit,
     onCompare: (String) -> Unit,
     viewModel: FriendsViewModel = hiltViewModel(),
+    blockViewModel: BlockViewModel = hiltViewModel(),
 ) {
     val state by viewModel.profileState.collectAsState()
+    val blocksState by blockViewModel.uiState.collectAsState()
 
     LaunchedEffect(otherUserId) {
         viewModel.loadFriendProfile(otherUserId)
@@ -227,6 +232,26 @@ fun FriendProfileScreen(
                     }
                     Text("›", style = frauncesDisplay(30.sp).copy(color = AppPaper))
                 }
+
+                // Mute / block (§14)
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    "MANAGE",
+                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                    color = AppInk3,
+                )
+                Spacer(Modifier.height(6.dp))
+                MuteBlockAction(
+                    kind = BlockKind.archer,
+                    targetId = otherUserId,
+                    targetName = "@${fp.profile.handle}",
+                    block = blocksState.blockFor(otherUserId),
+                    onSetMode = { mode ->
+                        blockViewModel.setBlock(BlockKind.archer, otherUserId, fp.profile.handle, mode)
+                    },
+                    onRemove = { blockViewModel.removeBlock(it) },
+                )
+
                 Spacer(Modifier.height(24.dp))
             }
         }

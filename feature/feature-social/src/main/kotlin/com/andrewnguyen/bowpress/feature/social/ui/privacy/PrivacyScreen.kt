@@ -41,6 +41,7 @@ import com.andrewnguyen.bowpress.feature.social.ui.you.YouViewModel
 @Composable
 fun PrivacyScreen(
     onBack: () -> Unit,
+    onManageBlocksClick: () -> Unit,
     viewModel: YouViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -127,6 +128,38 @@ fun PrivacyScreen(
                     current = current,
                     onSelect = { viewModel.updateVisibility(SocialVisibility.nobody) },
                 )
+            }
+
+            // Muted & blocked (§14)
+            item {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    "MUTED & BLOCKED",
+                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                    color = AppInk3,
+                )
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = AppLine, thickness = 1.dp)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, AppLine)
+                        .background(AppPaper)
+                        .clickable(onClick = onManageBlocksClick)
+                        .padding(14.dp, 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Muted & blocked", style = frauncesDisplay(15.sp), color = AppInk)
+                        Text(
+                            "Archers, clubs, and leagues hidden from your feed.",
+                            style = jetbrainsMono(9.sp),
+                            color = AppInk3,
+                        )
+                    }
+                    Text("›", style = frauncesDisplay(20.sp), color = AppPondDk)
+                }
             }
 
             // Save feedback

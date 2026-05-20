@@ -46,12 +46,15 @@ import com.andrewnguyen.bowpress.core.designsystem.AppStone
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
+import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.ClubRole
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.blocks.MuteBlockAction
 import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteByHandleDialog
 
 @Composable
@@ -59,8 +62,10 @@ fun ClubHomeScreen(
     clubId: String,
     onBack: () -> Unit,
     viewModel: ClubViewModel = hiltViewModel(),
+    blockViewModel: BlockViewModel = hiltViewModel(),
 ) {
     val state by viewModel.clubHomeState.collectAsState()
+    val blocksState by blockViewModel.uiState.collectAsState()
     var showInviteDialog by remember { mutableStateOf(false) }
     val isHost = state.club?.myRole == ClubRole.host
 
@@ -234,6 +239,29 @@ fun ClubHomeScreen(
                 items(state.members, key = { it.userId }) { member ->
                     MemberRow(member = member)
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                }
+            }
+
+            // Mute / block (§14)
+            state.club?.let { club ->
+                item {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "MANAGE",
+                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                        color = AppInk3,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    MuteBlockAction(
+                        kind = BlockKind.club,
+                        targetId = club.id,
+                        targetName = club.name,
+                        block = blocksState.blockFor(club.id),
+                        onSetMode = { mode ->
+                            blockViewModel.setBlock(BlockKind.club, club.id, club.name, mode)
+                        },
+                        onRemove = { blockViewModel.removeBlock(it) },
+                    )
                 }
             }
 

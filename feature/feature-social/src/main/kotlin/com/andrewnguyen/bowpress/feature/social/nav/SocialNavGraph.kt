@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlocksScreen
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubHomeScreen
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubsScreen
 import com.andrewnguyen.bowpress.feature.social.ui.feed.FeedScreen
@@ -67,6 +68,13 @@ fun NavGraphBuilder.socialNavGraph(
 
     composable(SocialRoutes.YOU_PRIVACY) {
         PrivacyScreen(
+            onBack = { navController.popBackStack() },
+            onManageBlocksClick = { navController.navigate(SocialRoutes.YOU_BLOCKS) },
+        )
+    }
+
+    composable(SocialRoutes.YOU_BLOCKS) {
+        BlocksScreen(
             onBack = { navController.popBackStack() },
         )
     }

@@ -135,4 +135,6 @@ object TestTags {
     const val SocialTabBadge: String = "social_tab_badge"
     const val SocialClubInvitesSection: String = "social_club_invites_section"
     const val SocialLeagueInvitesSection: String = "social_league_invites_section"
+    const val SocialMuteBlockAction: String = "social_mute_block_action"
+    const val SocialBlocksRoot: String = "social_blocks_root"
 }
