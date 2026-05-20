@@ -34,6 +34,7 @@ fun AchievementKind.stamp(): String = when (this) {
     AchievementKind.x_pr -> "X PR"
     AchievementKind.flawless -> "FLAWLESS"
     AchievementKind.sharpshooter -> "SHARP"
+    AchievementKind.xs_milestone -> "X COUNT"
     AchievementKind.arrows_milestone -> "MILESTONE"
     AchievementKind.sessions_milestone -> "MILESTONE"
     AchievementKind.marathon -> "MARATHON"
@@ -42,6 +43,18 @@ fun AchievementKind.stamp(): String = when (this) {
     AchievementKind.comeback -> "COMEBACK"
     AchievementKind.first_distance -> "FIRST"
     AchievementKind.distance_explorer -> "EXPLORER"
+    AchievementKind.course_first -> "3D COURSE"
+    AchievementKind.course_milestone -> "3D COURSE"
+    AchievementKind.course_explorer -> "3D COURSE"
+    AchievementKind.course_marathon -> "3D COURSE"
+    AchievementKind.course_pr -> "COURSE PR"
+    AchievementKind.league_first_finish -> "LEAGUE"
+    AchievementKind.league_champion -> "CHAMPION"
+    AchievementKind.league_podium -> "PODIUM"
+    AchievementKind.club_founder -> "CLUB"
+    AchievementKind.club_host_growth -> "CLUB"
+    AchievementKind.club_member -> "CLUB"
+    AchievementKind.unknown -> "TROPHY"
 }
 
 /** A single glyph that reads as the achievement's flavour. */
@@ -50,6 +63,7 @@ fun AchievementKind.glyph(): String = when (this) {
     AchievementKind.x_pr -> "✕"
     AchievementKind.flawless -> "◈"
     AchievementKind.sharpshooter -> "⊕"
+    AchievementKind.xs_milestone -> "⊗"
     AchievementKind.arrows_milestone -> "↟"
     AchievementKind.sessions_milestone -> "❘❘"
     AchievementKind.marathon -> "∞"
@@ -58,6 +72,18 @@ fun AchievementKind.glyph(): String = when (this) {
     AchievementKind.comeback -> "↺"
     AchievementKind.first_distance -> "✦"
     AchievementKind.distance_explorer -> "⌖"
+    AchievementKind.course_first -> "⛰"
+    AchievementKind.course_milestone -> "❖"
+    AchievementKind.course_explorer -> "✸"
+    AchievementKind.course_marathon -> "⤧"
+    AchievementKind.course_pr -> "⊙"
+    AchievementKind.league_first_finish -> "⚑"
+    AchievementKind.league_champion -> "♔"
+    AchievementKind.league_podium -> "▰"
+    AchievementKind.club_founder -> "⌂"
+    AchievementKind.club_host_growth -> "⌑"
+    AchievementKind.club_member -> "❡"
+    AchievementKind.unknown -> "○"
 }
 
 /**

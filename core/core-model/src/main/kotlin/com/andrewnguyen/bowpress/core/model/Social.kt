@@ -511,18 +511,41 @@ data class CreateBlockBody(
  */
 @Serializable
 enum class AchievementKind {
+    // Skill
     score_pr,
     x_pr,
     @SerialName("flawless") flawless,
     @SerialName("sharpshooter") sharpshooter,
+    @SerialName("xs_milestone") xs_milestone,
+    // Milestone
     arrows_milestone,
     sessions_milestone,
     @SerialName("marathon") marathon,
+    // Streak
     streak,
     @SerialName("weeks_active") weeks_active,
     @SerialName("comeback") comeback,
+    // Exploration
     first_distance,
     @SerialName("distance_explorer") distance_explorer,
+    // Course (3D)
+    @SerialName("course_first") course_first,
+    @SerialName("course_milestone") course_milestone,
+    @SerialName("course_explorer") course_explorer,
+    @SerialName("course_marathon") course_marathon,
+    @SerialName("course_pr") course_pr,
+    // Competition (leagues)
+    @SerialName("league_first_finish") league_first_finish,
+    @SerialName("league_champion") league_champion,
+    @SerialName("league_podium") league_podium,
+    // Community (clubs)
+    @SerialName("club_founder") club_founder,
+    @SerialName("club_host_growth") club_host_growth,
+    @SerialName("club_member") club_member,
+    // Forward-compat fallback: a kind a newer API emits that this build does
+    // not recognize. The network Json uses coerceInputValues, so an unknown
+    // wire value lands here whenever the decoded property defaults to it.
+    unknown,
 }
 
 /**
@@ -535,6 +558,12 @@ enum class TrophyCategory {
     @SerialName("milestone") milestone,
     @SerialName("streak") streak,
     @SerialName("exploration") exploration,
+    @SerialName("course") course,
+    @SerialName("competition") competition,
+    @SerialName("community") community,
+    // Forward-compat fallback for a category a newer API adds — see [unknown]
+    // on [AchievementKind].
+    unknown,
 }
 
 /**
@@ -550,6 +579,9 @@ enum class TrophyCategory {
  */
 @Serializable
 data class TrophyDef(
+    // A raw String, not the AchievementKind enum, so the catalogue decode is
+    // immune to a future kind — the client matches it against earned
+    // achievements by string.
     val kind: String,
     val name: String,
     val description: String,
@@ -580,14 +612,17 @@ data class SharedSession(
 
 /**
  * Mirrors API §15 `Achievement` — a server-detected standout, the unit of the
- * profile trophy case.
+ * profile trophy case. `sharedSessionId` is null for league and club
+ * trophies, which are not earned from a shared session.
  */
 @Serializable
 data class Achievement(
     val id: String,
     val userId: String,
-    val sharedSessionId: String,
-    val kind: AchievementKind,
+    val sharedSessionId: String? = null,
+    // Defaults to `unknown` so the network Json's coerceInputValues maps an
+    // unrecognized kind from a newer API here instead of failing the decode.
+    val kind: AchievementKind = AchievementKind.unknown,
     val label: String,
     val value: Int,
     val sublabel: String? = null,
@@ -601,7 +636,7 @@ data class Achievement(
  */
 @Serializable
 data class AchievementBadge(
-    val kind: AchievementKind,
+    val kind: AchievementKind = AchievementKind.unknown,
     val label: String,
     val value: Int,
     val sublabel: String? = null,

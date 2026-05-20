@@ -282,7 +282,9 @@ fun AchievementEntity.toDto(): Achievement = Achievement(
     id = id,
     userId = userId,
     sharedSessionId = sharedSessionId,
-    kind = runCatching { AchievementKind.valueOf(kind) }.getOrDefault(AchievementKind.score_pr),
+    // An unparseable cached kind degrades to `unknown` — it must never
+    // impersonate a real trophy (a wrong `score_pr` would show a fake PR).
+    kind = runCatching { AchievementKind.valueOf(kind) }.getOrDefault(AchievementKind.unknown),
     label = label,
     value = value,
     sublabel = sublabel,

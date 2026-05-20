@@ -1066,8 +1066,9 @@ internal object DevMockData {
 
     // --- Achievements (§15 / §18) ----------------------------------------
     //
-    // The dev user has a believable spread across 7 of the 12 kinds so the
-    // collectible trophy case shows a mix of earned + locked slots.
+    // The dev user has a believable earned spread across several categories
+    // (skill, milestone, streak, 3D course, competition, community) so the
+    // earned-only trophy case showcases each group.
     // Sara Lin (u_001) has 2 earned so the friend-profile case is non-empty.
 
     val achievements: List<Achievement> = listOf(
@@ -1166,13 +1167,45 @@ internal object DevMockData {
             sublabel = "two weeks without a day off",
             createdAt = daysAgo(5),
         ),
+        // ── Course (3D) ──
+        Achievement(
+            id = "ach_010",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_4",
+            kind = AchievementKind.course_first,
+            label = "Into the Woods",
+            value = 0,
+            sublabel = "first 3D course",
+            createdAt = daysAgo(12),
+        ),
+        // ── Competition / Community — not earned from a shared session ──
+        Achievement(
+            id = "ach_011",
+            userId = devUserId,
+            sharedSessionId = null,
+            kind = AchievementKind.league_champion,
+            label = "League Champion",
+            value = 1,
+            sublabel = "Won a league outright",
+            createdAt = daysAgo(3),
+        ),
+        Achievement(
+            id = "ach_012",
+            userId = devUserId,
+            sharedSessionId = null,
+            kind = AchievementKind.club_founder,
+            label = "Club Founder",
+            value = 0,
+            sublabel = "Founded a club",
+            createdAt = daysAgo(48),
+        ),
     )
 
     // --- Trophy catalogue (§18) ------------------------------------------
     //
-    // Full 12-entry catalogue mirroring `GET /social/trophies`. Used as the
-    // DEBUG fallback when the API is unreachable so TrophyCaseSection can
-    // render all 12 slots (earned + locked) on a fresh emulator.
+    // Full 24-entry catalogue mirroring `GET /social/trophies`. Used as the
+    // DEBUG fallback when the API is unreachable so TrophyCaseSection can map
+    // an earned achievement's kind to its category on a fresh emulator.
 
     val trophyCatalog: List<TrophyDef> = listOf(
         // ── Skill ──
@@ -1262,6 +1295,86 @@ internal object DevMockData {
             description = "Shoot at 4 or more distinct distances across your sessions.",
             tiers = listOf(4, 6, 8),
             category = TrophyCategory.exploration,
+        ),
+        // ── Course (3D) ──
+        TrophyDef(
+            kind = "course_first",
+            name = "Into the Woods",
+            description = "Walk and shoot your first 3D course.",
+            tiers = emptyList(),
+            category = TrophyCategory.course,
+        ),
+        TrophyDef(
+            kind = "course_milestone",
+            name = "Course Regular",
+            description = "Total 3D courses completed — 5 to 100.",
+            tiers = listOf(5, 10, 25, 50, 100),
+            category = TrophyCategory.course,
+        ),
+        TrophyDef(
+            kind = "course_explorer",
+            name = "Rule Set",
+            description = "Shoot a course under 2, then all 3 scoring systems (ASA, IBO, WA3D).",
+            tiers = listOf(2, 3),
+            category = TrophyCategory.course,
+        ),
+        TrophyDef(
+            kind = "course_marathon",
+            name = "Long Walk",
+            description = "Shoot a single 3D course of 20, 30, then 40 stations.",
+            tiers = listOf(20, 30, 40),
+            category = TrophyCategory.course,
+        ),
+        TrophyDef(
+            kind = "course_pr",
+            name = "Course Record",
+            description = "Beat your best 3D course score under a scoring system.",
+            tiers = emptyList(),
+            category = TrophyCategory.course,
+        ),
+        // ── Competition (leagues) ──
+        TrophyDef(
+            kind = "league_first_finish",
+            name = "In the Running",
+            description = "Finish your first league.",
+            tiers = emptyList(),
+            category = TrophyCategory.competition,
+        ),
+        TrophyDef(
+            kind = "league_champion",
+            name = "League Champion",
+            description = "Win 1, 3, 5, then 10 leagues outright.",
+            tiers = listOf(1, 3, 5, 10),
+            category = TrophyCategory.competition,
+        ),
+        TrophyDef(
+            kind = "league_podium",
+            name = "Podium Finish",
+            description = "Finish a league in the top 3 — 3, 5, 10, then 25 times.",
+            tiers = listOf(3, 5, 10, 25),
+            category = TrophyCategory.competition,
+        ),
+        // ── Community (clubs) ──
+        TrophyDef(
+            kind = "club_founder",
+            name = "Club Founder",
+            description = "Found a club of your own.",
+            tiers = emptyList(),
+            category = TrophyCategory.community,
+        ),
+        TrophyDef(
+            kind = "club_host_growth",
+            name = "Club Builder",
+            description = "Grow a club you host to 5, 10, 25, 50, then 100 members.",
+            tiers = listOf(5, 10, 25, 50, 100),
+            category = TrophyCategory.community,
+        ),
+        TrophyDef(
+            kind = "club_member",
+            name = "Joiner",
+            description = "Be a member of 3, 5, then 10 clubs.",
+            tiers = listOf(3, 5, 10),
+            category = TrophyCategory.community,
         ),
     )
 

@@ -146,7 +146,7 @@ data class BlockEntity(
 data class AchievementEntity(
     @PrimaryKey val id: String,
     val userId: String,
-    val sharedSessionId: String,
+    val sharedSessionId: String?,    // null for league / club trophies
     val kind: String,                // AchievementKind.name
     val label: String,
     val value: Int,

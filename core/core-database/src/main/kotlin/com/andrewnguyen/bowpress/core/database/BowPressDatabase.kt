@@ -42,8 +42,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
  * the Social Layer tables added in version 7, the invitations table in
  * version 8, the blocks table in version 9, the §15 shared-session columns on
  * `activity_feed` in version 10, the achievements table in version 11, the
- * activity-feed routing-target columns in version 12, and the
- * `sightPinDistance` column on `bow_configurations` in version 13.
+ * activity-feed routing-target columns in version 12, the
+ * `sightPinDistance` column on `bow_configurations` in version 13, and the
+ * nullable `sharedSessionId` on `achievements` in version 14 (league and
+ * club trophies are not earned from a shared session).
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -72,7 +74,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // Social achievements — added v11
         AchievementEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -97,6 +99,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 12→13: added the sightPinDistance column to bow_configurations.
         // Pure additive — nullable, defaults to NULL.
         AutoMigration(from = 12, to = 13),
+        // 13→14: achievements.sharedSessionId becomes nullable. Room recreates
+        // the table; the achievements table is a server cache, so any rows
+        // carried across are refreshed on the next fetch regardless.
+        AutoMigration(from = 13, to = 14),
     ],
 )
 @TypeConverters(Converters::class)
