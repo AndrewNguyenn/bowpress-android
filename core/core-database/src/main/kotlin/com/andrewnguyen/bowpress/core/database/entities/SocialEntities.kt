@@ -95,3 +95,19 @@ data class LeagueEntity(
     // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
+
+// ── Invitation (§11) ─────────────────────────────────────────────────────────
+
+@Entity(tableName = "invitations")
+data class InvitationEntity(
+    @PrimaryKey val id: String,
+    val kind: String,                // InvitationKind.name
+    val targetId: String,
+    val targetName: String,
+    val inviterUserId: String,
+    val inviterHandle: String,
+    val inviteeUserId: String,
+    val status: String,              // InvitationStatus.name
+    val createdAt: Instant,
+    val respondedAt: Instant? = null,
+)

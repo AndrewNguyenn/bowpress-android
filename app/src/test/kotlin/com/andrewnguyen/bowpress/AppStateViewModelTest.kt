@@ -1,12 +1,14 @@
 package com.andrewnguyen.bowpress
 
 import app.cash.turbine.test
+import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.data.repository.ThemePreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
 import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
+import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.AuthProvider
 import com.andrewnguyen.bowpress.core.model.DeliveryType
@@ -67,6 +69,8 @@ class AppStateViewModelTest {
             mockk<ThemePreferencesRepository>(relaxed = true),
             push, billing, AnalyticsRefreshBus(),
             mockk<DevMockDataSeeder>(relaxed = true),
+            mockk<SocialRepository>(relaxed = true),
+            SocialBadgeRefreshBus(),
         )
         vm.uiState.test {
             val s = awaitItem()
@@ -103,6 +107,8 @@ class AppStateViewModelTest {
             mockk<ThemePreferencesRepository>(relaxed = true),
             mockk(relaxed = true), billing, AnalyticsRefreshBus(),
             mockk<DevMockDataSeeder>(relaxed = true),
+            mockk<SocialRepository>(relaxed = true),
+            SocialBadgeRefreshBus(),
         )
         vm.uiState.test {
             val s = awaitItem()
@@ -142,6 +148,8 @@ class AppStateViewModelTest {
             mockk<ThemePreferencesRepository>(relaxed = true),
             push, billing, AnalyticsRefreshBus(),
             mockk<DevMockDataSeeder>(relaxed = true),
+            mockk<SocialRepository>(relaxed = true),
+            SocialBadgeRefreshBus(),
         )
         vm.uiState.test {
             val s = awaitItem()

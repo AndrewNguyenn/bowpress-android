@@ -9,6 +9,7 @@ import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
+import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
@@ -52,4 +53,5 @@ object DatabaseModule {
     @Provides fun provideClubDao(db: BowPressDatabase): ClubDao = db.clubDao()
     @Provides fun provideActivityFeedDao(db: BowPressDatabase): ActivityFeedDao = db.activityFeedDao()
     @Provides fun provideLeagueDao(db: BowPressDatabase): LeagueDao = db.leagueDao()
+    @Provides fun provideInvitationDao(db: BowPressDatabase): InvitationDao = db.invitationDao()
 }

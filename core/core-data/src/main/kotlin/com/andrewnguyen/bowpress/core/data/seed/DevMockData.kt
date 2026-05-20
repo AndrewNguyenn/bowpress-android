@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
+import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
@@ -31,6 +32,8 @@ import com.andrewnguyen.bowpress.core.model.FriendshipSource
 import com.andrewnguyen.bowpress.core.model.FriendshipStatus
 import com.andrewnguyen.bowpress.core.model.HandicapConfig
 import com.andrewnguyen.bowpress.core.model.HandicapEquation
+import com.andrewnguyen.bowpress.core.model.InvitationKind
+import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueEntry
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
@@ -44,6 +47,7 @@ import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
@@ -86,6 +90,7 @@ class DevMockDataSeeder @Inject constructor(
     private val clubDao: ClubDao,
     private val leagueDao: LeagueDao,
     private val activityFeedDao: ActivityFeedDao,
+    private val invitationDao: InvitationDao,
 ) {
 
     suspend fun seedIfEmpty() {
@@ -104,6 +109,8 @@ class DevMockDataSeeder @Inject constructor(
         clubDao.upsertAll(DevMockData.clubs.map { it.toEntity() })
         leagueDao.upsertAll(DevMockData.leagues.map { it.toEntity() })
         activityFeedDao.upsertAll(DevMockData.activityFeed.map { it.toEntity() })
+        // Pending club + league invitations (§11) — drives the Social tab badge
+        invitationDao.upsertAll(DevMockData.invitations.map { it.toEntity() })
     }
 }
 
@@ -850,6 +857,37 @@ private object DevMockData {
             meta = "20yd · Indoor · 60 arrows",
             stamp = "1w ago",
             createdAt = daysAgo(7),
+        ),
+    )
+
+    // --- Invitations (§11) ------------------------------------------------
+    //
+    // Two pending invitations addressed to the dev user — one club, one
+    // league. Combined with the 2 incoming friend requests above, the Social
+    // tab badge shows a non-zero count in DEBUG.
+
+    val invitations: List<SocialInvitation> = listOf(
+        SocialInvitation(
+            id = "inv_001",
+            kind = InvitationKind.club,
+            targetId = "club_invited_001",
+            targetName = "Saturday Morning Recurve",
+            inviterUserId = "u_003",
+            inviterHandle = "priya.v",
+            inviteeUserId = devUserId,
+            status = InvitationStatus.pending,
+            createdAt = daysAgo(1),
+        ),
+        SocialInvitation(
+            id = "inv_002",
+            kind = InvitationKind.league,
+            targetId = "lg_invited_001",
+            targetName = "Weekly Indoor 600",
+            inviterUserId = "u_002",
+            inviterHandle = "m.okonkwo",
+            inviteeUserId = devUserId,
+            status = InvitationStatus.pending,
+            createdAt = daysAgo(2),
         ),
     )
 

@@ -11,6 +11,7 @@ import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
+import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
@@ -24,6 +25,7 @@ import com.andrewnguyen.bowpress.core.database.entities.BowConfigEntity
 import com.andrewnguyen.bowpress.core.database.entities.BowEntity
 import com.andrewnguyen.bowpress.core.database.entities.ClubEntity
 import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
+import com.andrewnguyen.bowpress.core.database.entities.InvitationEntity
 import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
 import com.andrewnguyen.bowpress.core.database.entities.SessionEndEntity
 import com.andrewnguyen.bowpress.core.database.entities.SessionEntity
@@ -33,7 +35,8 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
 
 /**
  * Root Room database — entities matching iOS `PersistentModels.swift` plus
- * the Social Layer tables added in version 7.
+ * the Social Layer tables added in version 7 and the invitations table in
+ * version 8.
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -55,8 +58,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         ClubEntity::class,
         ActivityItemEntity::class,
         LeagueEntity::class,
+        // Social invitations — added v8
+        InvitationEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -65,6 +70,8 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // activity_feed, leagues). Pure additive — Room derives all CREATE TABLE
         // statements from the new entity classes; no column changes elsewhere.
         AutoMigration(from = 6, to = 7),
+        // 7→8: added the invitations table. Pure additive.
+        AutoMigration(from = 7, to = 8),
     ],
 )
 @TypeConverters(Converters::class)
@@ -84,6 +91,7 @@ abstract class BowPressDatabase : RoomDatabase() {
     abstract fun clubDao(): ClubDao
     abstract fun activityFeedDao(): ActivityFeedDao
     abstract fun leagueDao(): LeagueDao
+    abstract fun invitationDao(): InvitationDao
 
     companion object {
         const val NAME = "bowpress.db"

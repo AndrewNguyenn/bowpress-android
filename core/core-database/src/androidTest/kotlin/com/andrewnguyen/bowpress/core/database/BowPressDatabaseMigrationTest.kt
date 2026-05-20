@@ -16,6 +16,8 @@ import org.junit.runner.RunWith
  * - [migrate_6_to_7_adds_social_tables]: Verifies that the v6→v7 AutoMigration
  *   adds all 5 social tables (`social_profiles`, `friendships`, `clubs`, `leagues`,
  *   `activity_feed`) without data loss to existing rows.
+ * - [migrate_7_to_8_adds_invitations_table]: Verifies that the v7→v8 AutoMigration
+ *   adds the `invitations` table without data loss.
  *
  * Schema JSON snapshots under `core-database/schemas/` are exposed to this test as
  * assets via `sourceSets["androidTest"].assets.srcDirs` in `build.gradle.kts`.
@@ -67,6 +69,54 @@ class BowPressDatabaseMigrationTest {
         )
         db.query("SELECT id FROM clubs WHERE id = 'club-1'").use { cursor ->
             assertThat(cursor.moveToFirst()).isTrue()
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate_7_to_8_adds_invitations_table() {
+        val dbName = "migration-7-8-test.db"
+
+        // Create a v7 DB and insert a friendship row to confirm data survives.
+        helper.createDatabase(dbName, 7).apply {
+            execSQL(
+                """
+                INSERT INTO friendships (
+                    id, requesterId, addresseeId, status, source, createdAt,
+                    otherUserId, otherHandle, otherDisplayName, pendingSync
+                ) VALUES (
+                    'fr-1', 'u-1', 'u-2', 'accepted', 'handle', 1700000000000,
+                    'u-2', 'other.h', 'Other Archer', 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // AutoMigration 7→8 adds the invitations table — pure additive.
+        val db = helper.runMigrationsAndValidate(dbName, 8, /* validateDroppedTables = */ true)
+
+        // Existing data survives.
+        db.query("SELECT id FROM friendships WHERE id = 'fr-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+        }
+
+        // The invitations table exists (INSERT without error confirms it).
+        db.execSQL(
+            """
+            INSERT INTO invitations (
+                id, kind, targetId, targetName, inviterUserId, inviterHandle,
+                inviteeUserId, status, createdAt
+            ) VALUES (
+                'inv-1', 'club', 'club-1', 'Test Club', 'u-9', 'host.h',
+                'u-1', 'pending', 1700000000000
+            )
+            """.trimIndent(),
+        )
+        db.query("SELECT COUNT(*) FROM invitations WHERE status = 'pending'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getInt(0)).isEqualTo(1)
         }
 
         db.close()

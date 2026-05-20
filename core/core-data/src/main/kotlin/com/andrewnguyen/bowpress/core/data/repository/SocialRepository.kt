@@ -5,6 +5,7 @@ import com.andrewnguyen.bowpress.core.data.converters.toEntity
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
+import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
@@ -25,6 +26,7 @@ import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
+import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
@@ -62,6 +64,7 @@ class SocialRepository @Inject constructor(
     private val clubDao: ClubDao,
     private val feedDao: ActivityFeedDao,
     private val leagueDao: LeagueDao,
+    private val invitationDao: InvitationDao,
 ) {
 
     // ── Profile ───────────────────────────────────────────────────────────────
@@ -283,22 +286,43 @@ class SocialRepository @Inject constructor(
 
     // ── Invitations (§11) ──────────────────────────────────────────────────────
     //
-    // Invitations are online-first and not Room-cached — they are short-lived
-    // badge-driven state, fetched fresh on the Invites surfaces.
+    // Online-first like the rest: the API is the source of truth; successful
+    // fetches upsert into the `invitations` Room cache so the Invites surfaces
+    // render reactively and the DEBUG seed can populate the badge offline.
 
-    suspend fun getInvitations(): List<SocialInvitation> =
-        api.getInvitations()
+    fun observeInvitations(): Flow<List<SocialInvitation>> =
+        invitationDao.observeAll().map { rows -> rows.map { it.toDto() } }
+
+    /**
+     * Fetch pending club/league invitations. On API success the cache is
+     * replaced; on failure the last cached rows are returned (DEBUG / offline).
+     */
+    suspend fun getInvitations(): List<SocialInvitation> {
+        return runCatching { api.getInvitations() }
+            .onSuccess { remote ->
+                invitationDao.clear()
+                invitationDao.upsertAll(remote.map { it.toEntity() })
+            }
+            .getOrElse {
+                invitationDao.getAll().map { it.toDto() }
+            }
+    }
 
     /**
      * Accept a club/league invitation. [division] is only relevant for league
-     * invites; it defaults server-side to the league's first division.
+     * invites; it defaults server-side to the league's first division. The
+     * row is dropped from the cache on success.
      */
-    suspend fun acceptInvitation(id: String, division: Division? = null): SocialInvitation =
-        api.acceptInvitation(id, AcceptInvitationBody(division))
+    suspend fun acceptInvitation(id: String, division: Division? = null): SocialInvitation {
+        val result = api.acceptInvitation(id, AcceptInvitationBody(division))
+        invitationDao.deleteById(id)
+        return result
+    }
 
     /** Decline (invitee) or revoke (inviter) an invitation. */
     suspend fun declineInvitation(id: String) {
         api.declineInvitation(id)
+        invitationDao.deleteById(id)
     }
 
     suspend fun inviteToClub(clubId: String, handle: String): SocialInvitation =
@@ -309,7 +333,21 @@ class SocialRepository @Inject constructor(
 
     // ── Pending count (§12) ─────────────────────────────────────────────────────
 
-    /** Fetch the Social-tab badge count (incoming friend requests + invitations). */
-    suspend fun getPendingCount(): SocialPendingCount =
-        api.getPendingCount()
+    /**
+     * Fetch the Social-tab badge count (incoming friend requests + pending
+     * invitations). API-first; on failure falls back to a count computed from
+     * the Room cache so the badge still reflects seeded DEBUG data.
+     */
+    suspend fun getPendingCount(): SocialPendingCount {
+        return runCatching { api.getPendingCount() }
+            .getOrElse {
+                val friendRequests = friendshipDao.incomingPendingCount()
+                val invitations = invitationDao.pendingCount()
+                SocialPendingCount(
+                    friendRequests = friendRequests,
+                    invitations = invitations,
+                    total = friendRequests + invitations,
+                )
+            }
+    }
 }

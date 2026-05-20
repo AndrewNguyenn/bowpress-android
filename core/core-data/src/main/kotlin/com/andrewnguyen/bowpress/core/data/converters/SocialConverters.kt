@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.core.data.converters
 import com.andrewnguyen.bowpress.core.database.entities.ActivityItemEntity
 import com.andrewnguyen.bowpress.core.database.entities.ClubEntity
 import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
+import com.andrewnguyen.bowpress.core.database.entities.InvitationEntity
 import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
 import com.andrewnguyen.bowpress.core.database.entities.SocialProfileEntity
 import com.andrewnguyen.bowpress.core.model.ActivityItem
@@ -16,6 +17,8 @@ import com.andrewnguyen.bowpress.core.model.FriendshipSource
 import com.andrewnguyen.bowpress.core.model.FriendshipStatus
 import com.andrewnguyen.bowpress.core.model.HandicapConfig
 import com.andrewnguyen.bowpress.core.model.HandicapEquation
+import com.andrewnguyen.bowpress.core.model.InvitationKind
+import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueEntry
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
@@ -24,6 +27,7 @@ import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
 import com.andrewnguyen.bowpress.core.model.LeagueStatus
 import com.andrewnguyen.bowpress.core.model.LeagueType
 import com.andrewnguyen.bowpress.core.model.RoundDef
+import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.TeamConfig
@@ -193,4 +197,32 @@ fun League.toEntity(): LeagueEntity = LeagueEntity(
     createdAt = createdAt,
     myEntryJson = myEntry?.let { json.encodeToString(it) },
     entryCount = entryCount,
+)
+
+// ── Invitation (§11) ─────────────────────────────────────────────────────────
+
+fun InvitationEntity.toDto(): SocialInvitation = SocialInvitation(
+    id = id,
+    kind = runCatching { InvitationKind.valueOf(kind) }.getOrDefault(InvitationKind.club),
+    targetId = targetId,
+    targetName = targetName,
+    inviterUserId = inviterUserId,
+    inviterHandle = inviterHandle,
+    inviteeUserId = inviteeUserId,
+    status = runCatching { InvitationStatus.valueOf(status) }.getOrDefault(InvitationStatus.pending),
+    createdAt = createdAt,
+    respondedAt = respondedAt,
+)
+
+fun SocialInvitation.toEntity(): InvitationEntity = InvitationEntity(
+    id = id,
+    kind = kind.name,
+    targetId = targetId,
+    targetName = targetName,
+    inviterUserId = inviterUserId,
+    inviterHandle = inviterHandle,
+    inviteeUserId = inviteeUserId,
+    status = status.name,
+    createdAt = createdAt,
+    respondedAt = respondedAt,
 )

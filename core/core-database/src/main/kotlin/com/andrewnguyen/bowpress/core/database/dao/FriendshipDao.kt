@@ -16,6 +16,10 @@ interface FriendshipDao {
     @Query("SELECT * FROM friendships WHERE status = 'pending' ORDER BY createdAt DESC")
     fun observePendingRequests(): Flow<List<FriendshipEntity>>
 
+    /** Incoming pending friend requests only — feeds the Social-tab badge (§12). */
+    @Query("SELECT COUNT(*) FROM friendships WHERE status = 'pending' AND direction = 'incoming'")
+    suspend fun incomingPendingCount(): Int
+
     @Query("SELECT * FROM friendships ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<FriendshipEntity>>
 
