@@ -4,6 +4,7 @@ import com.andrewnguyen.bowpress.core.data.converters.toEntity
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
+import com.andrewnguyen.bowpress.core.database.dao.BlockDao
 import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
@@ -19,6 +20,8 @@ import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
+import com.andrewnguyen.bowpress.core.model.BlockKind
+import com.andrewnguyen.bowpress.core.model.BlockMode
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.BowType
@@ -47,6 +50,7 @@ import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
@@ -91,6 +95,7 @@ class DevMockDataSeeder @Inject constructor(
     private val leagueDao: LeagueDao,
     private val activityFeedDao: ActivityFeedDao,
     private val invitationDao: InvitationDao,
+    private val blockDao: BlockDao,
 ) {
 
     suspend fun seedIfEmpty() {
@@ -111,6 +116,8 @@ class DevMockDataSeeder @Inject constructor(
         activityFeedDao.upsertAll(DevMockData.activityFeed.map { it.toEntity() })
         // Pending club + league invitations (§11) — drives the Social tab badge
         invitationDao.upsertAll(DevMockData.invitations.map { it.toEntity() })
+        // Mutes / blocks (§14) — one muted archer + one muted club
+        blockDao.upsertAll(DevMockData.blocks.map { it.toEntity() })
     }
 }
 
@@ -888,6 +895,33 @@ private object DevMockData {
             inviteeUserId = devUserId,
             status = InvitationStatus.pending,
             createdAt = daysAgo(2),
+        ),
+    )
+
+    // --- Mutes / blocks (§14) ---------------------------------------------
+    //
+    // One muted archer (still a friend — u_012 Ryan Kim) and one muted club
+    // (Metro Indoor League). Both are soft mutes, so they stay in the friends
+    // list / club list but their activity is dropped from the feed.
+
+    val blocks: List<SocialBlock> = listOf(
+        SocialBlock(
+            id = "blk_001",
+            userId = devUserId,
+            kind = BlockKind.archer,
+            targetId = "u_012",
+            targetName = "ryan.k",
+            mode = BlockMode.mute,
+            createdAt = daysAgo(4),
+        ),
+        SocialBlock(
+            id = "blk_002",
+            userId = devUserId,
+            kind = BlockKind.club,
+            targetId = "club_002",
+            targetName = "Metro Indoor League",
+            mode = BlockMode.mute,
+            createdAt = daysAgo(6),
         ),
     )
 

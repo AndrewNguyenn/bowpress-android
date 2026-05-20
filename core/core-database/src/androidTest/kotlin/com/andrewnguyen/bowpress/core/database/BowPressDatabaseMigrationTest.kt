@@ -18,6 +18,8 @@ import org.junit.runner.RunWith
  *   `activity_feed`) without data loss to existing rows.
  * - [migrate_7_to_8_adds_invitations_table]: Verifies that the v7→v8 AutoMigration
  *   adds the `invitations` table without data loss.
+ * - [migrate_8_to_9_adds_blocks_table]: Verifies that the v8→v9 AutoMigration
+ *   adds the `blocks` table without data loss.
  *
  * Schema JSON snapshots under `core-database/schemas/` are exposed to this test as
  * assets via `sourceSets["androidTest"].assets.srcDirs` in `build.gradle.kts`.
@@ -117,6 +119,52 @@ class BowPressDatabaseMigrationTest {
         db.query("SELECT COUNT(*) FROM invitations WHERE status = 'pending'").use { cursor ->
             assertThat(cursor.moveToFirst()).isTrue()
             assertThat(cursor.getInt(0)).isEqualTo(1)
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate_8_to_9_adds_blocks_table() {
+        val dbName = "migration-8-9-test.db"
+
+        // Create a v8 DB and insert an invitation row to confirm data survives.
+        helper.createDatabase(dbName, 8).apply {
+            execSQL(
+                """
+                INSERT INTO invitations (
+                    id, kind, targetId, targetName, inviterUserId, inviterHandle,
+                    inviteeUserId, status, createdAt
+                ) VALUES (
+                    'inv-1', 'club', 'club-1', 'Test Club', 'u-9', 'host.h',
+                    'u-1', 'pending', 1700000000000
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // AutoMigration 8→9 adds the blocks table — pure additive.
+        val db = helper.runMigrationsAndValidate(dbName, 9, /* validateDroppedTables = */ true)
+
+        // Existing data survives.
+        db.query("SELECT id FROM invitations WHERE id = 'inv-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+        }
+
+        // The blocks table exists (INSERT without error confirms it).
+        db.execSQL(
+            """
+            INSERT INTO blocks (
+                id, userId, kind, targetId, targetName, mode, createdAt
+            ) VALUES (
+                'blk-1', 'u-1', 'archer', 'u-2', 'rival.h', 'mute', 1700000000000
+            )
+            """.trimIndent(),
+        )
+        db.query("SELECT mode FROM blocks WHERE id = 'blk-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("mute")
         }
 
         db.close()
