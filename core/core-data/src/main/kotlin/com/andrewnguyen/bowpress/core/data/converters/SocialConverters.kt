@@ -137,7 +137,7 @@ fun Club.toEntity(): ClubEntity = ClubEntity(
 
 fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
     id = id,
-    kind = runCatching { ActivityKind.valueOf(kind) }.getOrDefault(ActivityKind.club_session),
+    kind = runCatching { ActivityKind.valueOf(kind) }.getOrDefault(ActivityKind.unknown),
     sourceKind = runCatching { ActivitySourceKind.valueOf(sourceKind) }.getOrDefault(ActivitySourceKind.club),
     actorHandle = actorHandle,
     actorDisplayName = actorDisplayName,

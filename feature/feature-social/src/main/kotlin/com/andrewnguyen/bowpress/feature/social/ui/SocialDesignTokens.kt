@@ -42,10 +42,14 @@ fun Division.label(): String = when (this) {
 }
 
 fun ActivityKind.isClubKind(): Boolean =
-    this == ActivityKind.club_session || this == ActivityKind.club_member_joined
+    this == ActivityKind.club_session ||
+        this == ActivityKind.club_member_joined ||
+        this == ActivityKind.club_created
 
 fun ActivityKind.isLeagueKind(): Boolean =
-    this == ActivityKind.league_event
+    this == ActivityKind.league_event ||
+        this == ActivityKind.league_created ||
+        this == ActivityKind.league_podium
 
 fun ActivitySourceKind.label(): String = when (this) {
     ActivitySourceKind.friend -> "friend"

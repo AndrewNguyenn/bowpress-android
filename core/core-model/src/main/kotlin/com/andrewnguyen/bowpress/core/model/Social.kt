@@ -360,6 +360,14 @@ enum class ActivityKind {
     friend_pr, club_session, league_event, friend_setup, club_member_joined,
     // §15: a friend shared a (non-PR) session.
     friend_session,
+    // Real-event rows: a club/league was created, or a league concluded
+    // with a podium finish.
+    club_created, league_created, league_podium,
+    // Forward-compat: any feed kind a newer server emits that this build
+    // doesn't recognise. `ActivityItem.kind` defaults to this and the JSON
+    // reader's `coerceInputValues` maps unknown values here, so one
+    // unfamiliar row can never fail the whole feed decode.
+    unknown,
 }
 
 @Serializable
@@ -375,7 +383,9 @@ enum class ActivitySourceKind { friend, club, league }
 @Serializable
 data class ActivityItem(
     val id: String,
-    val kind: ActivityKind,
+    // Defaulted so `coerceInputValues` can coerce an unrecognised kind to
+    // `unknown` instead of failing the decode (see ActivityKind.unknown).
+    val kind: ActivityKind = ActivityKind.unknown,
     val sourceKind: ActivitySourceKind,
     val actorHandle: String,
     val actorDisplayName: String,
