@@ -15,7 +15,6 @@ object SocialRoutes {
 
     // Friends
     const val FRIENDS = "social/friends"
-    const val FRIEND_SEARCH = "social/friends/search"
     const val FRIEND_PROFILE = "social/friends/{otherUserId}/profile"
     const val FRIEND_COMPARE = "social/friends/{otherUserId}/compare"
 
@@ -30,7 +29,6 @@ object SocialRoutes {
     // Clubs
     const val CLUBS = "social/clubs"
     const val CLUB_HOME = "social/clubs/{clubId}"
-    const val CLUB_CREATE = "social/clubs/create"
 
     fun clubHome(clubId: String) = "social/clubs/$clubId"
 
