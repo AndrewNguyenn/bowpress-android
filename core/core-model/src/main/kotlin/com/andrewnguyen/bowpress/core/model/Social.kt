@@ -491,11 +491,61 @@ data class CreateBlockBody(
 /**
  * The kind of standout an [Achievement] / [AchievementBadge] represents.
  * Detection is server-only — clients only render these.
+ *
+ * 12 kinds total as of API §18 trophy catalogue expansion. The serializer uses
+ * [kotlinx.serialization.json.JsonNames] (via [SerialName]) so an unknown kind
+ * from a future API version decodes as null and the caller can fall back to a
+ * safe default — see [AchievementKind.orUnknown].
+ *
+ * Wire values are the exact lowercase snake_case strings the API sends.
  */
 @Serializable
 enum class AchievementKind {
-    score_pr, x_pr, arrows_milestone, sessions_milestone, streak, first_distance
+    score_pr,
+    x_pr,
+    @SerialName("flawless") flawless,
+    @SerialName("sharpshooter") sharpshooter,
+    arrows_milestone,
+    sessions_milestone,
+    @SerialName("marathon") marathon,
+    streak,
+    @SerialName("weeks_active") weeks_active,
+    @SerialName("comeback") comeback,
+    first_distance,
+    @SerialName("distance_explorer") distance_explorer,
 }
+
+/**
+ * Trophy catalogue — the full set of kinds a user can earn, keyed by category.
+ * Mirrors the API §18 `GET /social/trophies` `TrophyDef` shape.
+ */
+@Serializable
+enum class TrophyCategory {
+    @SerialName("skill") skill,
+    @SerialName("milestone") milestone,
+    @SerialName("streak") streak,
+    @SerialName("exploration") exploration,
+}
+
+/**
+ * Mirrors API §18 `TrophyDef` — the server's canonical definition of a trophy
+ * kind: its human-readable name, description (the "how to earn" hint), and the
+ * tier breakpoints (e.g. `[7, 14, 30]` for streak days).
+ *
+ * The client renders every [TrophyDef] in the catalogue as either earned
+ * (full-colour, showing the earned tier/value) or locked (dimmed, showing the
+ * description as a hint). Unknown [kind] values from a future API version do
+ * **not** crash — the row simply renders as locked with no matching earned
+ * achievement.
+ */
+@Serializable
+data class TrophyDef(
+    val kind: String,
+    val name: String,
+    val description: String,
+    val tiers: List<Int> = emptyList(),
+    val category: TrophyCategory = TrophyCategory.skill,
+)
 
 /**
  * Mirrors API §15 `SharedSession` — a session a user has published to the
