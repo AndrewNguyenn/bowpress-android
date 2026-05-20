@@ -6,10 +6,13 @@ import com.andrewnguyen.bowpress.core.model.CreateAnnouncementBody
 import com.andrewnguyen.bowpress.core.model.CreateAttachmentBody
 import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.UpdateAnnouncementBody
+import android.content.Context
+import android.content.pm.ApplicationInfo
 import com.andrewnguyen.bowpress.core.network.BowPressApi
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -29,12 +32,18 @@ class SocialRepositoryBoardTest {
     @Before
     fun setup() {
         api = mockk(relaxed = true)
+        // ApplicationInfo.flags is a plain Java field; set it directly on a real instance.
+        val appInfo = ApplicationInfo().also { it.flags = ApplicationInfo.FLAG_DEBUGGABLE }
+        val debugContext = mockk<Context> {
+            every { applicationInfo } returns appInfo
+        }
         repo = SocialRepository(
             api,
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
             mockk(relaxed = true), mockk(relaxed = true),
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
+            debugContext,
         )
     }
 

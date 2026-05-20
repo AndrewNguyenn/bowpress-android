@@ -62,6 +62,7 @@ class SocialRepositorySessionDetailTest {
             sessionDao,
             sessionEndDao,
             plotDao,
+            mockk(relaxed = true), // context
         )
     }
 

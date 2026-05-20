@@ -76,6 +76,7 @@ class SocialRepositoryBlockTest {
             api, profileDao, friendshipDao, clubDao, feedDao, leagueDao,
             invitationDao, blockDao, achievementDao,
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
+            mockk(relaxed = true),
         )
     }
 
