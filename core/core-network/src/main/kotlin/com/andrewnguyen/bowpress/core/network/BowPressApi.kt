@@ -36,6 +36,7 @@ import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShareSessionBody
 import com.andrewnguyen.bowpress.core.model.ShareSessionResult
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
 import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
@@ -500,6 +501,13 @@ interface BowPressApi {
     suspend fun getFriendAchievements(
         @Path("otherUserId") otherUserId: String,
     ): List<Achievement>
+
+    // ---- Social — Friend session detail (§16) ----------------------------------
+
+    @GET("social/sessions/{sharedSessionId}")
+    suspend fun getSharedSessionDetail(
+        @Path("sharedSessionId") sharedSessionId: String,
+    ): SharedSessionDetail
 
     // ---- Social — Dev notify (for e2e tests) -----------------------------------
 

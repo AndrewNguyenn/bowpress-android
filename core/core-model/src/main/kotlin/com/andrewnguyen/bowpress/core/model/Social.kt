@@ -640,3 +640,21 @@ data class ShareSessionResult(
     val activityId: String? = null,
     val headline: String? = null,
 )
+
+// ── §16 Friend session detail ────────────────────────────────────────────────
+
+/**
+ * Mirrors API §16 `GET /social/sessions/:sharedSessionId` — a friend's full
+ * shared-session detail: the scorecard ends + plotted arrows for the target
+ * face. [session] / [ends] / [arrows] are null/empty when the owner has
+ * deleted the underlying session (the [sharedSession] stat summary survives).
+ */
+@Serializable
+data class SharedSessionDetail(
+    val sharedSession: SharedSession,
+    val ownerHandle: String,
+    val ownerDisplayName: String,
+    val session: ShootingSession? = null,
+    val ends: List<SessionEnd> = emptyList(),
+    val arrows: List<ArrowPlot> = emptyList(),
+)

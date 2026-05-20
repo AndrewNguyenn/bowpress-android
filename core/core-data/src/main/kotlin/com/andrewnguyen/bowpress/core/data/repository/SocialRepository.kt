@@ -37,6 +37,7 @@ import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.ShareSessionBody
 import com.andrewnguyen.bowpress.core.model.ShareSessionResult
+import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
 import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
@@ -450,4 +451,15 @@ class SocialRepository @Inject constructor(
         remote.map { it.userId }.toSet().forEach { achievementDao.clearForUser(it) }
         achievementDao.upsertAll(remote.map { it.toEntity() })
     }
+
+    // ── Friend session detail (§16) ──────────────────────────────────────────────
+
+    /**
+     * A friend's full shared-session detail — scorecard ends + plotted arrows
+     * for the target face. Online-only (transient drill-in detail, like
+     * [getFriendProfile]); `session`/`ends`/`arrows` come back empty when the
+     * owner deleted the underlying session.
+     */
+    suspend fun getSharedSessionDetail(sharedSessionId: String): SharedSessionDetail =
+        api.getSharedSessionDetail(sharedSessionId)
 }
