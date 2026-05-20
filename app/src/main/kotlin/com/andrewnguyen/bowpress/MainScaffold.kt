@@ -223,7 +223,6 @@ fun MainScaffold(
                             restoreState = true
                         }
                     },
-                    onNotificationsClick = { /* no-op: handled in Settings */ },
                 )
                 // Settings screens reachable from YouScreen (behind the avatar)
                 settingsNavGraph(navController, onSignedOut = onSignedOut)

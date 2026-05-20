@@ -57,7 +57,6 @@ fun YouScreen(
     onAccountClick: () -> Unit,
     onSubscriptionClick: () -> Unit,
     onEquipmentClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
     viewModel: YouViewModel = hiltViewModel(),
     achievementsViewModel: AchievementsViewModel = hiltViewModel(),
 ) {
@@ -144,12 +143,6 @@ fun YouScreen(
                     title = "Privacy & visibility",
                     sub = "who sees your sessions · ${state.profile?.visibility?.name ?: "friends"}",
                     onClick = onPrivacyClick,
-                )
-                HorizontalDivider(color = AppLine2, thickness = 1.dp)
-                SettingsRow(
-                    title = "Notifications",
-                    sub = "in-app · push · weekly digest",
-                    onClick = onNotificationsClick,
                 )
             }
 

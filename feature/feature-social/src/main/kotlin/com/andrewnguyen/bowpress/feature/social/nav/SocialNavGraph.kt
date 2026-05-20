@@ -27,9 +27,9 @@ import com.andrewnguyen.bowpress.feature.social.ui.you.YouScreen
  * [onSignedOut] is forwarded from the host — the You screen offers a sign-out
  * action that the app layer translates into routing back to auth.
  *
- * [onAccountClick], [onSubscriptionClick], [onEquipmentClick],
- * [onNotificationsClick] let the You screen deep-link into other feature tabs
- * without the social feature knowing their routes directly.
+ * [onAccountClick], [onSubscriptionClick], [onEquipmentClick] let the You
+ * screen deep-link into other feature tabs without the social feature knowing
+ * their routes directly.
  */
 fun NavGraphBuilder.socialNavGraph(
     navController: NavController,
@@ -37,7 +37,6 @@ fun NavGraphBuilder.socialNavGraph(
     onAccountClick: () -> Unit,
     onSubscriptionClick: () -> Unit,
     onEquipmentClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
 ) {
     // ── Feed (landing) ────────────────────────────────────────────────────────
 
@@ -74,7 +73,6 @@ fun NavGraphBuilder.socialNavGraph(
             onAccountClick = onAccountClick,
             onSubscriptionClick = onSubscriptionClick,
             onEquipmentClick = onEquipmentClick,
-            onNotificationsClick = onNotificationsClick,
         )
     }
 
