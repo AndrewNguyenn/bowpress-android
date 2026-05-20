@@ -44,6 +44,9 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueStatus
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InvitationRow
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InvitationsViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InvitesSectionHeader
 
 @Composable
 fun LeaguesScreen(
@@ -51,8 +54,10 @@ fun LeaguesScreen(
     onLeagueClick: (String) -> Unit,
     onCreateClick: () -> Unit,
     viewModel: LeagueViewModel = hiltViewModel(),
+    invitationsViewModel: InvitationsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.leaguesState.collectAsState()
+    val invitesState by invitationsViewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -95,6 +100,36 @@ fun LeaguesScreen(
 
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             state.error?.let { err ->
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text(err, style = jetbrainsMono(10.sp), color = AppMaple)
+                }
+            }
+
+            // Pending league invitations (§11)
+            if (invitesState.leagueInvites.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(14.dp))
+                    Box(modifier = Modifier.testTag(TestTags.SocialLeagueInvitesSection)) {
+                        InvitesSectionHeader(count = invitesState.leagueInvites.size)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    HorizontalDivider(color = AppLine, thickness = 1.dp)
+                }
+                items(invitesState.leagueInvites, key = { it.id }) { invite ->
+                    InvitationRow(
+                        invitation = invite,
+                        onAccept = {
+                            invitationsViewModel.acceptInvitation(invite.id) {
+                                viewModel.loadLeagues()
+                            }
+                        },
+                        onDecline = { invitationsViewModel.declineInvitation(invite.id) },
+                    )
+                    HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                }
+            }
+            invitesState.error?.let { err ->
                 item {
                     Spacer(Modifier.height(8.dp))
                     Text(err, style = jetbrainsMono(10.sp), color = AppMaple)

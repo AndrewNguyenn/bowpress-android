@@ -132,4 +132,7 @@ object TestTags {
     const val SocialLeaguesRoot: String = "social_leagues_root"
     const val SocialLeagueComposerName: String = "social_league_composer_name"
     const val SocialPrivacyRoot: String = "social_privacy_root"
+    const val SocialTabBadge: String = "social_tab_badge"
+    const val SocialClubInvitesSection: String = "social_club_invites_section"
+    const val SocialLeagueInvitesSection: String = "social_league_invites_section"
 }

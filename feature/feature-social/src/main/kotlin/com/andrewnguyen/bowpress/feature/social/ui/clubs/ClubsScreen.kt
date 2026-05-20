@@ -48,14 +48,19 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.ClubRole
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InvitationRow
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InvitationsViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InvitesSectionHeader
 
 @Composable
 fun ClubsScreen(
     onBack: () -> Unit,
     onClubClick: (String) -> Unit,
     viewModel: ClubViewModel = hiltViewModel(),
+    invitationsViewModel: InvitationsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.clubsState.collectAsState()
+    val invitesState by invitationsViewModel.uiState.collectAsState()
     var showCreate by remember { mutableStateOf(false) }
     var showJoin by remember { mutableStateOf(false) }
     var newClubName by remember { mutableStateOf("") }
@@ -207,6 +212,36 @@ fun ClubsScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(err, style = jetbrainsMono(10.sp), color = AppMaple)
                     Spacer(Modifier.height(8.dp))
+                }
+            }
+
+            // Pending club invitations (§11)
+            if (invitesState.clubInvites.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(14.dp))
+                    Box(modifier = Modifier.testTag(TestTags.SocialClubInvitesSection)) {
+                        InvitesSectionHeader(count = invitesState.clubInvites.size)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    HorizontalDivider(color = AppLine, thickness = 1.dp)
+                }
+                items(invitesState.clubInvites, key = { it.id }) { invite ->
+                    InvitationRow(
+                        invitation = invite,
+                        onAccept = {
+                            invitationsViewModel.acceptInvitation(invite.id) {
+                                viewModel.loadClubs()
+                            }
+                        },
+                        onDecline = { invitationsViewModel.declineInvitation(invite.id) },
+                    )
+                    HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                }
+            }
+            invitesState.error?.let { err ->
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text(err, style = jetbrainsMono(10.sp), color = AppMaple)
                 }
             }
 

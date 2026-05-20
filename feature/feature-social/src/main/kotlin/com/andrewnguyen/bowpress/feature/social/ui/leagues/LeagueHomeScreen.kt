@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -51,6 +54,7 @@ import com.andrewnguyen.bowpress.core.model.LeagueStatus
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteByHandleDialog
 import com.andrewnguyen.bowpress.feature.social.ui.label
 
 @Composable
@@ -61,9 +65,23 @@ fun LeagueHomeScreen(
     viewModel: LeagueViewModel = hiltViewModel(),
 ) {
     val state by viewModel.leagueHomeState.collectAsState()
+    var showInviteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(leagueId) {
         viewModel.loadLeagueHome(leagueId)
+    }
+
+    if (showInviteDialog) {
+        InviteByHandleDialog(
+            title = "Invite to ${state.league?.name ?: "league"}",
+            error = state.inviteError,
+            sent = state.inviteSent,
+            onSubmit = { handle -> viewModel.inviteToLeague(leagueId, handle) },
+            onDismiss = {
+                showInviteDialog = false
+                viewModel.resetInviteState()
+            },
+        )
     }
 
     Column(
@@ -97,15 +115,26 @@ fun LeagueHomeScreen(
                     )
                 }
             }
-            // Admin button for hosts
+            // Host-only actions: invite an archer, open the admin matrix.
             if (league?.myEntry == null && league?.hostUserId != null) {
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, AppPondDk)
-                        .clickable { onAdminClick(leagueId) }
-                        .padding(8.dp, 5.dp),
-                ) {
-                    Text("ADMIN", style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em), color = AppPondDk)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .border(1.dp, AppPondDk)
+                            .background(AppPondDk)
+                            .clickable { showInviteDialog = true }
+                            .padding(8.dp, 5.dp),
+                    ) {
+                        Text("INVITE", style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em), color = AppPaper)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .border(1.dp, AppPondDk)
+                            .clickable { onAdminClick(leagueId) }
+                            .padding(8.dp, 5.dp),
+                    ) {
+                        Text("ADMIN", style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em), color = AppPondDk)
+                    }
                 }
             }
         }

@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +52,7 @@ import com.andrewnguyen.bowpress.core.model.ClubRole
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteByHandleDialog
 
 @Composable
 fun ClubHomeScreen(
@@ -57,9 +61,24 @@ fun ClubHomeScreen(
     viewModel: ClubViewModel = hiltViewModel(),
 ) {
     val state by viewModel.clubHomeState.collectAsState()
+    var showInviteDialog by remember { mutableStateOf(false) }
+    val isHost = state.club?.myRole == ClubRole.host
 
     LaunchedEffect(clubId) {
         viewModel.loadClubHome(clubId)
+    }
+
+    if (showInviteDialog) {
+        InviteByHandleDialog(
+            title = "Invite to ${state.club?.name ?: "club"}",
+            error = state.inviteError,
+            sent = state.inviteSent,
+            onSubmit = { handle -> viewModel.inviteToClub(clubId, handle) },
+            onDismiss = {
+                showInviteDialog = false
+                viewModel.resetInviteState()
+            },
+        )
     }
 
     Column(
@@ -92,6 +111,21 @@ fun ClubHomeScreen(
                     style = jetbrainsMono(10.sp),
                     color = AppInk3,
                 )
+            }
+            if (isHost) {
+                Box(
+                    modifier = Modifier
+                        .border(1.dp, AppPondDk)
+                        .background(AppPondDk)
+                        .clickable { showInviteDialog = true }
+                        .padding(10.dp, 6.dp),
+                ) {
+                    Text(
+                        "INVITE",
+                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                        color = AppPaper,
+                    )
+                }
             }
         }
         HorizontalDivider(color = AppLine, thickness = 1.dp)

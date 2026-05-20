@@ -29,6 +29,9 @@ data class ClubHomeUiState(
     val leaderboardScope: String = "30d",
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** Host-only invite-by-handle dialog state. */
+    val inviteError: String? = null,
+    val inviteSent: Boolean = false,
 )
 
 @HiltViewModel
@@ -131,6 +134,24 @@ class ClubViewModel @Inject constructor(
                 }
                 .onFailure { e -> _clubHomeState.update { it.copy(error = e.message) } }
         }
+    }
+
+    /**
+     * Host-only: invite an archer to [clubId] by `@handle` (§11). On success
+     * flips [ClubHomeUiState.inviteSent]; on failure surfaces [inviteError].
+     */
+    fun inviteToClub(clubId: String, handle: String) {
+        viewModelScope.launch {
+            _clubHomeState.update { it.copy(inviteError = null) }
+            runCatching { socialRepository.inviteToClub(clubId, handle) }
+                .onSuccess { _clubHomeState.update { it.copy(inviteSent = true) } }
+                .onFailure { e -> _clubHomeState.update { it.copy(inviteError = e.message) } }
+        }
+    }
+
+    /** Reset the invite dialog state when it's dismissed. */
+    fun resetInviteState() {
+        _clubHomeState.update { it.copy(inviteError = null, inviteSent = false) }
     }
 
     fun dismissError() {

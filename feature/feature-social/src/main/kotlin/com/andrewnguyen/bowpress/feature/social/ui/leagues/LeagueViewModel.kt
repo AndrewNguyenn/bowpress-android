@@ -38,6 +38,9 @@ data class LeagueHomeUiState(
     val selectedDivision: Division? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** Host-only invite-by-handle dialog state. */
+    val inviteError: String? = null,
+    val inviteSent: Boolean = false,
 )
 
 /** Form state for the league composer. */
@@ -185,6 +188,24 @@ class LeagueViewModel @Inject constructor(
                 _composerState.update { it.copy(isSaving = false, error = e.message) }
             }
         }
+    }
+
+    /**
+     * Host-only: invite an archer to [leagueId] by `@handle` (§11). On success
+     * flips [LeagueHomeUiState.inviteSent]; on failure surfaces [inviteError].
+     */
+    fun inviteToLeague(leagueId: String, handle: String) {
+        viewModelScope.launch {
+            _leagueHomeState.update { it.copy(inviteError = null) }
+            runCatching { socialRepository.inviteToLeague(leagueId, handle) }
+                .onSuccess { _leagueHomeState.update { it.copy(inviteSent = true) } }
+                .onFailure { e -> _leagueHomeState.update { it.copy(inviteError = e.message) } }
+        }
+    }
+
+    /** Reset the invite dialog state when it's dismissed. */
+    fun resetInviteState() {
+        _leagueHomeState.update { it.copy(inviteError = null, inviteSent = false) }
     }
 
     fun dismissError() {
