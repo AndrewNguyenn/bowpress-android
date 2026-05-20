@@ -97,6 +97,7 @@ fun BowPressApp(
                                     launchSingleTop = true
                                 }
                             },
+                            onSocialTabSelected = viewModel::refreshSocialPendingCount,
                         )
                     }
                 }

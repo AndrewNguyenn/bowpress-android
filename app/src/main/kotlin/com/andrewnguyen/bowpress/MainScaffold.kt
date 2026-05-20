@@ -74,6 +74,7 @@ import com.andrewnguyen.bowpress.feature.subscription.subscriptionNavGraph
 fun MainScaffold(
     uiState: AppUiState,
     onSignedOut: () -> Unit,
+    onSocialTabSelected: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -100,13 +101,20 @@ fun MainScaffold(
                 ) {
                     TopTab.entries.forEach { tab ->
                         val selected = currentRoute?.startsWith(tab.graphRoute) == true
-                        val badge = if (tab == TopTab.Analytics && uiState.unreadSuggestionCount > 0) {
-                            uiState.unreadSuggestionCount
-                        } else null
+                        val badge = when {
+                            tab == TopTab.Analytics && uiState.unreadSuggestionCount > 0 ->
+                                uiState.unreadSuggestionCount
+                            tab == TopTab.Social && uiState.socialPendingCount > 0 ->
+                                uiState.socialPendingCount
+                            else -> null
+                        }
 
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
+                                // Re-poll the Social badge whenever the Social
+                                // tab is (re-)selected — §12 contract.
+                                if (tab == TopTab.Social) onSocialTabSelected()
                                 navController.navigate(tab.graphRoute) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true

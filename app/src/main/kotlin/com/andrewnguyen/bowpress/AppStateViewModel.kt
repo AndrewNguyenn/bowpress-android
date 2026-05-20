@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.data.repository.ThemePreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
@@ -9,6 +10,7 @@ import com.andrewnguyen.bowpress.core.model.ThemePreference
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
 import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
+import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.core.model.User
@@ -42,6 +44,8 @@ class AppStateViewModel @Inject constructor(
     billingManager: PlayBillingManager,
     private val analyticsRefreshBus: AnalyticsRefreshBus,
     private val devMockDataSeeder: DevMockDataSeeder,
+    private val socialRepository: SocialRepository,
+    private val socialBadgeRefreshBus: SocialBadgeRefreshBus,
 ) : ViewModel() {
 
     init {
@@ -62,6 +66,7 @@ class AppStateViewModel @Inject constructor(
             currentUser = null,
             isHydrating = userRepository.isSignedIn,
             unreadSuggestionCount = 0,
+            socialPendingCount = 0,
         ),
     )
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
@@ -110,6 +115,21 @@ class AppStateViewModel @Inject constructor(
         _analyticsRefreshNonce.update { it + 1 }
     }
 
+    /**
+     * Re-fetch the Social-tab badge count (`/social/pending-count`). Called on
+     * hydration, on Social-tab selection, and after any invitation/friend
+     * accept-or-decline (via [SocialBadgeRefreshBus]). Best-effort: a fake dev
+     * token / offline state leaves the prior count untouched.
+     */
+    fun refreshSocialPendingCount() {
+        viewModelScope.launch {
+            runCatching { socialRepository.getPendingCount() }
+                .onSuccess { count ->
+                    _uiState.value = _uiState.value.copy(socialPendingCount = count.total)
+                }
+        }
+    }
+
     fun setUnitSystem(system: UnitSystem) {
         viewModelScope.launch { unitPreferencesRepository.setUnitSystem(system) }
     }
@@ -144,6 +164,12 @@ class AppStateViewModel @Inject constructor(
             .onEach { bumpAnalyticsRefresh() }
             .launchIn(viewModelScope)
 
+        // Social-badge invalidation pings (accept/decline of an invitation or
+        // friend request, social push arrival) re-fetch the pending count.
+        socialBadgeRefreshBus.events
+            .onEach { refreshSocialPendingCount() }
+            .launchIn(viewModelScope)
+
         if (userRepository.isSignedIn) hydrate()
     }
 
@@ -159,6 +185,7 @@ class AppStateViewModel @Inject constructor(
             currentUser = null,
             isHydrating = false,
             unreadSuggestionCount = 0,
+            socialPendingCount = 0,
         )
     }
 
@@ -173,6 +200,7 @@ class AppStateViewModel @Inject constructor(
             } else false
             runCatching { userRepository.refreshProfile() }
             pushInitializer.start()
+            refreshSocialPendingCount()
             _uiState.value = _uiState.value.copy(isHydrating = false)
             // Feature VMs (AnalyticsDashboardViewModel et al.) may have
             // collected their initial flow emission while Room was still
@@ -188,4 +216,6 @@ data class AppUiState(
     val currentUser: User?,
     val isHydrating: Boolean,
     val unreadSuggestionCount: Int,
+    /** Social-tab badge count — incoming friend requests + pending invitations. */
+    val socialPendingCount: Int = 0,
 )
