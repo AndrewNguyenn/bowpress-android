@@ -16,6 +16,17 @@ interface SocialProfileDao {
     @Query("SELECT * FROM social_profiles WHERE userId = :userId")
     suspend fun findById(userId: String): SocialProfileEntity?
 
+    /**
+     * The cached profile for whoever is signed in. Only one profile is ever
+     * cached locally (the current user's), so this is an id-free fallback for
+     * surfacing the seeded/cached profile when a remote refresh fails.
+     */
+    @Query("SELECT * FROM social_profiles LIMIT 1")
+    suspend fun findAny(): SocialProfileEntity?
+
+    @Query("SELECT * FROM social_profiles LIMIT 1")
+    fun observeAny(): Flow<SocialProfileEntity?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: SocialProfileEntity)
 

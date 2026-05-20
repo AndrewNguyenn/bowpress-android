@@ -221,7 +221,7 @@ fun FriendProfileScreen(
                             Text(
                                 "${it.distance} · ${it.targetFaceType} · last 30 days",
                                 style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.2.em),
-                                color = androidx.compose.ui.graphics.Color(0xFFEEF2EC).copy(alpha = 0.7f),
+                                color = AppPaper2.copy(alpha = 0.7f),
                             )
                         }
                     }

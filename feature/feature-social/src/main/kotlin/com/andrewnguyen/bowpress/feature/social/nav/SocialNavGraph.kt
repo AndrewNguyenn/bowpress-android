@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubHomeScreen
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubsScreen
 import com.andrewnguyen.bowpress.feature.social.ui.feed.FeedScreen
@@ -38,7 +39,10 @@ fun NavGraphBuilder.socialNavGraph(
 ) {
     // ── Feed (landing) ────────────────────────────────────────────────────────
 
-    composable(SocialRoutes.FEED) {
+    composable(
+        route = SocialRoutes.FEED,
+        deepLinks = listOf(navDeepLink { uriPattern = "bowpress://social" }),
+    ) {
         FeedScreen(
             onAvatarClick = { navController.navigate(SocialRoutes.YOU) },
             onFriendsClick = { navController.navigate(SocialRoutes.FRIENDS) },
@@ -69,7 +73,10 @@ fun NavGraphBuilder.socialNavGraph(
 
     // ── Friends ───────────────────────────────────────────────────────────────
 
-    composable(SocialRoutes.FRIENDS) {
+    composable(
+        route = SocialRoutes.FRIENDS,
+        deepLinks = listOf(navDeepLink { uriPattern = "bowpress://social/friends" }),
+    ) {
         FriendsScreen(
             onBack = { navController.popBackStack() },
             onFriendClick = { userId ->
@@ -103,7 +110,10 @@ fun NavGraphBuilder.socialNavGraph(
 
     // ── Clubs ─────────────────────────────────────────────────────────────────
 
-    composable(SocialRoutes.CLUBS) {
+    composable(
+        route = SocialRoutes.CLUBS,
+        deepLinks = listOf(navDeepLink { uriPattern = "bowpress://social/clubs" }),
+    ) {
         ClubsScreen(
             onBack = { navController.popBackStack() },
             onClubClick = { clubId -> navController.navigate(SocialRoutes.clubHome(clubId)) },
@@ -113,6 +123,7 @@ fun NavGraphBuilder.socialNavGraph(
     composable(
         route = SocialRoutes.CLUB_HOME,
         arguments = listOf(navArgument("clubId") { type = NavType.StringType }),
+        deepLinks = listOf(navDeepLink { uriPattern = "bowpress://social/clubs/{clubId}" }),
     ) { entry ->
         val clubId = entry.arguments?.getString("clubId").orEmpty()
         ClubHomeScreen(
@@ -123,7 +134,10 @@ fun NavGraphBuilder.socialNavGraph(
 
     // ── Leagues ───────────────────────────────────────────────────────────────
 
-    composable(SocialRoutes.LEAGUES) {
+    composable(
+        route = SocialRoutes.LEAGUES,
+        deepLinks = listOf(navDeepLink { uriPattern = "bowpress://social/leagues" }),
+    ) {
         LeaguesScreen(
             onBack = { navController.popBackStack() },
             onLeagueClick = { leagueId -> navController.navigate(SocialRoutes.leagueHome(leagueId)) },
@@ -134,6 +148,7 @@ fun NavGraphBuilder.socialNavGraph(
     composable(
         route = SocialRoutes.LEAGUE_HOME,
         arguments = listOf(navArgument("leagueId") { type = NavType.StringType }),
+        deepLinks = listOf(navDeepLink { uriPattern = "bowpress://social/leagues/{leagueId}" }),
     ) { entry ->
         val leagueId = entry.arguments?.getString("leagueId").orEmpty()
         LeagueHomeScreen(

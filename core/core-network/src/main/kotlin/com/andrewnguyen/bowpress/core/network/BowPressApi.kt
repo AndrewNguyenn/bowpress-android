@@ -36,6 +36,7 @@ import com.andrewnguyen.bowpress.core.model.TagCorrelation
 import com.andrewnguyen.bowpress.core.model.TimelineResponse
 import com.andrewnguyen.bowpress.core.model.TrendsResponse
 import com.andrewnguyen.bowpress.core.model.UpdateClubBody
+import com.andrewnguyen.bowpress.core.model.UpdateLeagueBody
 import com.andrewnguyen.bowpress.core.model.UpdateSocialProfileRequest
 import com.andrewnguyen.bowpress.core.model.User
 import retrofit2.Response
@@ -402,7 +403,7 @@ interface BowPressApi {
     suspend fun getLeague(@Path("id") id: String): League
 
     @PATCH("social/leagues/{id}")
-    suspend fun updateLeague(@Path("id") id: String, @Body body: CreateLeagueBody): League
+    suspend fun updateLeague(@Path("id") id: String, @Body body: UpdateLeagueBody): League
 
     @DELETE("social/leagues/{id}")
     suspend fun deleteLeague(@Path("id") id: String)

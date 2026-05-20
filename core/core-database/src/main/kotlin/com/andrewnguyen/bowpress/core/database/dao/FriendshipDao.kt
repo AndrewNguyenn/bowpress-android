@@ -28,9 +28,6 @@ interface FriendshipDao {
     @Query("SELECT * FROM friendships WHERE otherUserId = :otherUserId LIMIT 1")
     suspend fun findByOtherUserId(otherUserId: String): FriendshipEntity?
 
-    @Query("SELECT * FROM friendships WHERE pendingSync = 1")
-    suspend fun findPendingSync(): List<FriendshipEntity>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: FriendshipEntity)
 

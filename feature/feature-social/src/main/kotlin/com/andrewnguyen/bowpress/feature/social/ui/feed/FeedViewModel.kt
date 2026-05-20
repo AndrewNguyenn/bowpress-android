@@ -9,6 +9,7 @@ import com.andrewnguyen.bowpress.core.model.Friendship
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +38,13 @@ class FeedViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     private val _myProfile = MutableStateFlow<SocialProfile?>(null)
 
-    val uiState: StateFlow<FeedUiState> = combine(
+    // The five repository flows carry the list data; the three local
+    // MutableStateFlows must ALSO be combine inputs — `combine` only re-emits
+    // when a source flow changes, so reading `_myProfile.value` inside the
+    // lambda would leave the avatar / loading / error stuck on their initial
+    // values. Repo flows are pre-combined into one to stay within combine's
+    // typed-arity, then merged with the three local flows.
+    private val lists: Flow<FeedUiState> = combine(
         socialRepository.observeFeed(),
         socialRepository.observeFriends(),
         socialRepository.observePendingRequests(),
@@ -50,10 +57,16 @@ class FeedViewModel @Inject constructor(
             pendingRequests = pending,
             clubs = clubs,
             leagues = leagues,
-            myProfile = _myProfile.value,
-            isLoading = _isLoading.value,
-            error = _error.value,
         )
+    }
+
+    val uiState: StateFlow<FeedUiState> = combine(
+        lists,
+        _myProfile,
+        _isLoading,
+        _error,
+    ) { base, profile, loading, error ->
+        base.copy(myProfile = profile, isLoading = loading, error = error)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

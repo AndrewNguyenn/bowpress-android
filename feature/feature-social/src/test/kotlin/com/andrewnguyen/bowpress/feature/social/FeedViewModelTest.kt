@@ -146,8 +146,9 @@ class FeedViewModelTest {
             // Advance so refresh() coroutine runs
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Collect the state emitted after flows combine
-            val loaded = awaitItem()
+            // The fully settled state after the repo flows + the profile /
+            // loading flows have all combined.
+            val loaded = expectMostRecentItem()
             assertThat(loaded.friends).hasSize(1)
             assertThat(loaded.friends.first().otherHandle).isEqualTo("sara.l")
             assertThat(loaded.clubs).hasSize(1)
@@ -156,6 +157,11 @@ class FeedViewModelTest {
             assertThat(loaded.leagues.first().name).isEqualTo("Spring CMP Weekly")
             assertThat(loaded.feed).hasSize(1)
             assertThat(loaded.feed.first().kind).isEqualTo(ActivityKind.friend_pr)
+            // myProfile + isLoading flow through `combine` as real inputs —
+            // a stale snapshot here would mean the avatar/loading toggle is
+            // permanently wrong (regression guard for the combine wiring).
+            assertThat(loaded.myProfile?.handle).isEqualTo("andrew.n")
+            assertThat(loaded.isLoading).isFalse()
 
             cancelAndIgnoreRemainingEvents()
         }

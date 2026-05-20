@@ -29,6 +29,7 @@ import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import com.andrewnguyen.bowpress.core.model.UpdateClubBody
+import com.andrewnguyen.bowpress.core.model.UpdateLeagueBody
 import com.andrewnguyen.bowpress.core.model.UpdateSocialProfileRequest
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.network.BowPressApi
@@ -38,9 +39,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Offline-first social repository. Local Room tables are the source of truth.
- * Writes are local-first (pendingSync=true where applicable); reads expose
- * Flows from Room. Remote fetches upsert into the local cache.
+ * Social repository — **online-first for v1**.
+ *
+ * Reads are served from Room as Flows so the UI stays reactive and survives
+ * process death, but Room is a *read cache*, not the source of truth: every
+ * write goes to the API first and only updates Room on success. There is no
+ * offline write queue. The `pendingSync` columns on the social entities are
+ * reserved for a future offline-write iteration and are unused today.
+ *
+ * `refresh*` methods pull from the API and upsert into Room; `observe*`
+ * methods expose the cached rows.
  */
 @Singleton
 class SocialRepository @Inject constructor(
@@ -57,10 +65,29 @@ class SocialRepository @Inject constructor(
     fun observeMyProfile(userId: String): Flow<SocialProfile?> =
         profileDao.observe(userId).map { it?.toDto() }
 
+    /**
+     * The signed-in user's social profile as a reactive stream, id-free —
+     * only one profile is ever cached locally, so a seeded (DEBUG) or
+     * previously-fetched profile surfaces immediately even before/without a
+     * successful remote refresh.
+     */
+    fun observeMyProfile(): Flow<SocialProfile?> =
+        profileDao.observeAny().map { it?.toDto() }
+
+    /**
+     * Best-effort fetch of the current user's profile. Tries the API and
+     * caches the result; on failure (offline, or a DEBUG build whose token
+     * isn't routable) falls back to the locally cached/seeded profile so
+     * callers get data instead of an exception.
+     */
     suspend fun getMyProfile(): SocialProfile {
-        val remote = api.getSocialProfile()
-        profileDao.upsert(remote.toEntity())
-        return remote
+        return runCatching {
+            val remote = api.getSocialProfile()
+            profileDao.upsert(remote.toEntity())
+            remote
+        }.getOrElse { err ->
+            profileDao.findAny()?.toDto() ?: throw err
+        }
     }
 
     suspend fun updateMyProfile(
@@ -195,6 +222,12 @@ class SocialRepository @Inject constructor(
 
     suspend fun createLeague(body: CreateLeagueBody): League {
         val result = api.createLeague(body)
+        leagueDao.upsert(result.toEntity())
+        return result
+    }
+
+    suspend fun updateLeague(id: String, body: UpdateLeagueBody): League {
+        val result = api.updateLeague(id, body)
         leagueDao.upsert(result.toEntity())
         return result
     }

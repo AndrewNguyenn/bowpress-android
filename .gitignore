@@ -35,3 +35,5 @@ output.json
 *.keystore
 google-services.json
 !app/src/debug/google-services.json
+SOCIAL_API_CONTRACT.md
+SOCIAL_DESIGN.html

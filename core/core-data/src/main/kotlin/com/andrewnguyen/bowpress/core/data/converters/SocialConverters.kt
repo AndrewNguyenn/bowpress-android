@@ -49,7 +49,9 @@ fun SocialProfileEntity.toDto(): SocialProfile = SocialProfile(
     division = division?.let { runCatching { Division.valueOf(it) }.getOrNull() },
 )
 
-fun SocialProfile.toEntity(pendingSync: Boolean = false): SocialProfileEntity = SocialProfileEntity(
+// Social writes are online-first in v1 — entities use the default
+// `pendingSync = false`; no caller flips it.
+fun SocialProfile.toEntity(): SocialProfileEntity = SocialProfileEntity(
     userId = userId,
     handle = handle,
     displayName = displayName,
@@ -59,7 +61,6 @@ fun SocialProfile.toEntity(pendingSync: Boolean = false): SocialProfileEntity = 
     sessionCount = sessionCount,
     arrowCount = arrowCount,
     division = division?.name,
-    pendingSync = pendingSync,
 )
 
 // ── Friendship ─────────────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ fun FriendshipEntity.toDto(): Friendship = Friendship(
     direction = direction?.let { runCatching { FriendshipDirection.valueOf(it) }.getOrNull() },
 )
 
-fun Friendship.toEntity(pendingSync: Boolean = false): FriendshipEntity = FriendshipEntity(
+fun Friendship.toEntity(): FriendshipEntity = FriendshipEntity(
     id = id,
     requesterId = requesterId,
     addresseeId = addresseeId,
@@ -90,7 +91,6 @@ fun Friendship.toEntity(pendingSync: Boolean = false): FriendshipEntity = Friend
     otherHandle = otherHandle,
     otherDisplayName = otherDisplayName,
     direction = direction?.name,
-    pendingSync = pendingSync,
 )
 
 // ── Club ───────────────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ fun ClubEntity.toDto(): Club = Club(
     myRole = runCatching { ClubRole.valueOf(myRole) }.getOrDefault(ClubRole.member),
 )
 
-fun Club.toEntity(pendingSync: Boolean = false): ClubEntity = ClubEntity(
+fun Club.toEntity(): ClubEntity = ClubEntity(
     id = id,
     name = name,
     description = description,
@@ -117,7 +117,6 @@ fun Club.toEntity(pendingSync: Boolean = false): ClubEntity = ClubEntity(
     createdBy = createdBy,
     memberCount = memberCount,
     myRole = myRole.name,
-    pendingSync = pendingSync,
 )
 
 // ── ActivityItem ───────────────────────────────────────────────────────────
@@ -177,7 +176,7 @@ fun LeagueEntity.toDto(): League {
     )
 }
 
-fun League.toEntity(pendingSync: Boolean = false): LeagueEntity = LeagueEntity(
+fun League.toEntity(): LeagueEntity = LeagueEntity(
     id = id,
     name = name,
     hostClubId = hostClubId,
@@ -194,5 +193,4 @@ fun League.toEntity(pendingSync: Boolean = false): LeagueEntity = LeagueEntity(
     createdAt = createdAt,
     myEntryJson = myEntry?.let { json.encodeToString(it) },
     entryCount = entryCount,
-    pendingSync = pendingSync,
 )

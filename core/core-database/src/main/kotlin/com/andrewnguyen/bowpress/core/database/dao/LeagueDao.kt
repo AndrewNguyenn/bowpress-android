@@ -19,9 +19,6 @@ interface LeagueDao {
     @Query("SELECT * FROM leagues WHERE id = :id")
     suspend fun findById(id: String): LeagueEntity?
 
-    @Query("SELECT * FROM leagues WHERE pendingSync = 1")
-    suspend fun findPendingSync(): List<LeagueEntity>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: LeagueEntity)
 

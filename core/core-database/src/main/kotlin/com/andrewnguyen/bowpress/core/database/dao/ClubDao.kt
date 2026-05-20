@@ -19,9 +19,6 @@ interface ClubDao {
     @Query("SELECT * FROM clubs WHERE id = :id")
     suspend fun findById(id: String): ClubEntity?
 
-    @Query("SELECT * FROM clubs WHERE pendingSync = 1")
-    suspend fun findPendingSync(): List<ClubEntity>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: ClubEntity)
 

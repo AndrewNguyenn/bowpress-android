@@ -86,8 +86,8 @@ class HandicapCalculatorTest {
 
     @Test
     fun `perWeekAllowance for rolling equation uses 0_85 factor`() {
-        // (600 - 550) * 0.85 = 42.5 -> 42
-        assertThat(HandicapCalculator.perWeekAllowance(HandicapEquation.rolling, 550.0, null)).isEqualTo(42)
+        // (600 - 550) * 0.85 = 42.5 -> 43 (rounded, not truncated)
+        assertThat(HandicapCalculator.perWeekAllowance(HandicapEquation.rolling, 550.0, null)).isEqualTo(43)
     }
 
     // ── adjustedScore ────────────────────────────────────────────────────────
@@ -117,17 +117,19 @@ class HandicapCalculatorTest {
 
     @Test
     fun `adjustedScore for rolling equation adds rolling allowance`() {
-        // (600 - 550) * 0.85 = 42; adjusted = 530 + 42 = 572
+        // allowance (600-550)*0.85 = 42.5; adjusted = round(530 + 42.5) = round(572.5) = 573
         assertThat(
             HandicapCalculator.adjustedScore(530, HandicapEquation.rolling, 550.0, null),
-        ).isEqualTo(572)
+        ).isEqualTo(573)
     }
 
     @Test
-    fun `adjustedScore is clamped by integer truncation not rounding`() {
-        // (600 - 551.1) * 0.85 = 41.565 -> 41 (truncated)
+    fun `adjustedScore rounds the raw-plus-allowance sum`() {
+        // The cross-platform rule (§6) is sum-then-round, matching iOS/API.
+        // (600 - 551.1) * 0.85 = 41.565 -> perWeekAllowance rounds to 42
         val allowance = HandicapCalculator.perWeekAllowance(HandicapEquation.rolling, 551.1, null)
-        assertThat(allowance).isEqualTo(41)
-        assertThat(HandicapCalculator.adjustedScore(500, HandicapEquation.rolling, 551.1, null)).isEqualTo(541)
+        assertThat(allowance).isEqualTo(42)
+        // adjustedScore rounds the sum: round(500 + 41.565) = round(541.565) = 542
+        assertThat(HandicapCalculator.adjustedScore(500, HandicapEquation.rolling, 551.1, null)).isEqualTo(542)
     }
 }

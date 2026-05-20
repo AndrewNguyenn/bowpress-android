@@ -17,6 +17,7 @@ data class SocialProfileEntity(
     val sessionCount: Int = 0,
     val arrowCount: Int = 0,
     val division: String? = null,    // Division.name or null
+    // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
 
@@ -35,6 +36,7 @@ data class FriendshipEntity(
     val otherHandle: String,
     val otherDisplayName: String,
     val direction: String? = null,   // FriendshipDirection.name or null
+    // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
 
@@ -51,6 +53,7 @@ data class ClubEntity(
     val createdBy: String,
     val memberCount: Int = 0,
     val myRole: String,              // ClubRole.name
+    // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
 
@@ -89,5 +92,6 @@ data class LeagueEntity(
     val createdAt: Instant,
     val myEntryJson: String? = null, // JSON LeagueEntry or null
     val entryCount: Int = 0,
+    // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
