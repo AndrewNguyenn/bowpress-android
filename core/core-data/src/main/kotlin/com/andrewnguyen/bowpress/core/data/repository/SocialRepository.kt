@@ -19,10 +19,14 @@ import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.BlockMode
+import com.andrewnguyen.bowpress.core.model.AttachmentKind
 import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubAnnouncement
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.CompareView
+import com.andrewnguyen.bowpress.core.model.CreateAnnouncementBody
+import com.andrewnguyen.bowpress.core.model.CreateAttachmentBody
 import com.andrewnguyen.bowpress.core.model.CreateBlockBody
 import com.andrewnguyen.bowpress.core.model.CreateClubBody
 import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
@@ -33,6 +37,7 @@ import com.andrewnguyen.bowpress.core.model.JoinClubBody
 import com.andrewnguyen.bowpress.core.model.JoinLeagueBody
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
+import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
@@ -48,6 +53,7 @@ import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
+import com.andrewnguyen.bowpress.core.model.UpdateAnnouncementBody
 import com.andrewnguyen.bowpress.core.model.UpdateClubBody
 import com.andrewnguyen.bowpress.core.model.UpdateLeagueBody
 import com.andrewnguyen.bowpress.core.model.UpdateSocialProfileRequest
@@ -524,5 +530,67 @@ class SocialRepository @Inject constructor(
             ends = ends,
             arrows = arrows,
         )
+    }
+
+    // ── Club announcement board (§17) ─────────────────────────────────────────
+
+    /** A club's announcement board — members read, pinned-first then newest. */
+    suspend fun getClubAnnouncements(clubId: String): List<ClubAnnouncement> =
+        api.getClubAnnouncements(clubId)
+
+    /** Host-only: post a new announcement to a club's board. */
+    suspend fun postClubAnnouncement(
+        clubId: String,
+        body: String,
+        pinned: Boolean = false,
+    ): ClubAnnouncement =
+        api.postClubAnnouncement(clubId, CreateAnnouncementBody(body, pinned))
+
+    /** Host-only: pin or unpin an announcement. */
+    suspend fun setClubAnnouncementPinned(
+        clubId: String,
+        announcementId: String,
+        pinned: Boolean,
+    ): ClubAnnouncement =
+        api.updateClubAnnouncement(clubId, announcementId, UpdateAnnouncementBody(pinned))
+
+    /** Host-only: delete an announcement. */
+    suspend fun deleteClubAnnouncement(clubId: String, announcementId: String) {
+        api.deleteClubAnnouncement(clubId, announcementId)
+    }
+
+    // ── League attachments (§17) ──────────────────────────────────────────────
+
+    /** A league's attachments — host + entrants, newest first. */
+    suspend fun getLeagueAttachments(leagueId: String): List<LeagueAttachment> =
+        api.getLeagueAttachments(leagueId)
+
+    /**
+     * Host-only: add an attachment. A `link`/`file` kind requires a non-blank
+     * [url]; a `note` requires [note]. Throws [IllegalArgumentException] on a
+     * mismatch so the caller never posts an invalid attachment.
+     */
+    suspend fun addLeagueAttachment(
+        leagueId: String,
+        kind: AttachmentKind,
+        title: String,
+        url: String? = null,
+        note: String? = null,
+    ): LeagueAttachment {
+        when (kind) {
+            AttachmentKind.LINK, AttachmentKind.FILE ->
+                require(!url.isNullOrBlank()) { "A $kind attachment needs a URL." }
+            AttachmentKind.NOTE ->
+                require(!note.isNullOrBlank()) { "A note attachment needs note text." }
+        }
+        return api.postLeagueAttachment(
+            leagueId,
+            CreateAttachmentBody(kind = kind, title = title, url = url, note = note),
+        )
+    }
+
+    /** Host-only: remove an attachment. */
+    suspend fun deleteLeagueAttachment(leagueId: String, attachmentId: String) {
+        api.deleteLeagueAttachment(leagueId, attachmentId)
     }
 }

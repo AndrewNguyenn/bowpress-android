@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.core.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import kotlin.math.roundToInt
@@ -662,4 +663,71 @@ data class SharedSessionDetail(
     val session: ShootingSession? = null,
     val ends: List<SessionEnd> = emptyList(),
     val arrows: List<ArrowPlot> = emptyList(),
+)
+
+// ── §17 Club announcement board + league attachments ────────────────────────
+
+/**
+ * Mirrors API §17 `ClubAnnouncement` — a post on a club's announcement board.
+ * Members read; the host posts. Pinned posts sort first, then newest.
+ */
+@Serializable
+data class ClubAnnouncement(
+    val id: String,
+    val clubId: String,
+    val authorUserId: String,
+    val authorHandle: String,
+    val authorDisplayName: String,
+    val body: String,
+    val pinned: Boolean = false,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+)
+
+/** Request body for `POST /social/clubs/:id/announcements`. */
+@Serializable
+data class CreateAnnouncementBody(
+    val body: String,
+    val pinned: Boolean = false,
+)
+
+/** Request body for `PATCH /social/clubs/:id/announcements/:annId`. */
+@Serializable
+data class UpdateAnnouncementBody(
+    val pinned: Boolean,
+)
+
+/** What a [LeagueAttachment] is — a shared link, an uploaded file, or a plain note. */
+@Serializable
+enum class AttachmentKind {
+    @SerialName("link") LINK,
+    @SerialName("file") FILE,
+    @SerialName("note") NOTE,
+}
+
+/**
+ * Mirrors API §17 `LeagueAttachment` — a resource the host pinned to a league
+ * (a rules link, a results file, a note). `url` is required for link/file.
+ */
+@Serializable
+data class LeagueAttachment(
+    val id: String,
+    val leagueId: String,
+    val addedByUserId: String,
+    val addedByHandle: String,
+    val kind: AttachmentKind,
+    val title: String,
+    val url: String? = null,
+    val note: String? = null,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+)
+
+/** Request body for `POST /social/leagues/:id/attachments`. */
+@Serializable
+data class CreateAttachmentBody(
+    val kind: AttachmentKind,
+    val title: String,
+    val url: String? = null,
+    val note: String? = null,
 )

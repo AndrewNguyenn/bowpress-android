@@ -11,10 +11,13 @@ import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubAnnouncement
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.CompareView
 import com.andrewnguyen.bowpress.core.model.ConfigurationChange
+import com.andrewnguyen.bowpress.core.model.CreateAnnouncementBody
+import com.andrewnguyen.bowpress.core.model.CreateAttachmentBody
 import com.andrewnguyen.bowpress.core.model.CreateBlockBody
 import com.andrewnguyen.bowpress.core.model.CreateClubBody
 import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
@@ -27,6 +30,7 @@ import com.andrewnguyen.bowpress.core.model.JoinClubBody
 import com.andrewnguyen.bowpress.core.model.JoinLeagueBody
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
+import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
@@ -45,6 +49,7 @@ import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
 import com.andrewnguyen.bowpress.core.model.TimelineResponse
 import com.andrewnguyen.bowpress.core.model.TrendsResponse
+import com.andrewnguyen.bowpress.core.model.UpdateAnnouncementBody
 import com.andrewnguyen.bowpress.core.model.UpdateClubBody
 import com.andrewnguyen.bowpress.core.model.UpdateLeagueBody
 import com.andrewnguyen.bowpress.core.model.UpdateSocialProfileRequest
@@ -508,6 +513,47 @@ interface BowPressApi {
     suspend fun getSharedSessionDetail(
         @Path("sharedSessionId") sharedSessionId: String,
     ): SharedSessionDetail
+
+    // ---- Social — Club announcement board (§17) --------------------------------
+
+    @GET("social/clubs/{id}/announcements")
+    suspend fun getClubAnnouncements(@Path("id") id: String): List<ClubAnnouncement>
+
+    @POST("social/clubs/{id}/announcements")
+    suspend fun postClubAnnouncement(
+        @Path("id") id: String,
+        @Body body: CreateAnnouncementBody,
+    ): ClubAnnouncement
+
+    @PATCH("social/clubs/{id}/announcements/{annId}")
+    suspend fun updateClubAnnouncement(
+        @Path("id") id: String,
+        @Path("annId") annId: String,
+        @Body body: UpdateAnnouncementBody,
+    ): ClubAnnouncement
+
+    @DELETE("social/clubs/{id}/announcements/{annId}")
+    suspend fun deleteClubAnnouncement(
+        @Path("id") id: String,
+        @Path("annId") annId: String,
+    )
+
+    // ---- Social — League attachments (§17) -------------------------------------
+
+    @GET("social/leagues/{id}/attachments")
+    suspend fun getLeagueAttachments(@Path("id") id: String): List<LeagueAttachment>
+
+    @POST("social/leagues/{id}/attachments")
+    suspend fun postLeagueAttachment(
+        @Path("id") id: String,
+        @Body body: CreateAttachmentBody,
+    ): LeagueAttachment
+
+    @DELETE("social/leagues/{id}/attachments/{attId}")
+    suspend fun deleteLeagueAttachment(
+        @Path("id") id: String,
+        @Path("attId") attId: String,
+    )
 
     // ---- Social — Dev notify (for e2e tests) -----------------------------------
 
