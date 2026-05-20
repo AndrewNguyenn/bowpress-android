@@ -3,7 +3,6 @@ package com.andrewnguyen.bowpress.core.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
-import kotlin.math.roundToInt
 
 // ── §1 Social Profile ────────────────────────────────────────────────────────
 
@@ -395,67 +394,6 @@ data class ActivityItem(
     val clubId: String? = null,
     val leagueId: String? = null,
 )
-
-// ── §6 Handicap Math ─────────────────────────────────────────────────────────
-
-/**
- * Pure Kotlin implementation of the handicap math from API contract §6.
- * Must produce identical results on all platforms.
- */
-object HandicapCalculator {
-
-    /**
-     * Bracket allowance table per §6.
-     * avg >= 590 -> 5; >= 580 -> 15; >= 560 -> 35; >= 540 -> 60; >= 500 -> 95; else -> 120
-     */
-    fun bracketAllowance(avg: Double): Int = when {
-        avg >= 590.0 -> 5
-        avg >= 580.0 -> 15
-        avg >= 560.0 -> 35
-        avg >= 540.0 -> 60
-        avg >= 500.0 -> 95
-        else -> 120
-    }
-
-    /**
-     * Raw per-week allowance as a `Double` — kept un-rounded so the
-     * `rawScore + allowance` sum can be rounded once (see [adjustedScore]).
-     * The cross-platform rule is sum-then-round; rounding the allowance on
-     * its own would drift from the design JS / iOS / API.
-     */
-    private fun rawAllowance(
-        equation: HandicapEquation,
-        baseline: Double,
-        allowancePct: Double?,
-    ): Double = when (equation) {
-        HandicapEquation.none -> 0.0
-        HandicapEquation.allowance -> (600.0 - baseline) * (allowancePct ?: 0.8)
-        HandicapEquation.bracket -> bracketAllowance(baseline).toDouble()
-        HandicapEquation.rolling -> (600.0 - baseline) * 0.85
-    }
-
-    /**
-     * Per-week allowance points (rounded) for display. The authoritative
-     * score math is [adjustedScore], which rounds the *sum* — call this only
-     * when an allowance figure must be shown on its own.
-     */
-    fun perWeekAllowance(
-        equation: HandicapEquation,
-        baseline: Double,
-        allowancePct: Double?,
-    ): Int = rawAllowance(equation, baseline, allowancePct).roundToInt()
-
-    /**
-     * Adjusted score = round(rawScore + allowance). Sum-then-round matches
-     * the design JS (`Math.round`) and the iOS/API implementations.
-     */
-    fun adjustedScore(
-        rawScore: Int,
-        equation: HandicapEquation,
-        baseline: Double,
-        allowancePct: Double?,
-    ): Int = (rawScore + rawAllowance(equation, baseline, allowancePct)).roundToInt()
-}
 
 // ── §11 Invitations (club + league) ──────────────────────────────────────────
 
