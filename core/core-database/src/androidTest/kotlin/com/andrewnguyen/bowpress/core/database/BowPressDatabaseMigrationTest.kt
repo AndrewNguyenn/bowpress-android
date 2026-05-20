@@ -20,6 +20,9 @@ import org.junit.runner.RunWith
  *   adds the `invitations` table without data loss.
  * - [migrate_8_to_9_adds_blocks_table]: Verifies that the v8→v9 AutoMigration
  *   adds the `blocks` table without data loss.
+ * - [migrate_9_to_11_adds_shared_session_columns_and_achievements]: Verifies the
+ *   v9→v10 (§15 activity_feed columns) and v10→v11 (achievements table)
+ *   AutoMigrations chain without data loss.
  *
  * Schema JSON snapshots under `core-database/schemas/` are exposed to this test as
  * assets via `sourceSets["androidTest"].assets.srcDirs` in `build.gradle.kts`.
@@ -165,6 +168,68 @@ class BowPressDatabaseMigrationTest {
         db.query("SELECT mode FROM blocks WHERE id = 'blk-1'").use { cursor ->
             assertThat(cursor.moveToFirst()).isTrue()
             assertThat(cursor.getString(0)).isEqualTo("mute")
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate_9_to_11_adds_shared_session_columns_and_achievements() {
+        val dbName = "migration-9-11-test.db"
+
+        // Create a v9 DB and insert an activity_feed row to confirm data survives
+        // the §15 column additions.
+        helper.createDatabase(dbName, 9).apply {
+            execSQL(
+                """
+                INSERT INTO activity_feed (
+                    id, kind, sourceKind, actorHandle, actorDisplayName,
+                    title, createdAt
+                ) VALUES (
+                    'act-1', 'friend_pr', 'friend', 'sara.l', 'Sara Lin',
+                    'Hit a new PR', 1700000000000
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // Chains 9→10 (activity_feed columns) and 10→11 (achievements table).
+        val db = helper.runMigrationsAndValidate(dbName, 11, /* validateDroppedTables = */ true)
+
+        // Existing row survives, with the §15 column defaults applied.
+        db.query("SELECT highlighted, sessionJson FROM activity_feed WHERE id = 'act-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getInt(0)).isEqualTo(0)   // highlighted defaults to 0
+            assertThat(cursor.isNull(1)).isTrue()       // sessionJson defaults to null
+        }
+
+        // A §15 highlighted row can be written.
+        db.execSQL(
+            """
+            INSERT INTO activity_feed (
+                id, kind, sourceKind, actorHandle, actorDisplayName,
+                title, createdAt, sessionJson, achievementsJson, highlighted
+            ) VALUES (
+                'act-2', 'friend_pr', 'friend', 'devon.c', 'Devon Chen',
+                'Shared a session', 1700000000000, '{}', '[]', 1
+            )
+            """.trimIndent(),
+        )
+
+        // The achievements table exists (INSERT without error confirms it).
+        db.execSQL(
+            """
+            INSERT INTO achievements (
+                id, userId, sharedSessionId, kind, label, value, createdAt
+            ) VALUES (
+                'ach-1', 'u-1', 'ss-1', 'score_pr', 'Score PR', 558, 1700000000000
+            )
+            """.trimIndent(),
+        )
+        db.query("SELECT value FROM achievements WHERE id = 'ach-1'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getInt(0)).isEqualTo(558)
         }
 
         db.close()

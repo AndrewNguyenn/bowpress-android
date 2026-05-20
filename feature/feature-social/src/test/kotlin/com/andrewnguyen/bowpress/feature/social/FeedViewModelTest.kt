@@ -190,4 +190,54 @@ class FeedViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `highlighted shared-session items carry session and achievements through to uiState`() = runTest {
+        // §15 — a highlighted feed row with an embedded session + badge.
+        val highlighted = ActivityItem(
+            id = "act-hl",
+            kind = ActivityKind.friend_pr,
+            sourceKind = ActivitySourceKind.friend,
+            actorHandle = "sara.l",
+            actorDisplayName = "Sara Lin",
+            title = "Shared a session — new personal best",
+            createdAt = Instant.now(),
+            session = com.andrewnguyen.bowpress.core.model.ActivitySession(
+                sharedSessionId = "ss-1",
+                sessionId = "sess-1",
+                score = 574,
+                xCount = 24,
+                arrowCount = 30,
+                distance = "50m",
+                face = "10-Ring",
+            ),
+            achievements = listOf(
+                com.andrewnguyen.bowpress.core.model.AchievementBadge(
+                    kind = com.andrewnguyen.bowpress.core.model.AchievementKind.score_pr,
+                    label = "Score PR · 574",
+                    value = 574,
+                ),
+            ),
+            highlighted = true,
+        )
+        every { repository.observeFeed() } returns flowOf(listOf(highlighted, stubActivityItem))
+
+        val vm = FeedViewModel(repository)
+
+        vm.uiState.test {
+            skipItems(1) // initial
+            testDispatcher.scheduler.advanceUntilIdle()
+            val loaded = expectMostRecentItem()
+
+            val row = loaded.feed.first { it.id == "act-hl" }
+            assertThat(row.highlighted).isTrue()
+            assertThat(row.session?.score).isEqualTo(574)
+            assertThat(row.achievements).hasSize(1)
+            assertThat(row.achievements.first().label).isEqualTo("Score PR · 574")
+            // A plain row stays un-highlighted.
+            assertThat(loaded.feed.first { it.id == "act-1" }.highlighted).isFalse()
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
