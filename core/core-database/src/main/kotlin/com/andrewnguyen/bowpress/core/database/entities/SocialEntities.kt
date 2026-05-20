@@ -111,3 +111,16 @@ data class InvitationEntity(
     val createdAt: Instant,
     val respondedAt: Instant? = null,
 )
+
+// ── Block (§14) ──────────────────────────────────────────────────────────────
+
+@Entity(tableName = "blocks")
+data class BlockEntity(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val kind: String,                // BlockKind.name
+    val targetId: String,
+    val targetName: String,
+    val mode: String,                // BlockMode.name
+    val createdAt: Instant,
+)

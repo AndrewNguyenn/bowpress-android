@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.core.data.repository
 import com.andrewnguyen.bowpress.core.data.converters.toDto
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
+import com.andrewnguyen.bowpress.core.database.dao.BlockDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
 import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
@@ -11,10 +12,13 @@ import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
+import com.andrewnguyen.bowpress.core.model.BlockKind
+import com.andrewnguyen.bowpress.core.model.BlockMode
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.CompareView
+import com.andrewnguyen.bowpress.core.model.CreateBlockBody
 import com.andrewnguyen.bowpress.core.model.CreateClubBody
 import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
 import com.andrewnguyen.bowpress.core.model.FriendProfile
@@ -29,6 +33,7 @@ import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
+import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
@@ -65,6 +70,7 @@ class SocialRepository @Inject constructor(
     private val feedDao: ActivityFeedDao,
     private val leagueDao: LeagueDao,
     private val invitationDao: InvitationDao,
+    private val blockDao: BlockDao,
 ) {
 
     // ── Profile ───────────────────────────────────────────────────────────────
@@ -349,5 +355,51 @@ class SocialRepository @Inject constructor(
                     total = friendRequests + invitations,
                 )
             }
+    }
+
+    // ── Mute / block (§14) ──────────────────────────────────────────────────────
+    //
+    // Online-first like the rest: the API is the source of truth; successful
+    // fetches replace the `blocks` Room cache so the "Muted & blocked" list
+    // renders reactively and the DEBUG seed works offline.
+
+    /** Reactive stream of the signed-in user's mutes + blocks from Room. */
+    fun observeBlocks(): Flow<List<SocialBlock>> =
+        blockDao.observeAll().map { rows -> rows.map { it.toDto() } }
+
+    /**
+     * Fetch all mutes/blocks. On API success the cache is replaced; on failure
+     * the last cached rows are returned (DEBUG / offline).
+     */
+    suspend fun getBlocks(): List<SocialBlock> {
+        return runCatching { api.getBlocks() }
+            .onSuccess { remote ->
+                blockDao.clear()
+                blockDao.upsertAll(remote.map { it.toEntity() })
+            }
+            .getOrElse {
+                blockDao.getAll().map { it.toDto() }
+            }
+    }
+
+    /**
+     * Mute or block [targetId]. Re-posting the same target updates the [mode]
+     * server-side. The returned row is cached. Blocking an `archer` severs the
+     * friendship server-side; the local friendship cache row is dropped to
+     * match without waiting for a friends refresh.
+     */
+    suspend fun createBlock(kind: BlockKind, targetId: String, mode: BlockMode): SocialBlock {
+        val result = api.createBlock(CreateBlockBody(kind, targetId, mode))
+        blockDao.upsert(result.toEntity())
+        if (kind == BlockKind.archer && mode == BlockMode.block) {
+            friendshipDao.deleteByOtherUserId(targetId)
+        }
+        return result
+    }
+
+    /** Unmute / unblock — removes the block row both remotely and from the cache. */
+    suspend fun deleteBlock(id: String) {
+        api.deleteBlock(id)
+        blockDao.deleteById(id)
     }
 }

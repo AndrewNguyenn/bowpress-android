@@ -491,3 +491,43 @@ data class SocialPendingCount(
     val invitations: Int = 0,
     val total: Int = 0,
 )
+
+// ── §14 Mute / block ─────────────────────────────────────────────────────────
+
+/** What a [SocialBlock] targets. */
+@Serializable
+enum class BlockKind { archer, club, league }
+
+/**
+ * Severity of a [SocialBlock].
+ * - [mute] — soft: the target's activity leaves your feed; no pushes. You stay
+ *   friends / a member; fully reversible.
+ * - [block] — hard: everything mute does, plus for an `archer` the friendship
+ *   is severed and neither side may send a friend request.
+ */
+@Serializable
+enum class BlockMode { mute, block }
+
+/**
+ * Mirrors API §14 `SocialBlock` — a mute or block the signed-in user has
+ * placed on an archer, club, or league.
+ */
+@Serializable
+data class SocialBlock(
+    val id: String,
+    val userId: String,
+    val kind: BlockKind,
+    val targetId: String,
+    val targetName: String,
+    val mode: BlockMode,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+)
+
+/** Request body for `POST /social/blocks`. Re-posting the same target updates [mode]. */
+@Serializable
+data class CreateBlockBody(
+    val kind: BlockKind,
+    val targetId: String,
+    val mode: BlockMode,
+)

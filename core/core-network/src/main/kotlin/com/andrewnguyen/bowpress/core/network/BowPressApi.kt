@@ -14,6 +14,7 @@ import com.andrewnguyen.bowpress.core.model.ClubFeedItem
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.CompareView
 import com.andrewnguyen.bowpress.core.model.ConfigurationChange
+import com.andrewnguyen.bowpress.core.model.CreateBlockBody
 import com.andrewnguyen.bowpress.core.model.CreateClubBody
 import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
 import com.andrewnguyen.bowpress.core.model.DeviceToken
@@ -32,6 +33,7 @@ import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
@@ -471,6 +473,17 @@ interface BowPressApi {
 
     @GET("social/pending-count")
     suspend fun getPendingCount(): SocialPendingCount
+
+    // ---- Social — Mute / block (§14) -------------------------------------------
+
+    @GET("social/blocks")
+    suspend fun getBlocks(): List<SocialBlock>
+
+    @POST("social/blocks")
+    suspend fun createBlock(@Body body: CreateBlockBody): SocialBlock
+
+    @DELETE("social/blocks/{id}")
+    suspend fun deleteBlock(@Path("id") id: String)
 
     // ---- Social — Dev notify (for e2e tests) -----------------------------------
 

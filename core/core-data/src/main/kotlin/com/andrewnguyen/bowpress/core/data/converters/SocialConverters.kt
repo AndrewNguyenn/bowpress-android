@@ -1,6 +1,7 @@
 package com.andrewnguyen.bowpress.core.data.converters
 
 import com.andrewnguyen.bowpress.core.database.entities.ActivityItemEntity
+import com.andrewnguyen.bowpress.core.database.entities.BlockEntity
 import com.andrewnguyen.bowpress.core.database.entities.ClubEntity
 import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
 import com.andrewnguyen.bowpress.core.database.entities.InvitationEntity
@@ -9,6 +10,8 @@ import com.andrewnguyen.bowpress.core.database.entities.SocialProfileEntity
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
+import com.andrewnguyen.bowpress.core.model.BlockKind
+import com.andrewnguyen.bowpress.core.model.BlockMode
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.ClubRole
 import com.andrewnguyen.bowpress.core.model.Division
@@ -27,6 +30,7 @@ import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
 import com.andrewnguyen.bowpress.core.model.LeagueStatus
 import com.andrewnguyen.bowpress.core.model.LeagueType
 import com.andrewnguyen.bowpress.core.model.RoundDef
+import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
@@ -225,4 +229,26 @@ fun SocialInvitation.toEntity(): InvitationEntity = InvitationEntity(
     status = status.name,
     createdAt = createdAt,
     respondedAt = respondedAt,
+)
+
+// ── Block (§14) ──────────────────────────────────────────────────────────────
+
+fun BlockEntity.toDto(): SocialBlock = SocialBlock(
+    id = id,
+    userId = userId,
+    kind = runCatching { BlockKind.valueOf(kind) }.getOrDefault(BlockKind.archer),
+    targetId = targetId,
+    targetName = targetName,
+    mode = runCatching { BlockMode.valueOf(mode) }.getOrDefault(BlockMode.mute),
+    createdAt = createdAt,
+)
+
+fun SocialBlock.toEntity(): BlockEntity = BlockEntity(
+    id = id,
+    userId = userId,
+    kind = kind.name,
+    targetId = targetId,
+    targetName = targetName,
+    mode = mode.name,
+    createdAt = createdAt,
 )
