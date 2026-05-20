@@ -25,12 +25,14 @@ import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
+import com.andrewnguyen.bowpress.core.model.AttachmentKind
 import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.BlockMode
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubAnnouncement
 import com.andrewnguyen.bowpress.core.model.ClubRole
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.FletchingType
@@ -43,6 +45,7 @@ import com.andrewnguyen.bowpress.core.model.HandicapEquation
 import com.andrewnguyen.bowpress.core.model.InvitationKind
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueEntry
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
 import com.andrewnguyen.bowpress.core.model.LeagueSchedule
@@ -130,7 +133,12 @@ class DevMockDataSeeder @Inject constructor(
     }
 }
 
-private object DevMockData {
+/**
+ * The DEBUG fixture object. `internal` (not `private`) so DEBUG-only
+ * repository fallbacks in the same module can serve the §17 club-board /
+ * league-attachment fixtures that have no Room cache.
+ */
+internal object DevMockData {
 
     private val userId = "dev-user"
     private val now: Instant = Instant.now()
@@ -1053,6 +1061,66 @@ private object DevMockData {
             value = 574,
             sublabel = "50m · 10-Ring",
             createdAt = daysAgo(0).minus(2, ChronoUnit.HOURS),
+        ),
+    )
+
+    // --- §17 Club announcement board ----------------------------------------
+    // Keyed by club id; the dev club (club_001) is the one the dev hosts.
+
+    val clubAnnouncements: Map<String, List<ClubAnnouncement>> = mapOf(
+        "club_001" to listOf(
+            ClubAnnouncement(
+                id = "ann_001",
+                clubId = "club_001",
+                authorUserId = devUserId,
+                authorHandle = devHandle,
+                authorDisplayName = "Andrew Nguyen",
+                body = "Range closed this Sunday for the regional shoot — " +
+                    "we're back to normal hours Monday.",
+                pinned = true,
+                createdAt = daysAgo(1),
+            ),
+            ClubAnnouncement(
+                id = "ann_002",
+                clubId = "club_001",
+                authorUserId = devUserId,
+                authorHandle = devHandle,
+                authorDisplayName = "Andrew Nguyen",
+                body = "New target butts arrived. Thanks to everyone who " +
+                    "chipped in for the order.",
+                pinned = false,
+                createdAt = daysAgo(5),
+            ),
+        ),
+    )
+
+    // --- §17 League attachments ---------------------------------------------
+    // Keyed by league id; the dev league (lg_001) is the one the dev hosts.
+
+    val leagueAttachments: Map<String, List<LeagueAttachment>> = mapOf(
+        "lg_001" to listOf(
+            LeagueAttachment(
+                id = "att_001",
+                leagueId = "lg_001",
+                addedByUserId = devUserId,
+                addedByHandle = devHandle,
+                kind = AttachmentKind.LINK,
+                title = "Official round rules (WA Indoor)",
+                url = "https://worldarchery.sport/rulebook",
+                note = null,
+                createdAt = daysAgo(20),
+            ),
+            LeagueAttachment(
+                id = "att_002",
+                leagueId = "lg_001",
+                addedByUserId = devUserId,
+                addedByHandle = devHandle,
+                kind = AttachmentKind.NOTE,
+                title = "Scoring reminder",
+                url = null,
+                note = "Submit by Sunday 23:59 — late scores roll to next week.",
+                createdAt = daysAgo(12),
+            ),
         ),
     )
 

@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.data.repository
 
 import com.andrewnguyen.bowpress.core.data.converters.toDto
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
+import com.andrewnguyen.bowpress.core.data.seed.DevMockData
 import com.andrewnguyen.bowpress.core.database.dao.AchievementDao
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
@@ -534,9 +535,15 @@ class SocialRepository @Inject constructor(
 
     // ── Club announcement board (§17) ─────────────────────────────────────────
 
-    /** A club's announcement board — members read, pinned-first then newest. */
+    /**
+     * A club's announcement board — members read, pinned-first then newest.
+     * On API failure (offline / DEBUG fake token) falls back to the seeded
+     * DevMockData fixture so the board renders in DEBUG.
+     */
     suspend fun getClubAnnouncements(clubId: String): List<ClubAnnouncement> =
-        api.getClubAnnouncements(clubId)
+        runCatching { api.getClubAnnouncements(clubId) }
+            .getOrElse { DevMockData.clubAnnouncements[clubId].orEmpty() }
+            .sortedWith(compareByDescending<ClubAnnouncement> { it.pinned }.thenByDescending { it.createdAt })
 
     /** Host-only: post a new announcement to a club's board. */
     suspend fun postClubAnnouncement(
@@ -561,9 +568,15 @@ class SocialRepository @Inject constructor(
 
     // ── League attachments (§17) ──────────────────────────────────────────────
 
-    /** A league's attachments — host + entrants, newest first. */
+    /**
+     * A league's attachments — host + entrants, newest first. On API failure
+     * (offline / DEBUG fake token) falls back to the seeded DevMockData
+     * fixture so the section renders in DEBUG.
+     */
     suspend fun getLeagueAttachments(leagueId: String): List<LeagueAttachment> =
-        api.getLeagueAttachments(leagueId)
+        runCatching { api.getLeagueAttachments(leagueId) }
+            .getOrElse { DevMockData.leagueAttachments[leagueId].orEmpty() }
+            .sortedByDescending { it.createdAt }
 
     /**
      * Host-only: add an attachment. A `link`/`file` kind requires a non-blank
