@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
-import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppLine2
@@ -40,7 +39,6 @@ import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
-import com.andrewnguyen.bowpress.core.designsystem.AppPond
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.AppStone
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
@@ -48,16 +46,15 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityItem
-import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.feature.social.ui.EmptyAction
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
+import com.andrewnguyen.bowpress.feature.social.ui.SocialEmptyState
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 @Composable
@@ -108,8 +105,39 @@ fun FeedScreen(
                 FeedEyebrow()
             }
 
-            if (state.feed.isEmpty() && !state.isLoading) {
-                item { FeedEmptyState(onFriendsClick = onFriendsClick) }
+            when (state.emptyVariant) {
+                FeedEmptyVariant.NewUser -> item {
+                    SocialEmptyState(
+                        icon = "◎",
+                        title = "Your range, connected.",
+                        message = "Add friends, join a club, or enter a league — their sessions, PRs, and league standings all land in this feed.",
+                        actions = listOf(
+                            EmptyAction(
+                                label = "Add a friend",
+                                sublabel = "by @handle or invite link",
+                                onClick = onFriendsClick,
+                                testTag = TestTags.SocialEmptyAddFriend,
+                            ),
+                            EmptyAction(
+                                label = "Find a club",
+                                sublabel = "join with an 8-character code",
+                                onClick = onClubsIndexClick,
+                                testTag = TestTags.SocialEmptyFindClub,
+                            ),
+                        ),
+                        modifier = Modifier.testTag(TestTags.SocialFeedNewUserEmpty),
+                    )
+                }
+                FeedEmptyVariant.QuietWeek -> item {
+                    SocialEmptyState(
+                        icon = "○",
+                        title = "Quiet week.",
+                        message = "No sessions from your friends or clubs in the last 72 hours. New activity shows up here as it happens.",
+                        actions = emptyList(),
+                        modifier = Modifier.testTag(TestTags.SocialFeedQuietEmpty),
+                    )
+                }
+                null -> Unit
             }
 
             items(state.feed, key = { it.id }) { item ->
@@ -500,44 +528,6 @@ private fun sessionStatLine(s: com.andrewnguyen.bowpress.core.model.ActivitySess
         s.distance?.let { add(it) }
         s.face?.let { add(it) }
     }.joinToString(" · ")
-
-@Composable
-private fun FeedEmptyState(onFriendsClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp)
-            .border(1.dp, AppLine)
-            .background(AppPaper2)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Nothing yet.",
-            style = frauncesDisplay(18.sp),
-            color = AppInk,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Add friends or join a club to see activity here.",
-            style = frauncesDisplay(13.sp, italic = true),
-            color = AppInk2,
-        )
-        Spacer(Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .border(1.dp, AppPondDk)
-                .clickable(onClick = onFriendsClick)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-        ) {
-            Text(
-                text = "ADD FRIENDS",
-                style = interUI(10.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                color = AppPondDk,
-            )
-        }
-    }
-}
 
 /** Relative human-readable time: "2h", "yesterday", etc. */
 private fun Instant.relativeTime(): String {

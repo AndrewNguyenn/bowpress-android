@@ -124,6 +124,14 @@ object TestTags {
     // Social
     // -----------------------------------------------------------------------
     const val SocialFeedRoot: String = "social_feed_root"
+    /** New-user empty state (no friends AND no clubs AND no leagues). */
+    const val SocialFeedNewUserEmpty: String = "social_feed_new_user_empty"
+    /** Connected-but-quiet empty state (has connections but 72 h feed is empty). */
+    const val SocialFeedQuietEmpty: String = "social_feed_quiet_empty"
+    /** "Add a friend" CTA button inside the new-user empty state. */
+    const val SocialEmptyAddFriend: String = "social_empty_add_friend"
+    /** "Find a club" CTA button inside the new-user empty state. */
+    const val SocialEmptyFindClub: String = "social_empty_find_club"
     const val SocialYouRoot: String = "social_you_root"
     const val SocialFriendsRoot: String = "social_friends_root"
     const val SocialFriendSearchField: String = "social_friend_search_field"

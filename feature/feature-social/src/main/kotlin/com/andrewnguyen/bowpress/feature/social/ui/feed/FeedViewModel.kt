@@ -38,10 +38,33 @@ data class FeedUiState(
     val leagueDeadlineNear: Boolean
         get() = leagues.any { it.status == LeagueStatus.active && it.deadlineWithin(URGENT_WINDOW) }
 
+    /**
+     * Which empty-state variant to show when the 72-hour feed is empty and
+     * loading is complete. Null when there are items in the feed or when
+     * loading is still in progress.
+     *
+     *  - [FeedEmptyVariant.NewUser] — no friends AND no clubs AND no leagues:
+     *    the archer is brand-new; show welcoming CTAs.
+     *  - [FeedEmptyVariant.QuietWeek] — connected but the 72-hour window has
+     *    nothing yet; show a softer "quiet week" notice.
+     */
+    val emptyVariant: FeedEmptyVariant?
+        get() {
+            if (isLoading || feed.isNotEmpty()) return null
+            return if (friends.isEmpty() && clubs.isEmpty() && leagues.isEmpty()) {
+                FeedEmptyVariant.NewUser
+            } else {
+                FeedEmptyVariant.QuietWeek
+            }
+        }
+
     private companion object {
         val URGENT_WINDOW: Duration = Duration.ofDays(3)
     }
 }
+
+/** Which flavour of empty-feed placeholder to render. */
+enum class FeedEmptyVariant { NewUser, QuietWeek }
 
 /** Whether this league's end date falls inside [window] from now (and hasn't passed). */
 fun League.deadlineWithin(window: Duration): Boolean {

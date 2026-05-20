@@ -118,14 +118,37 @@ class DevMockDataSeeder @Inject constructor(
         plotDao.upsertAll(DevMockData.arrowPlots.map { it.toEntity(pendingSync = false) })
         suggestionDao.upsertAll(DevMockData.suggestions.map { it.toEntity() })
 
-        // Social graph (§10 contract fixture)
+        // Social graph (§10 contract fixture).
+        // When the launch property `socialEmpty` is set the social collections
+        // are seeded as empty so the new-user / quiet-week empty states are
+        // previewable on a DEBUG build without clearing Room manually:
+        //
+        //   adb shell am start -n com.andrewnguyen.bowpress.debug/... \
+        //       --es socialEmpty true
+        //
+        // or via Gradle instrumented test:
+        //
+        //   System.setProperty("socialEmpty", "1")
+        //
+        // The toggle is DEBUG-only and has no effect on release builds.
+        val socialEmpty = DevMockData.isSocialEmptyMode()
         socialProfileDao.upsertAll(DevMockData.socialProfiles.map { it.toEntity() })
-        friendshipDao.upsertAll(DevMockData.friendships.map { it.toEntity() })
-        clubDao.upsertAll(DevMockData.clubs.map { it.toEntity() })
-        leagueDao.upsertAll(DevMockData.leagues.map { it.toEntity() })
-        activityFeedDao.upsertAll(DevMockData.activityFeed.map { it.toEntity() })
+        friendshipDao.upsertAll(
+            if (socialEmpty) emptyList() else DevMockData.friendships.map { it.toEntity() },
+        )
+        clubDao.upsertAll(
+            if (socialEmpty) emptyList() else DevMockData.clubs.map { it.toEntity() },
+        )
+        leagueDao.upsertAll(
+            if (socialEmpty) emptyList() else DevMockData.leagues.map { it.toEntity() },
+        )
+        activityFeedDao.upsertAll(
+            if (socialEmpty) emptyList() else DevMockData.activityFeed.map { it.toEntity() },
+        )
         // Pending club + league invitations (§11) — drives the Social tab badge
-        invitationDao.upsertAll(DevMockData.invitations.map { it.toEntity() })
+        invitationDao.upsertAll(
+            if (socialEmpty) emptyList() else DevMockData.invitations.map { it.toEntity() },
+        )
         // Mutes / blocks (§14) — one muted archer + one muted club
         blockDao.upsertAll(DevMockData.blocks.map { it.toEntity() })
         // Achievements (§15) — the dev user's trophy case + a friend's
@@ -139,6 +162,28 @@ class DevMockDataSeeder @Inject constructor(
  * league-attachment fixtures that have no Room cache.
  */
 internal object DevMockData {
+
+    /**
+     * Returns `true` when the `socialEmpty` JVM system property is set,
+     * making [DevMockDataSeeder] seed an empty social graph so the new-user
+     * and quiet-week empty states are previewable on DEBUG builds.
+     *
+     * Set via ADB intent extra before launch:
+     * ```
+     * adb shell am start -n com.andrewnguyen.bowpress.debug/<activity> \
+     *     --es socialEmpty true
+     * ```
+     * Or in a unit/instrumented test:
+     * ```
+     * System.setProperty("socialEmpty", "1")
+     * ```
+     *
+     * Always returns `false` on release builds (the seeder is never called
+     * outside `BuildConfig.DEBUG` at the [AppStateViewModel] call site).
+     */
+    fun isSocialEmptyMode(): Boolean =
+        System.getProperty("socialEmpty") != null
+
 
     private val userId = "dev-user"
     private val now: Instant = Instant.now()

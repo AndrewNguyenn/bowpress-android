@@ -13,6 +13,7 @@ import com.andrewnguyen.bowpress.core.model.FriendshipSource
 import com.andrewnguyen.bowpress.core.model.FriendshipStatus
 import com.andrewnguyen.bowpress.core.model.HandicapConfig
 import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.feature.social.ui.feed.FeedEmptyVariant
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
 import com.andrewnguyen.bowpress.core.model.LeagueSchedule
 import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
@@ -239,5 +240,134 @@ class FeedViewModelTest {
 
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Empty-variant branching — FeedUiState.emptyVariant
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `emptyVariant is NewUser when feed is empty and user has no friends, clubs, or leagues`() =
+        runTest {
+            every { repository.observeFeed() } returns flowOf(emptyList())
+            every { repository.observeFriends() } returns flowOf(emptyList())
+            every { repository.observeClubs() } returns flowOf(emptyList())
+            every { repository.observeLeagues() } returns flowOf(emptyList())
+
+            val vm = FeedViewModel(repository)
+
+            vm.uiState.test {
+                skipItems(1) // initial loading state
+                testDispatcher.scheduler.advanceUntilIdle()
+                val state = expectMostRecentItem()
+
+                assertThat(state.feed).isEmpty()
+                assertThat(state.friends).isEmpty()
+                assertThat(state.clubs).isEmpty()
+                assertThat(state.leagues).isEmpty()
+                assertThat(state.emptyVariant).isEqualTo(FeedEmptyVariant.NewUser)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `emptyVariant is QuietWeek when feed is empty but user has at least one friend`() =
+        runTest {
+            every { repository.observeFeed() } returns flowOf(emptyList())
+            every { repository.observeFriends() } returns flowOf(listOf(stubFriendship))
+            every { repository.observeClubs() } returns flowOf(emptyList())
+            every { repository.observeLeagues() } returns flowOf(emptyList())
+
+            val vm = FeedViewModel(repository)
+
+            vm.uiState.test {
+                skipItems(1)
+                testDispatcher.scheduler.advanceUntilIdle()
+                val state = expectMostRecentItem()
+
+                assertThat(state.feed).isEmpty()
+                assertThat(state.friends).hasSize(1)
+                assertThat(state.emptyVariant).isEqualTo(FeedEmptyVariant.QuietWeek)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `emptyVariant is QuietWeek when feed is empty but user belongs to a club`() = runTest {
+        every { repository.observeFeed() } returns flowOf(emptyList())
+        every { repository.observeFriends() } returns flowOf(emptyList())
+        every { repository.observeClubs() } returns flowOf(listOf(stubClub))
+        every { repository.observeLeagues() } returns flowOf(emptyList())
+
+        val vm = FeedViewModel(repository)
+
+        vm.uiState.test {
+            skipItems(1)
+            testDispatcher.scheduler.advanceUntilIdle()
+            val state = expectMostRecentItem()
+
+            assertThat(state.feed).isEmpty()
+            assertThat(state.clubs).hasSize(1)
+            assertThat(state.emptyVariant).isEqualTo(FeedEmptyVariant.QuietWeek)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `emptyVariant is QuietWeek when feed is empty but user is in a league`() = runTest {
+        every { repository.observeFeed() } returns flowOf(emptyList())
+        every { repository.observeFriends() } returns flowOf(emptyList())
+        every { repository.observeClubs() } returns flowOf(emptyList())
+        every { repository.observeLeagues() } returns flowOf(listOf(stubLeague))
+
+        val vm = FeedViewModel(repository)
+
+        vm.uiState.test {
+            skipItems(1)
+            testDispatcher.scheduler.advanceUntilIdle()
+            val state = expectMostRecentItem()
+
+            assertThat(state.feed).isEmpty()
+            assertThat(state.leagues).hasSize(1)
+            assertThat(state.emptyVariant).isEqualTo(FeedEmptyVariant.QuietWeek)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `emptyVariant is null when feed has items`() = runTest {
+        // Default setup has a feed item — sanity-check that the variant is null.
+        val vm = FeedViewModel(repository)
+
+        vm.uiState.test {
+            skipItems(1)
+            testDispatcher.scheduler.advanceUntilIdle()
+            val state = expectMostRecentItem()
+
+            assertThat(state.feed).isNotEmpty()
+            assertThat(state.emptyVariant).isNull()
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `emptyVariant is null while loading`() = runTest {
+        every { repository.observeFeed() } returns flowOf(emptyList())
+        every { repository.observeFriends() } returns flowOf(emptyList())
+        every { repository.observeClubs() } returns flowOf(emptyList())
+        every { repository.observeLeagues() } returns flowOf(emptyList())
+
+        val vm = FeedViewModel(repository)
+
+        // The very first emission has isLoading = true — emptyVariant must be null
+        // regardless of the list contents.
+        val initialState = vm.uiState.value
+        assertThat(initialState.isLoading).isTrue()
+        assertThat(initialState.emptyVariant).isNull()
     }
 }
