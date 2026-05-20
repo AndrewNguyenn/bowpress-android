@@ -1,6 +1,7 @@
 package com.andrewnguyen.bowpress.core.data.repository
 
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
+import com.andrewnguyen.bowpress.core.database.dao.BlockDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
 import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
@@ -37,6 +38,7 @@ class SocialRepositoryInvitationTest {
     private lateinit var feedDao: ActivityFeedDao
     private lateinit var leagueDao: LeagueDao
     private lateinit var invitationDao: InvitationDao
+    private lateinit var blockDao: BlockDao
     private lateinit var repo: SocialRepository
 
     private fun invite(id: String, kind: InvitationKind) = SocialInvitation(
@@ -72,8 +74,10 @@ class SocialRepositoryInvitationTest {
         feedDao = mockk(relaxed = true)
         leagueDao = mockk(relaxed = true)
         invitationDao = mockk(relaxed = true)
+        blockDao = mockk(relaxed = true)
         repo = SocialRepository(
-            api, profileDao, friendshipDao, clubDao, feedDao, leagueDao, invitationDao,
+            api, profileDao, friendshipDao, clubDao, feedDao, leagueDao,
+            invitationDao, blockDao,
         )
     }
 
