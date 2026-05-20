@@ -62,6 +62,8 @@ import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
+import com.andrewnguyen.bowpress.core.model.TrophyCategory
+import com.andrewnguyen.bowpress.core.model.TrophyDef
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
@@ -1060,12 +1062,14 @@ internal object DevMockData {
         ),
     )
 
-    // --- Achievements (§15) -----------------------------------------------
+    // --- Achievements (§15 / §18) ----------------------------------------
     //
-    // The dev user's trophy case (three earned) plus one for a friend so the
-    // friend-profile trophy case is non-empty in DEBUG.
+    // The dev user has a believable spread across 7 of the 12 kinds so the
+    // collectible trophy case shows a mix of earned + locked slots.
+    // Sara Lin (u_001) has 2 earned so the friend-profile case is non-empty.
 
     val achievements: List<Achievement> = listOf(
+        // ── Skill ──
         Achievement(
             id = "ach_001",
             userId = devUserId,
@@ -1077,15 +1081,26 @@ internal object DevMockData {
             createdAt = daysAgo(2),
         ),
         Achievement(
-            id = "ach_002",
+            id = "ach_005",
             userId = devUserId,
-            sharedSessionId = "ss_dev_1",
-            kind = AchievementKind.streak,
-            label = "7-day streak",
-            value = 7,
-            sublabel = "a session every day this week",
-            createdAt = daysAgo(2),
+            sharedSessionId = "ss_dev_2",
+            kind = AchievementKind.x_pr,
+            label = "X PR · 14",
+            value = 14,
+            sublabel = "50m · 10-Ring",
+            createdAt = daysAgo(7),
         ),
+        Achievement(
+            id = "ach_006",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_3",
+            kind = AchievementKind.flawless,
+            label = "Flawless 300",
+            value = 300,
+            sublabel = "20yd · 6-Ring — every arrow scored",
+            createdAt = daysAgo(14),
+        ),
+        // ── Milestone ──
         Achievement(
             id = "ach_003",
             userId = devUserId,
@@ -1096,7 +1111,39 @@ internal object DevMockData {
             sublabel = "cumulative across shared sessions",
             createdAt = daysAgo(20),
         ),
-        // A friend's trophy case (Sara Lin = u_001).
+        Achievement(
+            id = "ach_007",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_old2",
+            kind = AchievementKind.sessions_milestone,
+            label = "10 sessions",
+            value = 10,
+            sublabel = "milestone",
+            createdAt = daysAgo(25),
+        ),
+        // ── Streak ──
+        Achievement(
+            id = "ach_002",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_1",
+            kind = AchievementKind.streak,
+            label = "7-day streak",
+            value = 7,
+            sublabel = "a session every day this week",
+            createdAt = daysAgo(2),
+        ),
+        // ── Exploration ──
+        Achievement(
+            id = "ach_008",
+            userId = devUserId,
+            sharedSessionId = "ss_dev_4",
+            kind = AchievementKind.first_distance,
+            label = "First at 70m",
+            value = 70,
+            sublabel = "first session at this distance",
+            createdAt = daysAgo(30),
+        ),
+        // ── Friend: Sara Lin (u_001) — 2 earned ──
         Achievement(
             id = "ach_004",
             userId = "u_001",
@@ -1106,6 +1153,113 @@ internal object DevMockData {
             value = 574,
             sublabel = "50m · 10-Ring",
             createdAt = daysAgo(0).minus(2, ChronoUnit.HOURS),
+        ),
+        Achievement(
+            id = "ach_009",
+            userId = "u_001",
+            sharedSessionId = "ss_sara_2",
+            kind = AchievementKind.streak,
+            label = "14-day streak",
+            value = 14,
+            sublabel = "two weeks without a day off",
+            createdAt = daysAgo(5),
+        ),
+    )
+
+    // --- Trophy catalogue (§18) ------------------------------------------
+    //
+    // Full 12-entry catalogue mirroring `GET /social/trophies`. Used as the
+    // DEBUG fallback when the API is unreachable so TrophyCaseSection can
+    // render all 12 slots (earned + locked) on a fresh emulator.
+
+    val trophyCatalog: List<TrophyDef> = listOf(
+        // ── Skill ──
+        TrophyDef(
+            kind = "score_pr",
+            name = "Score PR",
+            description = "Set a new personal-best score at any distance.",
+            tiers = listOf(1, 5, 10),
+            category = TrophyCategory.skill,
+        ),
+        TrophyDef(
+            kind = "x_pr",
+            name = "X PR",
+            description = "Set a new personal-best X count in a single session.",
+            tiers = listOf(1, 5, 10),
+            category = TrophyCategory.skill,
+        ),
+        TrophyDef(
+            kind = "flawless",
+            name = "Flawless",
+            description = "Complete a full session without a miss — every arrow scores.",
+            tiers = listOf(1, 3, 5),
+            category = TrophyCategory.skill,
+        ),
+        TrophyDef(
+            kind = "sharpshooter",
+            name = "Sharpshooter",
+            description = "Hit the X-ring on 80 % or more of your arrows in a session of 18+.",
+            tiers = listOf(1, 3, 10),
+            category = TrophyCategory.skill,
+        ),
+        // ── Milestone ──
+        TrophyDef(
+            kind = "arrows_milestone",
+            name = "Arrow Milestone",
+            description = "Reach a cumulative arrow count across all shared sessions.",
+            tiers = listOf(500, 1000, 2500, 5000, 10000),
+            category = TrophyCategory.milestone,
+        ),
+        TrophyDef(
+            kind = "sessions_milestone",
+            name = "Session Milestone",
+            description = "Log a total number of sessions.",
+            tiers = listOf(10, 25, 50, 100),
+            category = TrophyCategory.milestone,
+        ),
+        TrophyDef(
+            kind = "marathon",
+            name = "Marathon",
+            description = "Shoot 100 or more arrows in a single session.",
+            tiers = listOf(1, 5, 20),
+            category = TrophyCategory.milestone,
+        ),
+        // ── Streak ──
+        TrophyDef(
+            kind = "streak",
+            name = "Streak",
+            description = "Log a session every day for a consecutive number of days.",
+            tiers = listOf(3, 7, 14, 30),
+            category = TrophyCategory.streak,
+        ),
+        TrophyDef(
+            kind = "weeks_active",
+            name = "Weeks Active",
+            description = "Log at least one session per week for consecutive weeks.",
+            tiers = listOf(4, 8, 12, 26),
+            category = TrophyCategory.streak,
+        ),
+        TrophyDef(
+            kind = "comeback",
+            name = "Comeback",
+            description = "Return to the range after a break of 14 or more days.",
+            tiers = listOf(1, 3, 5),
+            category = TrophyCategory.streak,
+        ),
+        // ── Exploration ──
+        TrophyDef(
+            kind = "first_distance",
+            name = "First Distance",
+            description = "Log your first session at a distance you've never shot before.",
+            tiers = listOf(1, 3, 6),
+            category = TrophyCategory.exploration,
+        ),
+        TrophyDef(
+            kind = "distance_explorer",
+            name = "Distance Explorer",
+            description = "Shoot at 4 or more distinct distances across your sessions.",
+            tiers = listOf(4, 6, 8),
+            category = TrophyCategory.exploration,
         ),
     )
 

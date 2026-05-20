@@ -55,6 +55,7 @@ import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import com.andrewnguyen.bowpress.core.model.UpdateAnnouncementBody
+import com.andrewnguyen.bowpress.core.model.TrophyDef
 import com.andrewnguyen.bowpress.core.model.UpdateClubBody
 import com.andrewnguyen.bowpress.core.model.UpdateLeagueBody
 import com.andrewnguyen.bowpress.core.model.UpdateSocialProfileRequest
@@ -429,6 +430,18 @@ class SocialRepository @Inject constructor(
         api.deleteBlock(id)
         blockDao.deleteById(id)
     }
+
+    // ── Trophy catalogue (§18) ────────────────────────────────────────────────────
+
+    /**
+     * The full 12-entry trophy catalogue — used by [TrophyCaseSection] to render
+     * every trophy slot (earned or locked). Online-first: a successful fetch is
+     * returned directly; on failure (offline / DEBUG fake token) falls back to
+     * [DevMockData.trophyCatalog] so the collectible case renders in DEBUG.
+     */
+    suspend fun getTrophyCatalog(): List<TrophyDef> =
+        runCatching { api.getTrophyCatalog() }
+            .getOrElse { if (isDebugBuild) DevMockData.trophyCatalog else emptyList() }
 
     // ── Shared sessions & achievements (§15) ─────────────────────────────────────
 
