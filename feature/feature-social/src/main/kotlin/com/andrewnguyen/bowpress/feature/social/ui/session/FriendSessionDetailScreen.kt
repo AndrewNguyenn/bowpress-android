@@ -128,17 +128,21 @@ fun FriendSessionDetailScreen(
                         SessionStatHeader(shared = detail.sharedSession)
                     }
 
-                    if (detail.session == null) {
+                    val shotSession = detail.session
+                    if (shotSession == null) {
                         // Owner deleted the underlying session — stat summary only.
                         item { DeletedSessionNotice() }
                     } else {
-                        // Target face with the friend's arrows plotted.
+                        // Target face with the friend's arrows plotted — renders
+                        // the real face type + 3-spot layout the friend shot.
                         item {
                             Spacer(Modifier.height(18.dp))
-                            SectionEyebrow("SHOT DISTRIBUTION")
+                            SectionEyebrow("SHOT DISTRIBUTION · ${shotSession.targetLayout.label}")
                             Spacer(Modifier.height(10.dp))
                             BPPlottedTarget(
                                 arrows = detail.arrows,
+                                faceType = shotSession.targetFaceType,
+                                layout = shotSession.targetLayout,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag(TestTags.SocialSessionTarget),

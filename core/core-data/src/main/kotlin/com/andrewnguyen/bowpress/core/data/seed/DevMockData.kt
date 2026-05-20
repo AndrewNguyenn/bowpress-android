@@ -60,6 +60,7 @@ import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -298,6 +299,9 @@ private object DevMockData {
             title = "Pre-comp tune check",
             notes = "Pre-comp tune check at 50m. Groups holding well. Minor sight drift to correct.",
             feelTags = listOf("consistent", "clean_release"),
+            // §16 — this session backs the mocked friend session detail; a
+            // Vegas triangle layout makes the 3-spot render visible in DEBUG.
+            targetLayout = TargetLayout.TRIANGLE,
         ),
         session(
             id = "dev_s1_7", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
@@ -429,6 +433,7 @@ private object DevMockData {
         title: String,
         notes: String,
         feelTags: List<String>,
+        targetLayout: TargetLayout = TargetLayout.SINGLE,
     ): ShootingSession = ShootingSession(
         id = id,
         bowId = bowId,
@@ -440,6 +445,7 @@ private object DevMockData {
         feelTags = feelTags,
         arrowCount = arrowCount,
         targetFaceType = TargetFaceType.TEN_RING,
+        targetLayout = targetLayout,
         distance = distance,
         title = title,
     )
