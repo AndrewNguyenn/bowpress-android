@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -71,7 +73,11 @@ fun LeagueHomeScreen(
 ) {
     val state by viewModel.leagueHomeState.collectAsState()
     val blocksState by blockViewModel.uiState.collectAsState()
+    val uriHandler = LocalUriHandler.current
     var showInviteDialog by remember { mutableStateOf(false) }
+    var showAttachmentDialog by remember { mutableStateOf(false) }
+    // The host viewing their own league: a hostUserId, no personal entry.
+    val isHost = state.league?.let { it.myEntry == null && it.hostUserId.isNotBlank() } == true
 
     LaunchedEffect(leagueId) {
         viewModel.loadLeagueHome(leagueId)
@@ -86,6 +92,21 @@ fun LeagueHomeScreen(
             onDismiss = {
                 showInviteDialog = false
                 viewModel.resetInviteState()
+            },
+        )
+    }
+
+    if (showAttachmentDialog) {
+        AttachmentComposerDialog(
+            error = state.attachmentError,
+            onSubmit = { kind, title, url, note ->
+                viewModel.addAttachment(leagueId, kind, title, url, note) {
+                    showAttachmentDialog = false
+                }
+            },
+            onDismiss = {
+                showAttachmentDialog = false
+                viewModel.resetAttachmentError()
             },
         )
     }
@@ -275,6 +296,78 @@ fun LeagueHomeScreen(
                 items(state.mySubmissions, key = { it.id }) { sub ->
                     SubmissionRow(sub = sub)
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                }
+            }
+
+            // ── Attachments (§17) ──
+            item {
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        "ATTACHMENTS",
+                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                        color = AppInk3,
+                    )
+                    Text(
+                        "${state.attachments.size} items",
+                        style = jetbrainsMono(9.sp),
+                        color = AppInk3,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = AppLine, thickness = 1.dp)
+            }
+            if (state.attachments.isEmpty()) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "No attachments yet.",
+                        style = frauncesDisplay(13.sp, italic = true),
+                        color = AppInk3,
+                    )
+                }
+            } else {
+                items(state.attachments, key = { it.id }) { att ->
+                    Spacer(Modifier.height(8.dp))
+                    AttachmentRow(
+                        attachment = att,
+                        isHost = isHost,
+                        onOpenLink = { uriHandler.openUri(it) },
+                        onDelete = { viewModel.deleteAttachment(leagueId, att.id) },
+                    )
+                }
+            }
+            if (isHost) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, AppLine)
+                            .background(AppPaper2)
+                            .clickable { showAttachmentDialog = true }
+                            .padding(11.dp, 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .border(1.dp, AppPondDk),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("+", style = frauncesDisplay(18.sp), color = AppPondDk)
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Add an attachment — a link, file, or note.",
+                            style = frauncesDisplay(13.5.sp, italic = true),
+                            color = AppInk,
+                        )
+                    }
                 }
             }
 

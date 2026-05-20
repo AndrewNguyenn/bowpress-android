@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
+import com.andrewnguyen.bowpress.core.model.AttachmentKind
 import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.HandicapConfig
 import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
 import com.andrewnguyen.bowpress.core.model.LeagueSchedule
 import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
@@ -34,6 +36,7 @@ data class LeagueHomeUiState(
     val league: League? = null,
     val standings: List<LeagueStandingRow> = emptyList(),
     val mySubmissions: List<LeagueSubmission> = emptyList(),
+    val attachments: List<LeagueAttachment> = emptyList(),
     val adminMatrix: AdminMatrix? = null,
     val selectedDivision: Division? = null,
     val isLoading: Boolean = false,
@@ -41,6 +44,8 @@ data class LeagueHomeUiState(
     /** Host-only invite-by-handle dialog state. */
     val inviteError: String? = null,
     val inviteSent: Boolean = false,
+    /** Host-only add-attachment dialog error. */
+    val attachmentError: String? = null,
 )
 
 /** Form state for the league composer. */
@@ -94,11 +99,17 @@ class LeagueViewModel @Inject constructor(
                 val league = socialRepository.getLeague(leagueId)
                 val standings = socialRepository.getLeagueStandings(leagueId)
                 val submissions = socialRepository.getLeagueSubmissions(leagueId)
+                // Attachments are host+entrant-gated and best-effort — a fetch
+                // failure leaves the section empty without sinking the screen.
+                val attachments = runCatching {
+                    socialRepository.getLeagueAttachments(leagueId)
+                }.getOrDefault(emptyList())
                 _leagueHomeState.update {
                     it.copy(
                         league = league,
                         standings = standings,
                         mySubmissions = submissions,
+                        attachments = attachments,
                         isLoading = false,
                     )
                 }
@@ -106,6 +117,57 @@ class LeagueViewModel @Inject constructor(
                 _leagueHomeState.update { it.copy(error = e.message, isLoading = false) }
             }
         }
+    }
+
+    /** Reload just the attachments (after an add / delete). */
+    private fun refreshAttachments(leagueId: String) {
+        viewModelScope.launch {
+            runCatching { socialRepository.getLeagueAttachments(leagueId) }
+                .onSuccess { list -> _leagueHomeState.update { it.copy(attachments = list) } }
+        }
+    }
+
+    /**
+     * Host-only: add an attachment. The repository validates the url/note
+     * required for the chosen [kind]; on a validation or API failure the error
+     * surfaces in [LeagueHomeUiState.attachmentError].
+     */
+    fun addAttachment(
+        leagueId: String,
+        kind: AttachmentKind,
+        title: String,
+        url: String?,
+        note: String?,
+        onAdded: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            _leagueHomeState.update { it.copy(attachmentError = null) }
+            runCatching { socialRepository.addLeagueAttachment(leagueId, kind, title, url, note) }
+                .onSuccess {
+                    refreshAttachments(leagueId)
+                    onAdded()
+                }
+                .onFailure { e ->
+                    _leagueHomeState.update { it.copy(attachmentError = e.message) }
+                }
+        }
+    }
+
+    /** Host-only: remove an attachment. */
+    fun deleteAttachment(leagueId: String, attachmentId: String) {
+        viewModelScope.launch {
+            runCatching { socialRepository.deleteLeagueAttachment(leagueId, attachmentId) }
+                .onSuccess {
+                    _leagueHomeState.update { s ->
+                        s.copy(attachments = s.attachments.filterNot { it.id == attachmentId })
+                    }
+                }
+                .onFailure { e -> _leagueHomeState.update { it.copy(error = e.message) } }
+        }
+    }
+
+    fun resetAttachmentError() {
+        _leagueHomeState.update { it.copy(attachmentError = null) }
     }
 
     fun loadAdminMatrix(leagueId: String) {
