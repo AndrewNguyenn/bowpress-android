@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,6 +53,7 @@ import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
+import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import java.time.Instant
 import java.time.ZoneId
@@ -245,6 +248,7 @@ private fun FeedEyebrow() {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FeedItemRow(
     item: ActivityItem,
@@ -267,24 +271,33 @@ private fun FeedItemRow(
         else -> AppPondDk
     }
 
-    Row(
-        modifier = Modifier
+    // §15 — a highlighted row (achievements present) gets the maple Strava
+    // treatment: a left maple rule + a tinted paper ground.
+    val rowModifier = if (item.highlighted) {
+        Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 12.dp),
+            .background(AppPaper2)
+            .border(width = 1.dp, color = AppMaple)
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
+    Row(
+        modifier = rowModifier.padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         // Avatar
         Box(
             modifier = Modifier
                 .size(30.dp)
-                .border(1.dp, avatarColor)
+                .border(1.dp, if (item.highlighted) AppMaple else avatarColor)
                 .background(AppPaper2),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = avatarInitials,
                 style = frauncesDisplay(11.5.sp),
-                color = avatarColor,
+                color = if (item.highlighted) AppMaple else avatarColor,
             )
         }
         Spacer(Modifier.width(10.dp))
@@ -312,19 +325,43 @@ private fun FeedItemRow(
                     color = AppInk3,
                 )
             }
+            // §15 — shared-session stat line.
+            item.session?.let { s ->
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = sessionStatLine(s),
+                    style = jetbrainsMono(9.5.sp),
+                    color = AppMaple,
+                )
+            }
+            // §15 — achievement badges on a highlighted row.
+            if (item.achievements.isNotEmpty()) {
+                Spacer(Modifier.height(7.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    item.achievements.forEach { badge ->
+                        AchievementBadgeChip(badge = badge)
+                    }
+                }
+            }
         }
         Spacer(Modifier.width(8.dp))
 
         // Right: stamp + time
         Column(horizontalAlignment = Alignment.End) {
             item.stamp?.let {
+                val effectiveStampColor = if (item.highlighted) AppMaple else stampColor
                 Box(
-                    modifier = Modifier.border(1.dp, stampColor).padding(horizontal = 5.dp, vertical = 2.dp),
+                    modifier = Modifier
+                        .border(1.dp, effectiveStampColor)
+                        .padding(horizontal = 5.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = it,
                         style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                        color = stampColor,
+                        color = effectiveStampColor,
                     )
                 }
                 Spacer(Modifier.height(6.dp))
@@ -337,6 +374,16 @@ private fun FeedItemRow(
         }
     }
 }
+
+/** Mono stat line for a shared session, e.g. "548 · 12X · 60 arrows · 50m". */
+private fun sessionStatLine(s: com.andrewnguyen.bowpress.core.model.ActivitySession): String =
+    buildList {
+        add("${s.score}")
+        add("${s.xCount}X")
+        add("${s.arrowCount} arrows")
+        s.distance?.let { add(it) }
+        s.face?.let { add(it) }
+    }.joinToString(" · ")
 
 @Composable
 private fun FeedEmptyState(onFriendsClick: () -> Unit) {
