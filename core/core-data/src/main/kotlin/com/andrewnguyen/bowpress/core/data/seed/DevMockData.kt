@@ -1,24 +1,51 @@
 package com.andrewnguyen.bowpress.core.data.seed
 
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
+import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
 import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
+import com.andrewnguyen.bowpress.core.database.dao.ClubDao
+import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
+import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
 import com.andrewnguyen.bowpress.core.database.dao.SessionDao
+import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.database.dao.SuggestionDao
+import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.ActivityKind
+import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.BowType
+import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubRole
+import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.FletchingType
+import com.andrewnguyen.bowpress.core.model.Friendship
+import com.andrewnguyen.bowpress.core.model.FriendshipDirection
+import com.andrewnguyen.bowpress.core.model.FriendshipSource
+import com.andrewnguyen.bowpress.core.model.FriendshipStatus
+import com.andrewnguyen.bowpress.core.model.HandicapConfig
+import com.andrewnguyen.bowpress.core.model.HandicapEquation
+import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.LeagueEntry
+import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
+import com.andrewnguyen.bowpress.core.model.LeagueSchedule
+import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
+import com.andrewnguyen.bowpress.core.model.LeagueStatus
+import com.andrewnguyen.bowpress.core.model.LeagueType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.RoundDef
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
 import java.time.Instant
@@ -53,6 +80,12 @@ class DevMockDataSeeder @Inject constructor(
     private val plotDao: ArrowPlotDao,
     private val sessionEndDao: com.andrewnguyen.bowpress.core.database.dao.SessionEndDao,
     private val suggestionDao: SuggestionDao,
+    // Social DAOs
+    private val socialProfileDao: SocialProfileDao,
+    private val friendshipDao: FriendshipDao,
+    private val clubDao: ClubDao,
+    private val leagueDao: LeagueDao,
+    private val activityFeedDao: ActivityFeedDao,
 ) {
 
     suspend fun seedIfEmpty() {
@@ -64,6 +97,13 @@ class DevMockDataSeeder @Inject constructor(
         sessionEndDao.upsertAll(DevMockData.sessionEnds.map { it.toEntity(pendingSync = false) })
         plotDao.upsertAll(DevMockData.arrowPlots.map { it.toEntity(pendingSync = false) })
         suggestionDao.upsertAll(DevMockData.suggestions.map { it.toEntity() })
+
+        // Social graph (§10 contract fixture)
+        socialProfileDao.upsertAll(DevMockData.socialProfiles.map { it.toEntity() })
+        friendshipDao.upsertAll(DevMockData.friendships.map { it.toEntity() })
+        clubDao.upsertAll(DevMockData.clubs.map { it.toEntity() })
+        leagueDao.upsertAll(DevMockData.leagues.map { it.toEntity() })
+        activityFeedDao.upsertAll(DevMockData.activityFeed.map { it.toEntity() })
     }
 }
 
@@ -597,6 +637,221 @@ private object DevMockData {
             )
         }
     }
+
+    // ── Social graph (contract §10) ────────────────────────────────────────
+    //
+    // Dev fixture: handle "andrew.n", 14 mutual friends (12 accepted + 2
+    // pending incoming), 2 clubs, 1 active weekly league, activity feed.
+
+    private val devUserId = "dev-user"
+    private val devHandle = "andrew.n"
+
+    val socialProfiles: List<SocialProfile> = buildList {
+        // Own profile
+        add(SocialProfile(
+            userId = devUserId,
+            handle = devHandle,
+            displayName = "Andrew Nguyen",
+            joinedAt = daysAgo(45),
+            visibility = SocialVisibility.friends,
+            bowSummary = "Mathews TITLE 36 · CMP",
+            sessionCount = 14,
+            arrowCount = 206,
+            division = Division.CMP,
+        ))
+        // Friend profiles (accepted)
+        listOf(
+            Triple("u_001", "sara.l", "Sara Lin"),
+            Triple("u_002", "m.okonkwo", "Marcus Okonkwo"),
+            Triple("u_003", "priya.v", "Priya Varma"),
+            Triple("u_004", "jake.t", "Jake Torres"),
+            Triple("u_005", "emi.f", "Emi Fujita"),
+            Triple("u_006", "dev.ch", "Devon Chen"),
+            Triple("u_007", "nadia.b", "Nadia Bouchard"),
+            Triple("u_008", "luca.m", "Luca Moretti"),
+            Triple("u_009", "kim.y", "Kim Yoon"),
+            Triple("u_010", "alex.r", "Alex Rivera"),
+            Triple("u_011", "zoe.h", "Zoe Hartley"),
+            Triple("u_012", "ryan.k", "Ryan Kim"),
+            // Pending inbound
+            Triple("u_013", "theo.w", "Theo Walsh"),
+            Triple("u_014", "bianca.c", "Bianca Caruso"),
+        ).forEach { (id, handle, name) ->
+            add(SocialProfile(
+                userId = id,
+                handle = handle,
+                displayName = name,
+                joinedAt = daysAgo((20..90).random().toLong()),
+                visibility = SocialVisibility.friends,
+                division = Division.entries.random(),
+            ))
+        }
+    }
+
+    val friendships: List<Friendship> = buildList {
+        // 12 accepted mutual friendships
+        listOf("u_001", "u_002", "u_003", "u_004", "u_005", "u_006",
+               "u_007", "u_008", "u_009", "u_010", "u_011", "u_012").forEachIndexed { i, friendId ->
+            add(Friendship(
+                id = "fr_$friendId",
+                requesterId = devUserId,
+                addresseeId = friendId,
+                status = FriendshipStatus.accepted,
+                source = FriendshipSource.handle,
+                createdAt = daysAgo((10 + i * 3).toLong()),
+                respondedAt = daysAgo((9 + i * 3).toLong()),
+                otherUserId = friendId,
+                otherHandle = socialProfiles.first { it.userId == friendId }.handle,
+                otherDisplayName = socialProfiles.first { it.userId == friendId }.displayName,
+                direction = null,
+            ))
+        }
+        // 2 pending incoming (they sent to us)
+        listOf("u_013", "u_014").forEach { friendId ->
+            val profile = socialProfiles.first { it.userId == friendId }
+            add(Friendship(
+                id = "fr_$friendId",
+                requesterId = friendId,
+                addresseeId = devUserId,
+                status = FriendshipStatus.pending,
+                source = FriendshipSource.handle,
+                createdAt = daysAgo(1),
+                otherUserId = friendId,
+                otherHandle = profile.handle,
+                otherDisplayName = profile.displayName,
+                direction = FriendshipDirection.incoming,
+            ))
+        }
+    }
+
+    val clubs: List<Club> = listOf(
+        Club(
+            id = "club_001",
+            name = "Riverside Archers",
+            description = "Weekend range crew at Riverside",
+            notes = "Gate code 4491 · Shooting hours 8am–5pm Sat/Sun",
+            inviteCode = "RVSIDE01",
+            createdAt = daysAgo(60),
+            createdBy = devUserId,
+            memberCount = 9,
+            myRole = ClubRole.host,
+        ),
+        Club(
+            id = "club_002",
+            name = "Metro Indoor League",
+            description = "City indoor range regular shooters",
+            inviteCode = "METRO001",
+            createdAt = daysAgo(30),
+            createdBy = "u_001",
+            memberCount = 14,
+            myRole = ClubRole.member,
+        ),
+    )
+
+    val leagues: List<League> = listOf(
+        League(
+            id = "lg_001",
+            name = "Spring Compound Weekly",
+            hostClubId = "club_001",
+            hostUserId = devUserId,
+            type = LeagueType.individual,
+            divisions = listOf(Division.CMP, Division.REC),
+            round = RoundDef(endCount = 10, arrowsPerEnd = 6),
+            schedule = LeagueSchedule(
+                kind = LeagueScheduleKind.weekly,
+                startsAt = daysAgo(28),
+                endsAt = daysAgo(-28),
+                totalWeeks = 8,
+                weekDeadlineDow = 0, // Sunday
+            ),
+            handicap = HandicapConfig(
+                equation = HandicapEquation.bracket,
+                allowancePct = null,
+                setupWeeks = 2,
+            ),
+            entryRule = LeagueEntryRule.open,
+            inviteCode = "SPRWK001",
+            status = LeagueStatus.active,
+            createdAt = daysAgo(30),
+            entryCount = 8,
+            myEntry = LeagueEntry(
+                userId = devUserId,
+                handle = devHandle,
+                displayName = "Andrew Nguyen",
+                division = Division.CMP,
+                bestScore = 548,
+                bestX = 12,
+                joinedAt = daysAgo(28),
+            ),
+        ),
+    )
+
+    val activityFeed: List<ActivityItem> = listOf(
+        ActivityItem(
+            id = "act_001",
+            kind = ActivityKind.friend_pr,
+            sourceKind = ActivitySourceKind.friend,
+            actorHandle = "sara.l",
+            actorDisplayName = "Sara Lin",
+            title = "Hit a new personal best · 574",
+            meta = "50m · CMP · 30 arrows",
+            stamp = "2h ago",
+            createdAt = daysAgo(0).minus(2, ChronoUnit.HOURS),
+        ),
+        ActivityItem(
+            id = "act_002",
+            kind = ActivityKind.club_session,
+            sourceKind = ActivitySourceKind.club,
+            actorHandle = "m.okonkwo",
+            actorDisplayName = "Marcus Okonkwo",
+            title = "Logged a club session at Riverside Archers",
+            meta = "70m · 18 arrows",
+            stamp = "Yesterday",
+            createdAt = daysAgo(1),
+        ),
+        ActivityItem(
+            id = "act_003",
+            kind = ActivityKind.league_event,
+            sourceKind = ActivitySourceKind.league,
+            actorHandle = "priya.v",
+            actorDisplayName = "Priya Varma",
+            title = "Submitted W4 score · 531",
+            meta = "Spring Compound Weekly",
+            stamp = "2d ago",
+            createdAt = daysAgo(2),
+        ),
+        ActivityItem(
+            id = "act_004",
+            kind = ActivityKind.friend_setup,
+            sourceKind = ActivitySourceKind.friend,
+            actorHandle = "jake.t",
+            actorDisplayName = "Jake Torres",
+            title = "Updated bow setup — Hoyt Satori",
+            stamp = "3d ago",
+            createdAt = daysAgo(3),
+        ),
+        ActivityItem(
+            id = "act_005",
+            kind = ActivityKind.club_member_joined,
+            sourceKind = ActivitySourceKind.club,
+            actorHandle = "emi.f",
+            actorDisplayName = "Emi Fujita",
+            title = "Joined Metro Indoor League",
+            stamp = "5d ago",
+            createdAt = daysAgo(5),
+        ),
+        ActivityItem(
+            id = "act_006",
+            kind = ActivityKind.friend_pr,
+            sourceKind = ActivitySourceKind.friend,
+            actorHandle = "dev.ch",
+            actorDisplayName = "Devon Chen",
+            title = "Hit a new personal best · 561",
+            meta = "20yd · Indoor · 60 arrows",
+            stamp = "1w ago",
+            createdAt = daysAgo(7),
+        ),
+    )
 
     // --- Suggestions ------------------------------------------------------
 

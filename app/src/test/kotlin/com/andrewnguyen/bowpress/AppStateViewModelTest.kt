@@ -2,8 +2,10 @@ package com.andrewnguyen.bowpress
 
 import app.cash.turbine.test
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
+import com.andrewnguyen.bowpress.core.data.repository.ThemePreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
+import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.AuthProvider
@@ -60,7 +62,12 @@ class AppStateViewModelTest {
         val billing = mockk<PlayBillingManager>(relaxed = true) {
             every { entitlement } returns MutableStateFlow(Entitlement.Inactive)
         }
-        val vm = AppStateViewModel(userRepo, suggestionRepo, unitRepo, push, billing, AnalyticsRefreshBus())
+        val vm = AppStateViewModel(
+            userRepo, suggestionRepo, unitRepo,
+            mockk<ThemePreferencesRepository>(relaxed = true),
+            push, billing, AnalyticsRefreshBus(),
+            mockk<DevMockDataSeeder>(relaxed = true),
+        )
         vm.uiState.test {
             val s = awaitItem()
             assertThat(s.isAuthenticated).isFalse()
@@ -91,7 +98,12 @@ class AppStateViewModelTest {
         val billing = mockk<PlayBillingManager>(relaxed = true) {
             every { entitlement } returns MutableStateFlow(Entitlement.Inactive)
         }
-        val vm = AppStateViewModel(userRepo, suggestionRepo, unitRepo2, mockk(relaxed = true), billing, AnalyticsRefreshBus())
+        val vm = AppStateViewModel(
+            userRepo, suggestionRepo, unitRepo2,
+            mockk<ThemePreferencesRepository>(relaxed = true),
+            mockk(relaxed = true), billing, AnalyticsRefreshBus(),
+            mockk<DevMockDataSeeder>(relaxed = true),
+        )
         vm.uiState.test {
             val s = awaitItem()
             assertThat(s.unreadSuggestionCount).isEqualTo(2)
@@ -125,7 +137,12 @@ class AppStateViewModelTest {
         val billing = mockk<PlayBillingManager>(relaxed = true) {
             every { entitlement } returns MutableStateFlow(Entitlement.Inactive)
         }
-        val vm = AppStateViewModel(userRepo, suggestionRepo, unitRepo, push, billing, AnalyticsRefreshBus())
+        val vm = AppStateViewModel(
+            userRepo, suggestionRepo, unitRepo,
+            mockk<ThemePreferencesRepository>(relaxed = true),
+            push, billing, AnalyticsRefreshBus(),
+            mockk<DevMockDataSeeder>(relaxed = true),
+        )
         vm.uiState.test {
             val s = awaitItem()
             assertThat(s.isAuthenticated).isTrue()

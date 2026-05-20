@@ -112,7 +112,13 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
     private fun buildNotification(message: RemoteMessage, contentIntent: PendingIntent?): android.app.Notification {
         val title = message.notification?.title ?: message.data["title"] ?: "BowPress"
         val body = message.notification?.body ?: message.data["body"] ?: ""
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val type = message.data["type"] ?: ""
+        val channelId = if (type in setOf("friend_request", "friend_pr", "league_deadline", "club_activity")) {
+            CHANNEL_SOCIAL
+        } else {
+            CHANNEL_ID
+        }
+        return NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(body)
             .setSmallIcon(R.drawable.ic_notification)
@@ -135,11 +141,23 @@ class BowPressFirebaseMessagingService : FirebaseMessagingService() {
                     },
                 )
             }
+            if (manager.getNotificationChannel(CHANNEL_SOCIAL) == null) {
+                manager.createNotificationChannel(
+                    NotificationChannel(
+                        CHANNEL_SOCIAL,
+                        "Social",
+                        NotificationManager.IMPORTANCE_DEFAULT,
+                    ).apply {
+                        description = "Friend requests, league deadlines, and club activity"
+                    },
+                )
+            }
         }
     }
 
     companion object {
         const val CHANNEL_ID = "bowpress_suggestions"
+        const val CHANNEL_SOCIAL = "bowpress_social"
     }
 }
 
@@ -164,6 +182,19 @@ object NotificationIntentBuilder {
                 val base = "bowpress://suggestion/$id"
                 if (bowId.isNullOrEmpty()) base
                 else "$base?bowId=${java.net.URLEncoder.encode(bowId, Charsets.UTF_8.name())}"
+            }
+            // Social push types per contract §9
+            "friend_request" -> "bowpress://social/friends"
+            "friend_pr" -> "bowpress://social/friends"
+            "league_deadline" -> {
+                val leagueId = data["leagueId"]
+                if (!leagueId.isNullOrEmpty()) "bowpress://social/leagues/$leagueId"
+                else "bowpress://social/leagues"
+            }
+            "club_activity" -> {
+                val clubId = data["clubId"]
+                if (!clubId.isNullOrEmpty()) "bowpress://social/clubs/$clubId"
+                else "bowpress://social"
             }
             else -> null
         }

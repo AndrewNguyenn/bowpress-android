@@ -62,4 +62,54 @@ class NotificationIntentBuilderTest {
         val uri = NotificationIntentBuilder.buildDeepLinkUriString(emptyMap())
         assertThat(uri).isNull()
     }
+
+    // ── Social push types (§9) ───────────────────────────────────────────────
+
+    @Test
+    fun `friend_request deep links to social friends screen`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "friend_request"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/friends")
+    }
+
+    @Test
+    fun `friend_pr deep links to social friends screen`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "friend_pr"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/friends")
+    }
+
+    @Test
+    fun `league_deadline with leagueId deep links to that league`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "league_deadline", "leagueId" to "lg_42"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/leagues/lg_42")
+    }
+
+    @Test
+    fun `league_deadline without leagueId deep links to leagues list`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "league_deadline"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/leagues")
+    }
+
+    @Test
+    fun `club_activity with clubId deep links to that club`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "club_activity", "clubId" to "club_7"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/clubs/club_7")
+    }
+
+    @Test
+    fun `club_activity without clubId deep links to social root`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "club_activity"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social")
+    }
 }
