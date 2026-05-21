@@ -27,9 +27,12 @@ class ActivityPreviewTest {
         session = session,
     )
 
-    private fun session(discipline: String?): ActivitySession = ActivitySession(
+    private fun session(
+        discipline: String?,
+        sessionId: String = "s1",
+    ): ActivitySession = ActivitySession(
         sharedSessionId = "ss1",
-        sessionId = "s1",
+        sessionId = sessionId,
         score = 285,
         xCount = 12,
         arrowCount = 90,
@@ -41,8 +44,19 @@ class ActivityPreviewTest {
     @Test
     fun `isEmpty is true only for None`() {
         assertThat(ActivityPreview.None.isEmpty).isTrue()
+        assertThat(ActivityPreview.Photo.isEmpty).isFalse()
         assertThat(ActivityPreview.Target(face = "6-ring", score = 285).isEmpty).isFalse()
         assertThat(ActivityPreview.Course(score = 64, stations = 6).isEmpty).isFalse()
+    }
+
+    @Test
+    fun `a session with a target-paper photo picks the photo preview`() {
+        // sess_devon_1 is the mock session registered in TargetPhotoCatalog;
+        // the photo preview wins over the range discipline preview.
+        val preview = activityPreview(
+            item(session(discipline = "range", sessionId = "sess_devon_1")),
+        )
+        assertThat(preview).isEqualTo(ActivityPreview.Photo)
     }
 
     @Test

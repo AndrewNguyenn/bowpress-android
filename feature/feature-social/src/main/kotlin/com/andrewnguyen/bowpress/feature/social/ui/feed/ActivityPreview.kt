@@ -20,11 +20,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.andrewnguyen.bowpress.core.data.social.TargetPhotoCatalog
 import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
@@ -53,15 +55,19 @@ private val BAND_HEIGHT = 116.dp
  * The visual preview a shared-session feed row renders. [None] renders
  * nothing.
  *
- * Note: Android has no target-paper photo feature (iOS issue #23), so the
- * `Photo` variant is modelled for parity but never produced by [activityPreview]
- * today — photo-precedence logic is preserved so it lights up for free if
- * photos ever land on Android.
+ * Android has no photo-capture feature yet (iOS issue #23), so [Photo] is
+ * currently only produced for the DEBUG mock session tagged in
+ * `TargetPhotoCatalog` — enough to demonstrate the variant in the emulator,
+ * matching the iOS DEBUG build. When photo capture is ported, the catalog
+ * becomes a real lookup and nothing else here changes.
  */
 sealed interface ActivityPreview {
     val isEmpty: Boolean get() = this is None
 
     data object None : ActivityPreview
+
+    /** A target-paper photo the actor attached to the session. */
+    data object Photo : ActivityPreview
 
     /** A range session — a World Archery target face + the score. */
     data class Target(val face: String?, val score: Int) : ActivityPreview
@@ -71,14 +77,15 @@ sealed interface ActivityPreview {
 }
 
 /**
- * Picks the §18 preview band for a feed row: a course block for a 3D course,
- * else a target face for a range session. A non-session row gets [None].
- *
- * Photo precedence (photo > discipline preview) is intentionally preserved in
- * shape even though Android produces no photos today — see [ActivityPreview].
+ * Picks the §18 preview band for a feed row: a target-paper photo if the
+ * session has one, else a course block for a 3D course, else a target face
+ * for a range session. A non-session row gets [None].
  */
 fun activityPreview(item: ActivityItem): ActivityPreview {
     val session = item.session ?: return ActivityPreview.None
+    // Photo precedence — a photographed session shows the photo over the
+    // discipline preview, matching iOS.
+    if (TargetPhotoCatalog.hasPhoto(session.sessionId)) return ActivityPreview.Photo
     return if (session.isCourse) {
         ActivityPreview.Course(score = session.score, stations = session.arrowCount)
     } else {
@@ -94,6 +101,7 @@ fun ActivityPreviewBand(
 ) {
     when (preview) {
         is ActivityPreview.None -> Unit
+        is ActivityPreview.Photo -> PhotoBand(modifier = modifier)
         is ActivityPreview.Target -> TargetBand(
             face = preview.face,
             score = preview.score,
@@ -104,6 +112,30 @@ fun ActivityPreviewBand(
             stations = preview.stations,
             modifier = modifier,
         )
+    }
+}
+
+/**
+ * A target-paper photo the actor attached — a full-bleed banner. Android has
+ * no real photo capture yet (iOS issue #23), so this renders a synthetic
+ * target-paper image (a WA face on cream paper), the same stand-in the iOS
+ * DEBUG build seeds. When real photos land, swap the synthetic face for the
+ * decoded image and the rest of the feed is unchanged.
+ */
+@Composable
+private fun PhotoBand(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(BAND_HEIGHT)
+            .background(AppCream)
+            .border(1.dp, AppLine)
+            .clipToBounds()
+            .testTag(TestTags.FeedRowPreview),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Oversized so it reads as a full-bleed close-up photo of the paper.
+        BPTargetFace(size = 168.dp)
     }
 }
 

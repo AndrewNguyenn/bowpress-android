@@ -957,6 +957,9 @@ internal object DevMockData {
             createdAt = daysAgo(5),
         ),
         // §15 — a highlighted multi-achievement shared session.
+        // §18 — sess_devon_1 is registered in TargetPhotoCatalog, so this row
+        // shows the photo-preview variant (the third preview kind, matching
+        // the iOS DEBUG feed).
         ActivityItem(
             id = "act_006",
             kind = ActivityKind.friend_pr,
@@ -975,7 +978,8 @@ internal object DevMockData {
                 arrowCount = 60,
                 distance = "20yd",
                 face = "6-Ring",
-                // §18 — a range session with a location tag.
+                // §18 — a range session with a location tag; this session id
+                // is in TargetPhotoCatalog so the feed shows its photo.
                 discipline = "range",
                 location = SessionLocation(
                     name = "Bay Area Archery",
