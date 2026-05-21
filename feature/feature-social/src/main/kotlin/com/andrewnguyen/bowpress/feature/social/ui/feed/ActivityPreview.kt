@@ -3,7 +3,6 @@ package com.andrewnguyen.bowpress.feature.social.ui.feed
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,30 +19,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.andrewnguyen.bowpress.core.data.social.TargetPhotoCatalog
 import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
-import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
-import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
-import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
-import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
-import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
-import com.andrewnguyen.bowpress.core.designsystem.bp.ringInk
-import com.andrewnguyen.bowpress.core.designsystem.bp.ringLabel
-import com.andrewnguyen.bowpress.core.designsystem.bp.ringTint
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseInkMapView
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.ElevationGridCache
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
@@ -130,155 +118,14 @@ fun activityPreview(item: ActivityItem): ActivityPreview {
     }
 }
 
-/** The preview band rendered under a shared-session feed row's headline. */
-@Composable
-fun ActivityPreviewBand(
-    preview: ActivityPreview,
-    modifier: Modifier = Modifier,
-) {
-    when (preview) {
-        is ActivityPreview.None -> Unit
-        is ActivityPreview.Photo -> PhotoBand(modifier = modifier)
-        is ActivityPreview.Target -> TargetBand(
-            distance = preview.distance,
-            score = preview.score,
-            endRings = preview.endRings,
-            modifier = modifier,
-        )
-        is ActivityPreview.Course -> CourseBand(
-            score = preview.score,
-            stations = preview.stations,
-            modifier = modifier,
-        )
-    }
-}
-
-/**
- * A target-paper photo the actor attached — a full-bleed banner. Android has
- * no real photo capture yet (iOS issue #23), so this renders a synthetic
- * target-paper image (a WA face on cream paper), the same stand-in the iOS
- * DEBUG build seeds. When real photos land, swap the synthetic face for the
- * decoded image and the rest of the feed is unchanged.
- */
-@Composable
-private fun PhotoBand(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(BAND_HEIGHT)
-            .background(AppCream)
-            .border(1.dp, AppLine)
-            .clipToBounds()
-            .testTag(TestTags.FeedRowPreview),
-        contentAlignment = Alignment.Center,
-    ) {
-        // Oversized so it reads as a full-bleed close-up photo of the paper.
-        // Uses the six-ring face to match iOS MockTargetPaperPhoto.
-        BPTargetFace(size = 168.dp, face = BPTargetFaceType.SixRing)
-    }
-}
-
-/**
- * Range session — the distance + score paired with the per-end scorecard
- * (first 10 ends), grouped on the right of the preview band behind a
- * hairline. No target-face graphic — the scorecard carries the detail.
- */
-@Composable
-private fun TargetBand(
-    distance: String?,
-    score: Int,
-    endRings: List<List<Int>>?,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(BAND_HEIGHT)
-            .background(AppPaper2)
-            .border(1.dp, AppLine)
-            .padding(horizontal = 14.dp)
-            .testTag(TestTags.FeedRowPreview),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.End,
-    ) {
-        Column {
-            Text(
-                // The distance is "attached" to the RANGE label, e.g.
-                // "RANGE · 50M" — `distance` is null on legacy sessions.
-                text = "RANGE" + (
-                    distance?.takeIf { it.isNotBlank() }?.let { " · ${it.uppercase()}" } ?: ""
-                ),
-                style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                color = AppInk3,
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = "$score",
-                style = frauncesDisplay(26.sp),
-                color = AppInk,
-            )
-        }
-        if (!endRings.isNullOrEmpty()) {
-            Spacer(Modifier.width(14.dp))
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(BAND_HEIGHT - 12.dp)
-                    .background(AppLine),
-            )
-            Spacer(Modifier.width(14.dp))
-            FeedScorecardColumn(ends = endRings)
-        }
-    }
-}
-
-/**
- * The compact per-end scorecard rendered on the right of a range feed row's
- * target preview — the first 10 ends, each row the end number followed by
- * its arrow ring values (X / 10 / 9 … / M). Sized to fit the fixed-height
- * preview band without scrolling. Mirrors iOS `FeedScorecardColumn`.
- */
-@Composable
-private fun FeedScorecardColumn(ends: List<List<Int>>, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.testTag(TestTags.FeedRowScorecard)) {
-        ends.take(10).forEachIndexed { idx, rings ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${idx + 1}",
-                    style = jetbrainsMono(6.5.sp),
-                    color = AppInk3,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width(11.dp),
-                )
-                Spacer(Modifier.width(3.dp))
-                // Each ring sits in its ring-tonal cell — the same band cue
-                // the session-detail ScorecardTable uses, compacted.
-                rings.forEach { ring ->
-                    Box(
-                        modifier = Modifier
-                            .size(width = 15.dp, height = 11.dp)
-                            .background(ringTint(ring)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = ringLabel(ring),
-                            style = frauncesDisplay(8.sp, italic = true, weight = FontWeight.Medium),
-                            color = ringInk(ring),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 /**
  * 3D course — the real course map, full-bleed width, as the hero of the row
  * (Strava-style). Falls back to the compact walked-trail schematic only when
- * the feed payload carried no stations. Mirrors iOS `ActivityPreviewBand.courseBand`.
+ * the feed payload carried no stations. Drawn inside the [ActivityCard]'s
+ * paper-2 body. Mirrors iOS `ActivityPreviewBand.courseBand`.
  */
 @Composable
-private fun CourseBand(
+internal fun CourseBand(
     score: Int,
     stations: List<CourseStation>,
     modifier: Modifier = Modifier,

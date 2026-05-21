@@ -6,8 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,7 +39,6 @@ import com.andrewnguyen.bowpress.core.designsystem.AppLine2
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
-import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.AppStone
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
@@ -49,18 +46,14 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityItem
-import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.EmptyAction
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.SocialEmptyState
-import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.location.LocationMapSheet
-import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 @Composable
 fun FeedScreen(
@@ -178,29 +171,19 @@ fun FeedScreen(
                 val openComments: (String) -> Unit = { subjectId ->
                     onCommentsClick(subjectId, item.actorUserId)
                 }
-                if (activityPreview(item) is ActivityPreview.Target) {
-                    // Social Activity Card · 50/50 — the rich card for a
-                    // shared range session.
-                    ActivityCard(
-                        item = item,
-                        onClick = { openItem(item) },
-                        onLocationTap = { location -> mapLocation = location },
-                        onToggleLike = viewModel::toggleLike,
-                        onOpenComments = openComments,
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    )
-                } else {
-                    FeedItemRow(
-                        item = item,
-                        photoLoader = viewModel.photoLoader,
-                        onItemClick = openItem,
-                        // §18 — tapping the location tag opens the map popup.
-                        onLocationTap = { location -> mapLocation = location },
-                        onToggleLike = viewModel::toggleLike,
-                        onOpenComments = openComments,
-                    )
-                    HorizontalDivider(color = AppLine2, thickness = 1.dp)
-                }
+                // Social Activity Card · 50/50 — every feed row renders inside
+                // the one card chrome; ActivityCard picks the body (the 50/50
+                // target+ledger for a range session, the course map for a 3D
+                // course, a short text body otherwise).
+                ActivityCard(
+                    item = item,
+                    onClick = { openItem(item) },
+                    onLocationTap = { location -> mapLocation = location },
+                    onToggleLike = viewModel::toggleLike,
+                    onOpenComments = openComments,
+                    photoLoader = viewModel.photoLoader,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                )
             }
 
             // Pending requests section if any
@@ -444,233 +427,5 @@ private fun FeedEyebrow() {
             style = jetbrainsMono(10.sp),
             color = AppInk3,
         )
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FeedItemRow(
-    item: ActivityItem,
-    photoLoader: com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader,
-    onItemClick: (ActivityItem) -> Unit,
-    onLocationTap: (SessionLocation) -> Unit,
-    onToggleLike: suspend (String, Boolean) -> com.andrewnguyen.bowpress.core.model.ToggleLikeResponse,
-    onOpenComments: (String) -> Unit,
-) {
-    val avatarInitials = when (item.sourceKind) {
-        ActivitySourceKind.club -> avatarInitials(item.actorDisplayName)
-        ActivitySourceKind.league -> "◎"
-        ActivitySourceKind.friend -> avatarInitials(item.actorDisplayName)
-    }
-    val avatarColor = when (item.sourceKind) {
-        ActivitySourceKind.friend -> AppPine
-        ActivitySourceKind.club -> AppStone
-        ActivitySourceKind.league -> AppMaple
-    }
-    val stampColor = when (item.stamp) {
-        "PR" -> AppPine
-        "2d", "3d" -> AppMaple
-        else -> AppPondDk
-    }
-
-    // §15 — a highlighted row (achievements present) gets the maple Strava
-    // treatment: a left maple rule + a tinted paper ground.
-    val baseModifier = if (item.highlighted) {
-        Modifier
-            .fillMaxWidth()
-            .background(AppPaper2)
-            .border(width = 1.dp, color = AppMaple)
-    } else {
-        Modifier.fillMaxWidth()
-    }
-    // Every feed row drills somewhere — the screen routes by precedence
-    // (session → league → club → actor profile).
-    val rowModifier = baseModifier.clickable { onItemClick(item) }
-
-    // The feed's own horizontal content inset — a full-bleed preview (the 3D
-    // course map) negates it so it can sit edge-to-edge (mirrors iOS
-    // `FeedRowView.contentInset` = 16; Android's feed inset is 18).
-    val contentInset = 18.dp
-    val preview = activityPreview(item)
-
-    // Social Feed V2 §4 — a photographed session shows its photo gallery in
-    // place of the typed §18 preview band. Resolved once so the body knows
-    // whether to render the gallery or the discipline preview below the row.
-    val photos = item.session?.photos.orEmpty()
-
-    // The preview drops below the avatar/timestamp row so it spans the full
-    // row width — and a 3D-course map bleeds past the feed's own horizontal
-    // inset to sit truly edge-to-edge. A highlighted card keeps the preview
-    // inside its border, matching iOS `HighlightedFeedRow`.
-    Column(modifier = rowModifier.padding(vertical = 12.dp)) {
-        Row(
-            modifier = Modifier.padding(horizontal = contentInset),
-            verticalAlignment = Alignment.Top,
-        ) {
-            // Avatar
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .border(1.dp, if (item.highlighted) AppMaple else avatarColor)
-                    .background(AppPaper2),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = avatarInitials,
-                    style = frauncesDisplay(11.5.sp),
-                    color = if (item.highlighted) AppMaple else avatarColor,
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-
-            // Body
-            Column(Modifier.weight(1f)) {
-                // §18 — Instagram-style location tag above the headline. A
-                // nested clickable consumes the tap so it opens the map
-                // instead of drilling into the row's destination.
-                item.session?.location?.let { location ->
-                    LocationTag(
-                        name = location.name,
-                        onTap = { onLocationTap(location) },
-                    )
-                    Spacer(Modifier.height(3.dp))
-                }
-                // Actor eyebrow — the acting archer's name (or "YOU" on an own
-                // row). Formatting rule lives in FeedHeadline so it stays
-                // testable. (Social Feed V2 §2.)
-                Row {
-                    Text(
-                        text = FeedHeadline.actorEyebrow(item) + " ",
-                        style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                        color = AppPondDk,
-                    )
-                }
-                // Headline. §1 — a custom title is the archer's own session
-                // name, rendered as a quoted caption; a generic title renders
-                // verbatim.
-                Text(
-                    text = FeedHeadline.headline(item),
-                    style = frauncesDisplay(14.sp),
-                    color = AppInk,
-                )
-                item.meta?.let { meta ->
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        text = meta,
-                        style = jetbrainsMono(9.5.sp),
-                        color = AppInk3,
-                    )
-                }
-                // §15 — shared-session stat line. A range session's scorecard
-                // preview band below already carries the score + distance and
-                // the per-arrow breakdown, so the stat line would just repeat
-                // it — drop it for those rows.
-                if (preview !is ActivityPreview.Target) {
-                    item.session?.let { s ->
-                        Spacer(Modifier.height(5.dp))
-                        Text(
-                            text = sessionStatLine(s),
-                            style = jetbrainsMono(9.5.sp),
-                            color = AppMaple,
-                        )
-                    }
-                }
-                // §15 — achievement badges on a highlighted row.
-                if (item.achievements.isNotEmpty()) {
-                    Spacer(Modifier.height(7.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        item.achievements.forEach { badge ->
-                            AchievementBadgeChip(badge = badge)
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.width(8.dp))
-
-            // Right: stamp + time
-            Column(horizontalAlignment = Alignment.End) {
-                item.stamp?.let {
-                    val effectiveStampColor = if (item.highlighted) AppMaple else stampColor
-                    Box(
-                        modifier = Modifier
-                            .border(1.dp, effectiveStampColor)
-                            .padding(horizontal = 5.dp, vertical = 2.dp),
-                    ) {
-                        Text(
-                            text = it,
-                            style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                            color = effectiveStampColor,
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
-                }
-                Text(
-                    text = item.createdAt.relativeTime(),
-                    style = jetbrainsMono(9.5.sp),
-                    color = AppInk3,
-                )
-            }
-        }
-
-        // The session preview is dropped below the avatar/timestamp row so it
-        // spans the full row width. Social Feed V2 §4 — a photographed session
-        // shows its photo gallery; otherwise §18's typed discipline band
-        // (target face / 3D-course map). A 3D-course map bleeds past the
-        // feed's horizontal inset to sit edge-to-edge; the photo gallery and
-        // every other preview stay within the inset, and a highlighted card
-        // keeps everything inside its border (no bleed).
-        if (photos.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            com.andrewnguyen.bowpress.feature.social.ui.session.FeedPhotoGallery(
-                sharedSessionId = item.session!!.sharedSessionId,
-                photos = photos,
-                loader = photoLoader,
-                modifier = Modifier.padding(horizontal = contentInset),
-            )
-        } else if (!preview.isEmpty) {
-            val bleed = preview.wantsFullBleed && !item.highlighted
-            Spacer(Modifier.height(8.dp))
-            ActivityPreviewBand(
-                preview = preview,
-                modifier = Modifier.padding(
-                    horizontal = if (bleed) 0.dp else contentInset,
-                ),
-            )
-        }
-
-        // Social Feed V2 §5 — the like + comment action bar.
-        Spacer(Modifier.height(10.dp))
-        LikeCommentBar(
-            item = item,
-            onToggleLike = onToggleLike,
-            onOpenComments = onOpenComments,
-            modifier = Modifier.padding(horizontal = contentInset),
-        )
-    }
-}
-
-/** Mono stat line for a shared session, e.g. "548 · 12X · 60 arrows · 50m". */
-private fun sessionStatLine(s: com.andrewnguyen.bowpress.core.model.ActivitySession): String =
-    buildList {
-        add("${s.score}")
-        add("${s.xCount}X")
-        add("${s.arrowCount} arrows")
-        s.distance?.let { add(it) }
-        s.face?.let { add(it) }
-    }.joinToString(" · ")
-
-/** Relative human-readable time: "2h", "yesterday", etc. */
-private fun Instant.relativeTime(): String {
-    val now = Instant.now()
-    val hours = ChronoUnit.HOURS.between(this, now)
-    val days = ChronoUnit.DAYS.between(this, now)
-    return when {
-        hours < 1 -> "just now"
-        hours < 24 -> "${hours}h"
-        days == 1L -> "yesterday"
-        else -> "${days}d"
     }
 }
