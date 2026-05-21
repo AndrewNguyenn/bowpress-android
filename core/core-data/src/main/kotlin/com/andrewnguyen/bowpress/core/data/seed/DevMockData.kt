@@ -57,6 +57,7 @@ import com.andrewnguyen.bowpress.core.model.RearStabSide
 import com.andrewnguyen.bowpress.core.model.RoundDef
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.SessionLocation
+import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
@@ -68,6 +69,7 @@ import com.andrewnguyen.bowpress.core.model.TrophyCategory
 import com.andrewnguyen.bowpress.core.model.TrophyDef
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
+import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.core.model.Zone
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -100,6 +102,7 @@ class DevMockDataSeeder @Inject constructor(
     private val sessionDao: SessionDao,
     private val plotDao: ArrowPlotDao,
     private val sessionEndDao: com.andrewnguyen.bowpress.core.database.dao.SessionEndDao,
+    private val courseStationDao: com.andrewnguyen.bowpress.core.database.dao.CourseStationDao,
     private val suggestionDao: SuggestionDao,
     // Social DAOs
     private val socialProfileDao: SocialProfileDao,
@@ -120,6 +123,13 @@ class DevMockDataSeeder @Inject constructor(
         sessionDao.upsertAll(DevMockData.sessions.map { it.toEntity(pendingSync = false) })
         sessionEndDao.upsertAll(DevMockData.sessionEnds.map { it.toEntity(pendingSync = false) })
         plotDao.upsertAll(DevMockData.arrowPlots.map { it.toEntity(pendingSync = false) })
+        // Three finished 3D courses — the sessions land alongside the range
+        // sessions via sessionDao; their stations populate course_stations so
+        // the 3D Log / course-map detail / Analytics 3D sub-tab render in DEBUG.
+        sessionDao.upsertAll(DevMockData.courseSessions.map { it.toEntity(pendingSync = false) })
+        courseStationDao.upsertAll(
+            DevMockData.courseStations.map { it.toEntity(pendingSync = false) },
+        )
         suggestionDao.upsertAll(DevMockData.suggestions.map { it.toEntity() })
 
         // Social graph (§10 contract fixture).
@@ -796,6 +806,181 @@ internal object DevMockData {
                 completedAt = completedAt,
             )
         }
+    }
+
+    // --- 3D course fixtures -----------------------------------------------
+    //
+    // Three finished 3D courses — one per scoring system — so the 3D Log
+    // rows, the log detail (course map with inferred targets + station
+    // table) and the Analytics 3D sub-tab all render on a fresh emulator
+    // without the archer having to walk a course first. Mirrors iOS
+    // DevMockData's `all3DCourses` (Rocky Mill · Cedar Hollow · Foxglen Loop).
+    //
+    // Every station carries a compass bearing + GPS fix so CourseInkMapView
+    // projects the route + inferred targets; no elevation grid is seeded
+    // (see ThreeDLogDetailViewModel — Android fetches the terrain grid live
+    // and the map degrades gracefully to a GPS-projected route without it).
+
+    /**
+     * One compact spec row per 3D station — mirrors the iOS `StationSpec`
+     * tuple: ranged distance (yd), shot incline angle, compass bearing,
+     * scored ring, the arrow plot (x/y, −1…1), the shooter's GPS fix, and
+     * whether an arrow-in-target close-up photo was taken.
+     */
+    private data class StationSpec(
+        val dist: Double,
+        val angle: Double,
+        val bearing: Double,
+        val ring: Int,
+        val dx: Double,
+        val dy: Double,
+        val lat: Double,
+        val lon: Double,
+        val arrow: Boolean,
+    )
+
+    /**
+     * Builds a course's [CourseStation]s from compact [StationSpec]s. Every
+     * station gets a scene photo; `arrow` flags the optional close-up.
+     * Mirrors iOS `make3DStations`.
+     */
+    private fun make3DStations(
+        sessionId: String,
+        base: Instant,
+        specs: List<StationSpec>,
+    ): List<CourseStation> = specs.mapIndexed { idx, s ->
+        CourseStation(
+            id = "${sessionId}_st${idx + 1}",
+            sessionId = sessionId,
+            stationNumber = idx + 1,
+            estimatedDistance = s.dist,
+            distanceUnit = "yd",
+            angleDegrees = s.angle,
+            bearingDegrees = s.bearing,
+            latitude = s.lat,
+            longitude = s.lon,
+            ring = s.ring,
+            plotX = s.dx,
+            plotY = s.dy,
+            hasScenePhoto = true,
+            hasArrowPhoto = s.arrow,
+            shotAt = base.plus((idx * 700L).toLong(), ChronoUnit.SECONDS),
+        )
+    }
+
+    /**
+     * Builds a finished 3D-course [ShootingSession]. Mirrors iOS
+     * `make3DSession`: `sessionType = THREE_D_COURSE`, the chosen scoring
+     * system, a six-ring face, no fixed distance, and starts 10 hours into
+     * the day so the station timestamps stay within the day.
+     */
+    private fun threeDSession(
+        id: String,
+        daysAgo: Long,
+        durationMin: Long,
+        title: String,
+        notes: String,
+        feelTags: List<String>,
+        stationCount: Int,
+        system: ThreeDScoringSystem,
+    ): ShootingSession {
+        val start = daysAgo(daysAgo).plus(10, ChronoUnit.HOURS)
+        return ShootingSession(
+            id = id,
+            bowId = "dev_bow1",
+            bowConfigId = "dev_bc1c",
+            arrowConfigId = "dev_arrow1",
+            startedAt = start,
+            endedAt = minutesAfter(start, durationMin),
+            notes = notes,
+            feelTags = feelTags,
+            arrowCount = stationCount,
+            targetFaceType = TargetFaceType.SIX_RING,
+            targetLayout = TargetLayout.SINGLE,
+            distance = null,
+            title = title,
+            sessionType = SessionType.THREE_D_COURSE,
+            scoringSystem = system,
+        )
+    }
+
+    // Course 1 · Rocky Mill — ASA, six stations up a wooded ridge.
+    private val course3DSession1 = threeDSession(
+        id = "dev_3d_1", daysAgo = 1, durationMin = 75, title = "Rocky Mill",
+        notes = "Rocky Mill course. Ranging well on the level shots; the " +
+            "steep downhill at station 5 still fools me.",
+        feelTags = listOf("consistent", "judging_distance"),
+        stationCount = 6, system = ThreeDScoringSystem.ASA,
+    )
+
+    // Course 2 · Cedar Hollow — WA3D, eight stations, one clean miss.
+    private val course3DSession2 = threeDSession(
+        id = "dev_3d_2", daysAgo = 5, durationMin = 107, title = "Cedar Hollow",
+        notes = "Cedar Hollow — long loop through the back ravine. Lost " +
+            "station 8 badly: misjudged the gap across the creek.",
+        feelTags = listOf("judging_distance", "uphill_downhill"),
+        stationCount = 8, system = ThreeDScoringSystem.WA3D,
+    )
+
+    // Course 3 · Foxglen Loop — IBO, five stations, a tidy round.
+    private val course3DSession3 = threeDSession(
+        id = "dev_3d_3", daysAgo = 3, durationMin = 55, title = "Foxglen Loop",
+        notes = "Foxglen Loop — short evening round. Cleanest walk in a " +
+            "while; the inferred-target map lined up well against the real stakes.",
+        feelTags = listOf("consistent"),
+        stationCount = 5, system = ThreeDScoringSystem.IBO,
+    )
+
+    /** The three finished 3D-course sessions — seeded via the session DAO. */
+    val courseSessions: List<ShootingSession> = listOf(
+        course3DSession1, course3DSession2, course3DSession3,
+    )
+
+    /** Every 3D-course station, flattened — seeded via the course-station DAO. */
+    val courseStations: List<CourseStation> = buildList {
+        addAll(
+            make3DStations(
+                sessionId = "dev_3d_1",
+                base = daysAgo(1).plus(10, ChronoUnit.HOURS),
+                specs = listOf(
+                    StationSpec(22.0, -2.0, 28.0, 12, 0.18, -0.10, 37.33620, -122.04230, true),
+                    StationSpec(31.0, 7.0, 65.0, 10, -0.30, 0.20, 37.33665, -122.04180, false),
+                    StationSpec(18.0, -12.0, 115.0, 14, 0.05, 0.06, 37.33710, -122.04210, true),
+                    StationSpec(40.0, 4.0, 210.0, 8, 0.40, -0.34, 37.33760, -122.04150, false),
+                    StationSpec(27.0, -18.0, 295.0, 5, -0.55, 0.52, 37.33815, -122.04100, false),
+                    StationSpec(34.0, 5.0, 355.0, 10, 0.22, 0.30, 37.33860, -122.04140, true),
+                ),
+            ),
+        )
+        addAll(
+            make3DStations(
+                sessionId = "dev_3d_2",
+                base = daysAgo(5).plus(10, ChronoUnit.HOURS),
+                specs = listOf(
+                    StationSpec(28.0, 3.0, 40.0, 10, 0.18, 0.13, 37.41360, -122.21180, true),
+                    StationSpec(19.0, -8.0, 95.0, 9, -0.30, 0.34, 37.41410, -122.21130, false),
+                    StationSpec(35.0, 12.0, 150.0, 8, 0.50, -0.42, 37.41455, -122.21175, true),
+                    StationSpec(44.0, -5.0, 200.0, 10, 0.12, 0.16, 37.41420, -122.21240, false),
+                    StationSpec(23.0, 9.0, 255.0, 9, -0.30, 0.27, 37.41500, -122.21210, true),
+                    StationSpec(52.0, -14.0, 310.0, 5, 0.62, 0.62, 37.41560, -122.21160, false),
+                    StationSpec(16.0, 2.0, 20.0, 10, 0.10, -0.15, 37.41610, -122.21205, true),
+                    StationSpec(38.0, 7.0, 75.0, 0, 0.74, 0.74, 37.41650, -122.21150, false),
+                ),
+            ),
+        )
+        addAll(
+            make3DStations(
+                sessionId = "dev_3d_3",
+                base = daysAgo(3).plus(10, ChronoUnit.HOURS),
+                specs = listOf(
+                    StationSpec(25.0, -3.0, 60.0, 11, 0.10, 0.08, 37.29720, -121.95560, true),
+                    StationSpec(33.0, 10.0, 130.0, 10, 0.30, -0.23, 37.29770, -121.95510, false),
+                    StationSpec(20.0, -16.0, 195.0, 11, -0.07, 0.07, 37.29820, -121.95550, true),
+                    StationSpec(41.0, 5.0, 270.0, 8, 0.44, 0.44, 37.29870, -121.95490, true),
+                    StationSpec(29.0, -7.0, 340.0, 10, -0.30, 0.20, 37.29915, -121.95540, false),
+                ),
+            ),
+        )
     }
 
     // ── Social graph (contract §10) ────────────────────────────────────────
