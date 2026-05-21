@@ -30,6 +30,15 @@ import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintBlack
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintBlue
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintBlueLt
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintGold
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintMiss
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintRed
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintRedLt
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintX
+import com.andrewnguyen.bowpress.core.designsystem.AppRingTintYellow
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
@@ -182,11 +191,30 @@ private fun NumberCell(text: String, width: Dp, color: Color) {
     }
 }
 
+/**
+ * Tonal cell tint for a ring score — the band hue at a low alpha so the cell
+ * reads as a score cue. Mirrors iOS `ScorecardRow.ringBackground`
+ * (SessionDetailComponents.swift). A padding (null) cell stays untinted.
+ */
+private fun ringTint(ring: Int?): Color = when (ring) {
+    null -> Color.Transparent
+    11 -> AppRingTintX
+    10 -> AppRingTintGold
+    9 -> AppRingTintYellow
+    8 -> AppRingTintRed
+    7 -> AppRingTintRedLt
+    6 -> AppRingTintBlue
+    5 -> AppRingTintBlueLt
+    in 1..4 -> AppRingTintBlack
+    else -> AppRingTintMiss // 0 / miss
+}
+
 @Composable
 private fun ShotCell(arrow: ArrowPlot?, modifier: Modifier, onTap: (() -> Unit)?) {
     Box(
         modifier = modifier
             .fillMaxHeight()
+            .background(ringTint(arrow?.ring))
             .then(if (onTap != null) Modifier.clickable(onClick = onTap) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
