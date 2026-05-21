@@ -30,6 +30,16 @@ object SocialRoutes {
     fun sessionDetail(sharedSessionId: String, isOwn: Boolean = false) =
         "social/sessions/$sharedSessionId?isOwn=$isOwn"
 
+    // Comments thread (Social Feed V2 §5) — opened from a feed row's or the
+    // session detail's comment button. `subjectId` is the like/comment subject
+    // (§5.1); `ownerUserId` is the subject owner, passed so the screen can gate
+    // comment deletion (author OR post owner). `ownerUserId` defaults blank for
+    // a deep link that lacks it — only the author delete check then applies.
+    const val COMMENTS = "social/activity/{subjectId}/comments?ownerUserId={ownerUserId}"
+
+    fun comments(subjectId: String, ownerUserId: String = "") =
+        "social/activity/$subjectId/comments?ownerUserId=$ownerUserId"
+
     // Clubs
     const val CLUBS = "social/clubs"
     const val CLUB_HOME = "social/clubs/{clubId}"

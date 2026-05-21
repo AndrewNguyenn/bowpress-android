@@ -158,6 +158,12 @@ fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
     leagueId = leagueId,
     titleIsCustom = titleIsCustom,
     isOwn = isOwn,
+    // §5 — a pre-§5 cached row has an empty subjectId; leave it empty so the
+    // DTO's `resolvedSubjectId` falls back to `id`.
+    subjectId = subjectId,
+    likeCount = likeCount,
+    likedByMe = likedByMe,
+    commentCount = commentCount,
 )
 
 fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
@@ -178,6 +184,12 @@ fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
     leagueId = leagueId,
     titleIsCustom = titleIsCustom,
     isOwn = isOwn,
+    // §5 — persist the resolved subject id so a cached club/league row (no
+    // session blob) still carries the like/comment subject.
+    subjectId = resolvedSubjectId,
+    likeCount = likeCount,
+    likedByMe = likedByMe,
+    commentCount = commentCount,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

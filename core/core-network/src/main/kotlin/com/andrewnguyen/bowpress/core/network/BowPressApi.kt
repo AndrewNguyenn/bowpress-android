@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.network
 
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.Achievement
+import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
@@ -35,6 +36,7 @@ import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
+import com.andrewnguyen.bowpress.core.model.PostCommentBody
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SharedSessionPhoto
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
@@ -47,6 +49,7 @@ import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import com.andrewnguyen.bowpress.core.model.TrophyDef
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import com.andrewnguyen.bowpress.core.model.TagCorrelation
@@ -602,6 +605,52 @@ interface BowPressApi {
     suspend fun deleteSharedSessionPhoto(
         @Path("sharedSessionId") sharedSessionId: String,
         @Path("photoId") photoId: String,
+    )
+
+    // ---- Social Feed V2 — likes & comments (contract §5) -----------------------
+
+    /**
+     * Like a feed subject — `POST /social/activity/:subjectId/like`. Idempotent
+     * server-side (the `UNIQUE(subject_id, user_id)` makes a repeat a no-op).
+     * Returns the fresh `{ likeCount, likedByMe: true }`.
+     */
+    @POST("social/activity/{subjectId}/like")
+    suspend fun likeActivity(@Path("subjectId") subjectId: String): ToggleLikeResponse
+
+    /**
+     * Un-like a feed subject — `DELETE /social/activity/:subjectId/like`.
+     * Returns the fresh `{ likeCount, likedByMe: false }`.
+     */
+    @DELETE("social/activity/{subjectId}/like")
+    suspend fun unlikeActivity(@Path("subjectId") subjectId: String): ToggleLikeResponse
+
+    /**
+     * The comment thread for a feed subject, oldest→newest, each comment
+     * hydrated with its author's handle + display name. Visibility-gated.
+     */
+    @GET("social/activity/{subjectId}/comments")
+    suspend fun getActivityComments(
+        @Path("subjectId") subjectId: String,
+    ): List<ActivityComment>
+
+    /**
+     * Post a comment to a feed subject — body `{ body }`, 1–1000 chars. Returns
+     * the created [ActivityComment], 201.
+     */
+    @POST("social/activity/{subjectId}/comments")
+    suspend fun postActivityComment(
+        @Path("subjectId") subjectId: String,
+        @Body body: PostCommentBody,
+    ): ActivityComment
+
+    /**
+     * Delete a comment — allowed for the comment's author or the subject owner
+     * (moderation); 403 otherwise.
+     */
+    @DELETE("social/activity/{subjectId}/comments/{commentId}")
+    suspend fun deleteActivityComment(
+        @Path("subjectId") subjectId: String,
+        @Path("commentId") commentId: String,
     )
 
     // ---- Social — Club announcement board (§17) --------------------------------

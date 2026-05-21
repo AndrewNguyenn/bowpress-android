@@ -9,6 +9,7 @@ import com.andrewnguyen.bowpress.core.model.Friendship
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueStatus
 import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -150,4 +151,13 @@ class FeedViewModel @Inject constructor(
     fun dismissError() {
         _error.value = null
     }
+
+    /**
+     * Toggle the caller's like on a feed subject (Social Feed V2 §5). Returns
+     * the server-authoritative `{ likeCount, likedByMe }` so the row's
+     * optimistic state can reconcile; the repository also patches the Room
+     * feed cache for every row sharing the subject.
+     */
+    suspend fun toggleLike(subjectId: String, currentlyLiked: Boolean): ToggleLikeResponse =
+        socialRepository.toggleLike(subjectId, currentlyLiked)
 }

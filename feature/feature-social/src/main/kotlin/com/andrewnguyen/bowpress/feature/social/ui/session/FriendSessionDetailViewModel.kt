@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.data.social.PhotoDownscaler
 import com.andrewnguyen.bowpress.core.model.ActivityPhoto
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
+import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -195,6 +196,15 @@ class FriendSessionDetailViewModel @Inject constructor(
                 _uiState.update { it.copy(error = e.message, isSaving = false) }
             }
     }
+
+    /**
+     * Toggle the caller's like on this shared session (Social Feed V2 §5).
+     * Returns the server-authoritative `{ likeCount, likedByMe }`; the detail
+     * header's optimistic state reconciles against it. The repository also
+     * patches the cached feed rows.
+     */
+    suspend fun toggleLike(subjectId: String, currentlyLiked: Boolean): ToggleLikeResponse =
+        socialRepository.toggleLike(subjectId, currentlyLiked)
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }

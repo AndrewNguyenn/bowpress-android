@@ -72,6 +72,7 @@ fun FeedScreen(
     onLeagueClick: (String) -> Unit,
     onSessionClick: (sharedSessionId: String, isOwn: Boolean) -> Unit,
     onActorClick: (String) -> Unit,
+    onCommentsClick: (subjectId: String, ownerUserId: String) -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -160,6 +161,23 @@ fun FeedScreen(
                         is FeedItemDestination.Actor -> onActorClick(dest.actorUserId)
                     }
                 }
+                // Social Feed V2 §5 — opening the comment thread carries the
+                // §5.1 subject owner so the screen can gate comment deletion
+                // (author OR post owner).
+                //
+                // LOAD-BEARING INVARIANT: for a session post the §5.1 subject
+                // owner is the shared session's `userId`, and `actorUserId` is
+                // used here as a stand-in. That is correct ONLY because the
+                // API's share endpoint sets a session-post activity row's
+                // `actorUserId` to the sharer (= the session owner). For a
+                // club/league event the subject owner is likewise the actor.
+                // If the API ever decouples actor from subject owner, this
+                // must switch to a real owner id. The server is authoritative
+                // regardless (a forbidden delete is a 403); this only governs
+                // whether the client shows the delete affordance.
+                val openComments: (String) -> Unit = { subjectId ->
+                    onCommentsClick(subjectId, item.actorUserId)
+                }
                 if (activityPreview(item) is ActivityPreview.Target) {
                     // Social Activity Card · 50/50 — the rich card for a
                     // shared range session.
@@ -167,6 +185,8 @@ fun FeedScreen(
                         item = item,
                         onClick = { openItem(item) },
                         onLocationTap = { location -> mapLocation = location },
+                        onToggleLike = viewModel::toggleLike,
+                        onOpenComments = openComments,
                         modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                     )
                 } else {
@@ -176,6 +196,8 @@ fun FeedScreen(
                         onItemClick = openItem,
                         // §18 — tapping the location tag opens the map popup.
                         onLocationTap = { location -> mapLocation = location },
+                        onToggleLike = viewModel::toggleLike,
+                        onOpenComments = openComments,
                     )
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 }
@@ -432,6 +454,8 @@ private fun FeedItemRow(
     photoLoader: com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader,
     onItemClick: (ActivityItem) -> Unit,
     onLocationTap: (SessionLocation) -> Unit,
+    onToggleLike: suspend (String, Boolean) -> com.andrewnguyen.bowpress.core.model.ToggleLikeResponse,
+    onOpenComments: (String) -> Unit,
 ) {
     val avatarInitials = when (item.sourceKind) {
         ActivitySourceKind.club -> avatarInitials(item.actorDisplayName)
@@ -616,6 +640,15 @@ private fun FeedItemRow(
                 ),
             )
         }
+
+        // Social Feed V2 §5 — the like + comment action bar.
+        Spacer(Modifier.height(10.dp))
+        LikeCommentBar(
+            item = item,
+            onToggleLike = onToggleLike,
+            onOpenComments = onOpenComments,
+            modifier = Modifier.padding(horizontal = contentInset),
+        )
     }
 }
 

@@ -93,6 +93,20 @@ data class ActivityItemEntity(
     val titleIsCustom: Boolean = false,
     @ColumnInfo(defaultValue = "0")
     val isOwn: Boolean = false,
+    // Social Feed V2 Part 2 (Likes & Comments §5) columns — added v17.
+    // `likeCount`/`likedByMe`/`commentCount` are NOT NULL so they carry an
+    // explicit SQL default for the AutoMigration. `subjectId` is the
+    // like/comment subject id — kept as a column (not in `sessionJson`) so a
+    // club/league row without a session blob still caches its subject. NOT
+    // NULL with an empty-string default; the DTO mapper falls back to `id`.
+    @ColumnInfo(defaultValue = "")
+    val subjectId: String = "",
+    @ColumnInfo(defaultValue = "0")
+    val likeCount: Int = 0,
+    @ColumnInfo(defaultValue = "0")
+    val likedByMe: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val commentCount: Int = 0,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

@@ -165,4 +165,10 @@ object TestTags {
     const val MySessionEditAddPhoto: String = "my_session_edit_add_photo"
     const val FeedRowPhotoGallery: String = "feed_row_photo_gallery"
     const val SessionDetailPhotoGallery: String = "session_detail_photo_gallery"
+    // Social Feed V2 Part 2 — likes & comments.
+    const val FeedRowLikeButton: String = "feed_row_like_button"
+    const val FeedRowCommentButton: String = "feed_row_comment_button"
+    const val CommentsRoot: String = "comments_root"
+    const val CommentsComposeField: String = "comments_compose_field"
+    const val CommentsSendButton: String = "comments_send_button"
 }

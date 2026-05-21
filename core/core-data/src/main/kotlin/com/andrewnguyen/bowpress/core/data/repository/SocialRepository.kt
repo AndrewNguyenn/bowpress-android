@@ -17,6 +17,7 @@ import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.Achievement
+import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.BlockKind
@@ -56,7 +57,9 @@ import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
+import com.andrewnguyen.bowpress.core.model.PostCommentBody
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
+import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import com.andrewnguyen.bowpress.core.model.UpdateAnnouncementBody
 import com.andrewnguyen.bowpress.core.model.TrophyDef
 import com.andrewnguyen.bowpress.core.model.UpdateClubBody
@@ -513,6 +516,75 @@ class SocialRepository @Inject constructor(
                 buildSharedSessionDetailFromCache(sharedSessionId)
                     ?: throw it
             }
+    }
+
+    // ── Likes & Comments (Social Feed V2 contract §5) ────────────────────────────
+
+    /**
+     * Toggle the caller's like on a feed subject. [currentlyLiked] is the
+     * caller's current like state as the UI knows it: a `true` un-likes
+     * (`DELETE`), a `false` likes (`POST`). The server endpoints are
+     * idempotent, so a stale toggle is safe.
+     *
+     * On success the cached feed rows for [subjectId] are patched with the
+     * server-authoritative `{ likeCount, likedByMe }` — a shared session has
+     * one friend row + N club rows that the feed de-dupes by subject (§5.1),
+     * so every row is updated. The fresh state is returned for the caller's
+     * optimistic UI to reconcile against.
+     */
+    suspend fun toggleLike(subjectId: String, currentlyLiked: Boolean): ToggleLikeResponse {
+        val result = if (currentlyLiked) {
+            api.unlikeActivity(subjectId)
+        } else {
+            api.likeActivity(subjectId)
+        }
+        feedDao.updateLikeState(subjectId, result.likeCount, result.likedByMe)
+        return result
+    }
+
+    /**
+     * The comment thread for a feed subject — oldest→newest, each comment
+     * hydrated with its author's handle + display name. Visibility-gated
+     * server-side.
+     */
+    suspend fun getActivityComments(subjectId: String): List<ActivityComment> =
+        api.getActivityComments(subjectId).sortedBy { it.createdAt }
+
+    /**
+     * Post a comment to a feed subject. [body] is trimmed; the server enforces
+     * the 1–1000-char bound (a blank/over-long body is rejected 400). On
+     * success the cached feed rows for [subjectId] get their `commentCount`
+     * atomically incremented so the comment button reflects the new total
+     * without a feed refresh.
+     */
+    suspend fun postComment(subjectId: String, body: String): ActivityComment {
+        val created = api.postActivityComment(subjectId, PostCommentBody(body.trim()))
+        // Atomic +1 on every cached row for the subject — concurrent posts
+        // cannot lose an increment (see ActivityFeedDao.adjustCommentCount).
+        feedDao.adjustCommentCount(subjectId, +1)
+        return created
+    }
+
+    /**
+     * Delete a comment. The server allows the comment's author **or** the
+     * subject owner (moderation) — a caller who is neither gets a 403.
+     * [canDelete] is the client-side permission gate computed by
+     * [canDeleteComment]; the call short-circuits with an
+     * [IllegalStateException] when it is false so a forbidden delete never
+     * reaches the network.
+     *
+     * On success the cached `commentCount` for [subjectId] is atomically
+     * decremented (clamped at 0).
+     */
+    suspend fun deleteComment(
+        subjectId: String,
+        commentId: String,
+        canDelete: Boolean,
+    ) {
+        check(canDelete) { "Only the comment's author or the post owner can delete this comment." }
+        api.deleteActivityComment(subjectId, commentId)
+        // Atomic -1, clamped at 0 (see ActivityFeedDao.adjustCommentCount).
+        feedDao.adjustCommentCount(subjectId, -1)
     }
 
     // ── Social Feed V2 — edit a shared session (contract §3) ─────────────────────

@@ -649,6 +649,140 @@ class DtoRoundTripTest {
     // by the network Json's `explicitNulls = false`. The explicit-null wire
     // shape is covered in SocialRepositoryFeedV2Test.
 
+    // ── §5 Likes & Comments ──────────────────────────────────────────────────
+
+    @Test
+    fun `ActivityItem likes-comments fields decode and default on a pre-section-5 payload`() {
+        // A pre-§5 feed row omits subjectId / likeCount / likedByMe / commentCount.
+        val legacy = networkJson.decodeFromString(
+            ActivityItem.serializer(),
+            """{"id":"a1","kind":"friend_session","sourceKind":"friend",
+                "actorHandle":"sara.l","actorDisplayName":"Sara Lin",
+                "title":"logged a session","createdAt":"2026-05-01T10:00:00Z"}""",
+        )
+        assertThat(legacy.subjectId).isEmpty()
+        assertThat(legacy.likeCount).isEqualTo(0)
+        assertThat(legacy.likedByMe).isFalse()
+        assertThat(legacy.commentCount).isEqualTo(0)
+        // resolvedSubjectId falls back to the row id when subjectId is absent.
+        assertThat(legacy.resolvedSubjectId).isEqualTo("a1")
+
+        // A §5 row carries all four fields.
+        val v5 = networkJson.decodeFromString(
+            ActivityItem.serializer(),
+            """{"id":"a2","kind":"friend_session","sourceKind":"friend",
+                "actorHandle":"sara.l","actorDisplayName":"Sara Lin",
+                "title":"Saturday 70m practice","createdAt":"2026-05-01T10:00:00Z",
+                "subjectId":"ss-9","likeCount":4,"likedByMe":true,"commentCount":2}""",
+        )
+        assertThat(v5.subjectId).isEqualTo("ss-9")
+        assertThat(v5.resolvedSubjectId).isEqualTo("ss-9")
+        assertThat(v5.likeCount).isEqualTo(4)
+        assertThat(v5.likedByMe).isTrue()
+        assertThat(v5.commentCount).isEqualTo(2)
+    }
+
+    @Test
+    fun `SharedSessionDetail likes-comments fields decode and default`() {
+        // A pre-§5 detail payload omits the four fields.
+        val legacy = networkJson.decodeFromString(
+            SharedSessionDetail.serializer(),
+            """{"sharedSession":{"id":"ss-1","userId":"u-1","sessionId":"sess-1",
+                "score":548,"xCount":12,"arrowCount":60,
+                "shotAt":"2026-05-01T10:00:00Z","createdAt":"2026-05-01T10:05:00Z"},
+                "ownerHandle":"sara.l","ownerDisplayName":"Sara Lin"}""",
+        )
+        assertThat(legacy.subjectId).isEmpty()
+        assertThat(legacy.likeCount).isEqualTo(0)
+        assertThat(legacy.likedByMe).isFalse()
+        assertThat(legacy.commentCount).isEqualTo(0)
+
+        // A §5 detail payload carries them.
+        val v5 = networkJson.decodeFromString(
+            SharedSessionDetail.serializer(),
+            """{"sharedSession":{"id":"ss-1","userId":"u-1","sessionId":"sess-1",
+                "score":548,"xCount":12,"arrowCount":60,
+                "shotAt":"2026-05-01T10:00:00Z","createdAt":"2026-05-01T10:05:00Z"},
+                "ownerHandle":"sara.l","ownerDisplayName":"Sara Lin",
+                "subjectId":"ss-1","likeCount":7,"likedByMe":true,"commentCount":3}""",
+        )
+        assertThat(v5.subjectId).isEqualTo("ss-1")
+        assertThat(v5.likeCount).isEqualTo(7)
+        assertThat(v5.likedByMe).isTrue()
+        assertThat(v5.commentCount).isEqualTo(3)
+    }
+
+    @Test
+    fun `ActivityComment decodes its hydrated author fields and ISO timestamps`() {
+        val comment = networkJson.decodeFromString(
+            ActivityComment.serializer(),
+            """{"id":"c-1","subjectId":"ss-1","userId":"u-2",
+                "authorHandle":"devon.c","authorDisplayName":"Devon Chen",
+                "body":"Great grouping!","createdAt":"2026-05-01T12:00:00Z",
+                "updatedAt":"2026-05-01T12:00:00Z"}""",
+        )
+        assertThat(comment.id).isEqualTo("c-1")
+        assertThat(comment.subjectId).isEqualTo("ss-1")
+        assertThat(comment.userId).isEqualTo("u-2")
+        assertThat(comment.authorHandle).isEqualTo("devon.c")
+        assertThat(comment.authorDisplayName).isEqualTo("Devon Chen")
+        assertThat(comment.body).isEqualTo("Great grouping!")
+        assertThat(comment.createdAt).isEqualTo(Instant.parse("2026-05-01T12:00:00Z"))
+        assertThat(comment.updatedAt).isEqualTo(Instant.parse("2026-05-01T12:00:00Z"))
+    }
+
+    @Test
+    fun `ActivityComment round-trips`() {
+        val comment = ActivityComment(
+            id = "c-9",
+            subjectId = "ss-3",
+            userId = "u-7",
+            authorHandle = "andrew.n",
+            authorDisplayName = "Andrew N",
+            body = "Nice X count.",
+            createdAt = Instant.parse("2026-05-02T08:30:00Z"),
+            updatedAt = Instant.parse("2026-05-02T08:31:00.500Z"),
+        )
+        val encoded = networkJson.encodeToString(ActivityComment.serializer(), comment)
+        val decoded = networkJson.decodeFromString(ActivityComment.serializer(), encoded)
+        assertThat(decoded).isEqualTo(comment)
+    }
+
+    @Test
+    fun `ToggleLikeResponse decodes like-toggle wire shape`() {
+        val liked = networkJson.decodeFromString(
+            ToggleLikeResponse.serializer(),
+            """{"likeCount":5,"likedByMe":true}""",
+        )
+        assertThat(liked.likeCount).isEqualTo(5)
+        assertThat(liked.likedByMe).isTrue()
+    }
+
+    @Test
+    fun `canDeleteComment allows the author and the post owner only`() {
+        val comment = ActivityComment(
+            id = "c-1",
+            subjectId = "ss-1",
+            userId = "author-id",
+            authorHandle = "devon.c",
+            authorDisplayName = "Devon Chen",
+            body = "x",
+            createdAt = Instant.parse("2026-05-01T12:00:00Z"),
+            updatedAt = Instant.parse("2026-05-01T12:00:00Z"),
+        )
+        // The comment's own author may delete it.
+        assertThat(canDeleteComment(comment, "author-id", "owner-id")).isTrue()
+        // The subject owner may delete it (moderation).
+        assertThat(canDeleteComment(comment, "owner-id", "owner-id")).isTrue()
+        // An unrelated viewer may not.
+        assertThat(canDeleteComment(comment, "stranger-id", "owner-id")).isFalse()
+        // A blank caller id is never permitted.
+        assertThat(canDeleteComment(comment, "", "owner-id")).isFalse()
+        // With no known owner, only the author check applies.
+        assertThat(canDeleteComment(comment, "author-id", null)).isTrue()
+        assertThat(canDeleteComment(comment, "stranger-id", null)).isFalse()
+    }
+
     @Test
     fun `SharedSessionDetail photos round-trip`() {
         val detail = SharedSessionDetail(

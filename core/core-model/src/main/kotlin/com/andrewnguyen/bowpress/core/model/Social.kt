@@ -424,7 +424,25 @@ data class ActivityItem(
     // Both defaulted so a feed row from an older API still decodes.
     val titleIsCustom: Boolean = false,
     val isOwn: Boolean = false,
-)
+    // ── Social Feed V2 Part 2 — Likes & Comments (contract §5) ──
+    // `subjectId` is the stable id likes/comments attach to: the
+    // `sharedSessionId` for a session post, else the activity row's own id
+    // (§5.1). `likeCount`/`likedByMe` drive the like button; `commentCount`
+    // the comment button. All defaulted so a feed row from a pre-§5 API still
+    // decodes — `subjectId` then falls back to `id` via [resolvedSubjectId].
+    val subjectId: String = "",
+    val likeCount: Int = 0,
+    val likedByMe: Boolean = false,
+    val commentCount: Int = 0,
+) {
+    /**
+     * The id likes/comments attach to. The §5 API always sends `subjectId`,
+     * but a pre-§5 feed payload omits it — fall back to the activity row id
+     * (which equals the subject id for non-session events) so the like/comment
+     * buttons still address *something* coherent.
+     */
+    val resolvedSubjectId: String get() = subjectId.ifBlank { id }
+}
 
 // ── §11 Invitations (club + league) ──────────────────────────────────────────
 
@@ -805,7 +823,71 @@ data class SharedSessionDetail(
     // Social Feed V2 (contract §4) — the multi-photo gallery, ordered by
     // position. Empty on a session with no photos or a pre-V2 payload.
     val photos: List<ActivityPhoto> = emptyList(),
+    // Social Feed V2 Part 2 (contract §5.4) — like/comment counts so the
+    // detail screen shows the same affordances as the feed row. `subjectId`
+    // is the like/comment subject. All defaulted so a pre-§5 detail payload
+    // still decodes.
+    val subjectId: String = "",
+    val likeCount: Int = 0,
+    val likedByMe: Boolean = false,
+    val commentCount: Int = 0,
 )
+
+// ── §5 Likes & Comments (Social Feed V2 Part 2) ──────────────────────────────
+
+/**
+ * Mirrors API contract §5.5 `ActivityComment` — one comment on a feed
+ * subject, hydrated with its author's handle + display name. The thread is
+ * rendered oldest→newest.
+ *
+ * `createdAt`/`updatedAt` are ISO-8601 strings on the wire; decoded to
+ * [Instant] with the shared [InstantSerializer].
+ */
+@Serializable
+data class ActivityComment(
+    val id: String,
+    val subjectId: String,
+    val userId: String,
+    val authorHandle: String,
+    val authorDisplayName: String,
+    val body: String,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+    @Serializable(with = InstantSerializer::class)
+    val updatedAt: Instant,
+)
+
+/**
+ * Response from `POST`/`DELETE social/activity/:subjectId/like` (§5.3) — the
+ * fresh like count plus whether the caller now likes the subject.
+ */
+@Serializable
+data class ToggleLikeResponse(
+    val likeCount: Int = 0,
+    val likedByMe: Boolean = false,
+)
+
+/** Request body for `POST social/activity/:subjectId/comments` (§5.3). */
+@Serializable
+data class PostCommentBody(val body: String)
+
+/**
+ * Whether [callerUserId] may delete [comment] — true for the comment's own
+ * author **or** the subject owner (moderation), per contract §5.3. The server
+ * is authoritative (a forbidden delete is a 403); this mirror lets the client
+ * gate the affordance and short-circuit a doomed request.
+ *
+ * [subjectOwnerUserId] is the §5.1 subject owner: the shared session's owner
+ * for a session subject, else the activity's actor. Null when the client
+ * cannot determine it — only the author check then applies.
+ */
+fun canDeleteComment(
+    comment: ActivityComment,
+    callerUserId: String,
+    subjectOwnerUserId: String?,
+): Boolean =
+    callerUserId.isNotBlank() &&
+        (comment.userId == callerUserId || subjectOwnerUserId == callerUserId)
 
 // ── §17 Club announcement board + league attachments ────────────────────────
 

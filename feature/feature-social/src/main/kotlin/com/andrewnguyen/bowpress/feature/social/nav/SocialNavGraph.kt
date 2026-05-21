@@ -9,6 +9,7 @@ import androidx.navigation.navDeepLink
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlocksScreen
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubHomeScreen
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubsScreen
+import com.andrewnguyen.bowpress.feature.social.ui.comments.CommentsScreen
 import com.andrewnguyen.bowpress.feature.social.ui.feed.FeedScreen
 import com.andrewnguyen.bowpress.feature.social.ui.friends.CompareScreen
 import com.andrewnguyen.bowpress.feature.social.ui.friends.FriendProfileScreen
@@ -59,6 +60,9 @@ fun NavGraphBuilder.socialNavGraph(
                 if (actorUserId.isNotBlank()) {
                     navController.navigate(SocialRoutes.friendProfile(actorUserId))
                 }
+            },
+            onCommentsClick = { subjectId, ownerUserId ->
+                navController.navigate(SocialRoutes.comments(subjectId, ownerUserId))
             },
         )
     }
@@ -143,6 +147,30 @@ fun NavGraphBuilder.socialNavGraph(
         FriendSessionDetailScreen(
             sharedSessionId = sharedSessionId,
             isOwn = isOwn,
+            onBack = { navController.popBackStack() },
+            onCommentsClick = { subjectId, ownerUserId ->
+                navController.navigate(SocialRoutes.comments(subjectId, ownerUserId))
+            },
+        )
+    }
+
+    // ── Comments thread (Social Feed V2 §5) ─────────────────────────────────────
+
+    composable(
+        route = SocialRoutes.COMMENTS,
+        arguments = listOf(
+            navArgument("subjectId") { type = NavType.StringType },
+            navArgument("ownerUserId") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) { entry ->
+        val subjectId = entry.arguments?.getString("subjectId").orEmpty()
+        val ownerUserId = entry.arguments?.getString("ownerUserId").orEmpty()
+        CommentsScreen(
+            subjectId = subjectId,
+            subjectOwnerUserId = ownerUserId.takeIf { it.isNotBlank() },
             onBack = { navController.popBackStack() },
         )
     }

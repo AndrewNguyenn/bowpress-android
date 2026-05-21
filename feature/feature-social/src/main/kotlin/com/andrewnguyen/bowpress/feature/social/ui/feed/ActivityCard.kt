@@ -70,6 +70,8 @@ fun ActivityCard(
     item: ActivityItem,
     onClick: () -> Unit,
     onLocationTap: (SessionLocation) -> Unit,
+    onToggleLike: suspend (String, Boolean) -> com.andrewnguyen.bowpress.core.model.ToggleLikeResponse,
+    onOpenComments: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val session = item.session ?: return
@@ -84,6 +86,14 @@ fun ActivityCard(
         ActivityCardHeader(item, session, onLocationTap)
         HorizontalDivider(color = AppLine2, thickness = 1.dp)
         ActivityCardBody(session)
+        // Social Feed V2 §5 — the like + comment action bar, footer of the card.
+        HorizontalDivider(color = AppLine2, thickness = 1.dp)
+        LikeCommentBar(
+            item = item,
+            onToggleLike = onToggleLike,
+            onOpenComments = onOpenComments,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+        )
     }
 }
 

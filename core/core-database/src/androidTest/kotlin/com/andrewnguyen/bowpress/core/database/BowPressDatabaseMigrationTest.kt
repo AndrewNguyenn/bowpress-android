@@ -28,6 +28,10 @@ import org.junit.runner.RunWith
  * - [migrate_12_to_13_adds_sight_pin_distance_column]: Verifies the v12→v13
  *   AutoMigration adds the nullable `sightPinDistance` column to
  *   `bow_configurations` without data loss.
+ * - [migrate_16_to_17_adds_likes_and_comments_columns]: Verifies the v16→v17
+ *   AutoMigration adds the Likes & Comments columns (`subjectId`,
+ *   `likeCount`, `likedByMe`, `commentCount`) to `activity_feed` without
+ *   data loss.
  *
  * Schema JSON snapshots under `core-database/schemas/` are exposed to this test as
  * assets via `sourceSets["androidTest"].assets.srcDirs` in `build.gradle.kts`.
@@ -420,6 +424,71 @@ class BowPressDatabaseMigrationTest {
             assertThat(cursor.moveToFirst()).isTrue()
             assertThat(cursor.getInt(0)).isEqualTo(1)
             assertThat(cursor.getInt(1)).isEqualTo(1)
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate_16_to_17_adds_likes_and_comments_columns() {
+        val dbName = "migration-16-17-test.db"
+
+        // Create a v16 DB with a pre-§5 activity_feed row to confirm it
+        // survives the Likes & Comments column additions.
+        helper.createDatabase(dbName, 16).apply {
+            execSQL(
+                """
+                INSERT INTO activity_feed (
+                    id, kind, sourceKind, actorHandle, actorDisplayName,
+                    title, createdAt, titleIsCustom, isOwn
+                ) VALUES (
+                    'act-1', 'friend_session', 'friend', 'sara.l', 'Sara Lin',
+                    'logged a session', 1700000000000, 0, 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // AutoMigration 16→17 adds subjectId / likeCount / likedByMe /
+        // commentCount — pure additive. subjectId is NOT NULL DEFAULT '',
+        // the three counters NOT NULL DEFAULT 0.
+        val db = helper.runMigrationsAndValidate(dbName, 17, /* validateDroppedTables = */ true)
+
+        // The pre-§5 row survives and the new NOT NULL columns take their
+        // SQL defaults.
+        db.query(
+            "SELECT subjectId, likeCount, likedByMe, commentCount FROM activity_feed WHERE id = 'act-1'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("")
+            assertThat(cursor.getInt(1)).isEqualTo(0)
+            assertThat(cursor.getInt(2)).isEqualTo(0)
+            assertThat(cursor.getInt(3)).isEqualTo(0)
+        }
+
+        // A §5 row with the new columns set inserts cleanly.
+        db.execSQL(
+            """
+            INSERT INTO activity_feed (
+                id, kind, sourceKind, actorHandle, actorDisplayName,
+                title, createdAt, titleIsCustom, isOwn,
+                subjectId, likeCount, likedByMe, commentCount
+            ) VALUES (
+                'act-2', 'friend_session', 'friend', 'andrew.n', 'Andrew N',
+                'Saturday 70m practice', 1700000000001, 1, 1,
+                'ss-9', 4, 1, 2
+            )
+            """.trimIndent(),
+        )
+        db.query(
+            "SELECT subjectId, likeCount, likedByMe, commentCount FROM activity_feed WHERE id = 'act-2'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("ss-9")
+            assertThat(cursor.getInt(1)).isEqualTo(4)
+            assertThat(cursor.getInt(2)).isEqualTo(1)
+            assertThat(cursor.getInt(3)).isEqualTo(2)
         }
 
         db.close()

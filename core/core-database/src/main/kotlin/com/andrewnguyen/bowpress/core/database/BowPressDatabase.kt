@@ -48,8 +48,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
  * `sightPinDistance` column on `bow_configurations` in version 13, the
  * nullable `sharedSessionId` on `achievements` in version 14 (league and
  * club trophies are not earned from a shared session), the `course_stations`
- * table in version 15, and the Social Feed V2 columns on `activity_feed`
- * (`titleIsCustom`, `isOwn`, `photosJson`) in version 16.
+ * table in version 15, the Social Feed V2 columns on `activity_feed`
+ * (`titleIsCustom`, `isOwn`) in version 16, and the Likes & Comments
+ * columns on `activity_feed` (`subjectId`, `likeCount`, `likedByMe`,
+ * `commentCount`) in version 17.
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -80,7 +82,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 3D Course stations — added v15
         CourseStationEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -114,10 +116,14 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // is NOT NULL with a SQL DEFAULT of 'RANGE', scoringSystem is nullable.
         AutoMigration(from = 14, to = 15),
         // 15→16: added Social Feed V2 columns to activity_feed
-        // (titleIsCustom, isOwn, photosJson). Pure additive — titleIsCustom
-        // and isOwn are NOT NULL with a SQL DEFAULT of 0, photosJson is
-        // nullable.
+        // (titleIsCustom, isOwn). Pure additive — both NOT NULL with a SQL
+        // DEFAULT of 0.
         AutoMigration(from = 15, to = 16),
+        // 16→17: added Likes & Comments columns to activity_feed
+        // (subjectId, likeCount, likedByMe, commentCount). Pure additive —
+        // subjectId is NOT NULL with a SQL DEFAULT of '', the three counters
+        // are NOT NULL with a SQL DEFAULT of 0.
+        AutoMigration(from = 16, to = 17),
     ],
 )
 @TypeConverters(Converters::class)

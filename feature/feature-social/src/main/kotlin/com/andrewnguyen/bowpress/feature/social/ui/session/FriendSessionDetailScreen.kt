@@ -63,6 +63,7 @@ fun FriendSessionDetailScreen(
     sharedSessionId: String,
     isOwn: Boolean,
     onBack: () -> Unit,
+    onCommentsClick: (subjectId: String, ownerUserId: String) -> Unit,
     viewModel: FriendSessionDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -150,6 +151,26 @@ fun FriendSessionDetailScreen(
                     item {
                         Spacer(Modifier.height(14.dp))
                         SessionStatHeader(shared = detail.sharedSession)
+                    }
+
+                    // Social Feed V2 §5 — the like + comment action bar. The
+                    // subject id falls back to the shared-session id for a
+                    // pre-§5 detail payload; the subject owner is the session
+                    // owner.
+                    item {
+                        val subjectId = detail.subjectId.ifBlank { detail.sharedSession.id }
+                        Spacer(Modifier.height(10.dp))
+                        com.andrewnguyen.bowpress.feature.social.ui.feed.LikeCommentBar(
+                            subjectId = subjectId,
+                            likeCount = detail.likeCount,
+                            likedByMe = detail.likedByMe,
+                            commentCount = detail.commentCount,
+                            seedKey = "$subjectId:${detail.likeCount}:${detail.likedByMe}:${detail.commentCount}",
+                            onToggleLike = viewModel::toggleLike,
+                            onOpenComments = {
+                                onCommentsClick(subjectId, detail.sharedSession.userId)
+                            },
+                        )
                     }
 
                     // Social Feed V2 §4 — the photo gallery, when present.
