@@ -178,7 +178,7 @@ object MockTerrain {
     private const val METERS_PER_DEGREE_LAT = 111_320.0
 
     /** A synthesized terrain grid filling the given geographic box. */
-    fun make3DElevationGrid(
+    fun gridForBox(
         minLat: Double,
         maxLat: Double,
         minLon: Double,
@@ -202,11 +202,11 @@ object MockTerrain {
     }
 
     /** An 800 m terrain box centred on a point — the live/Log-detail variant. */
-    fun make3DElevationGrid(centerLat: Double, centerLon: Double): ElevationGrid {
+    fun gridAroundPoint(centerLat: Double, centerLon: Double): ElevationGrid {
         val latDelta = 800.0 / METERS_PER_DEGREE_LAT
         val lonDelta = 800.0 /
             (METERS_PER_DEGREE_LAT * maxOf(cos(centerLat * Math.PI / 180.0), 0.01))
-        return make3DElevationGrid(
+        return gridForBox(
             minLat = centerLat - latDelta, maxLat = centerLat + latDelta,
             minLon = centerLon - lonDelta, maxLon = centerLon + lonDelta,
         )
@@ -217,8 +217,11 @@ object MockTerrain {
      * — so the feed/detail map's contours fill the same frame the course is
      * projected into. A fixed 800 m box would leave the course small inside it
      * and break the feed map's edge-to-edge fill.
+     *
+     * Returns null when no station has GPS coordinates — there is no area to
+     * cover, and callers (`ElevationGridCache`) already handle a null grid.
      */
-    fun make3DElevationGrid(coveringStations: List<CourseStation>): ElevationGrid {
+    fun gridCoveringCourse(coveringStations: List<CourseStation>): ElevationGrid? {
         val lats = ArrayList<Double>()
         val lons = ArrayList<Double>()
         for (s in coveringStations) {
@@ -236,12 +239,12 @@ object MockTerrain {
         val minLon = lons.minOrNull()
         val maxLon = lons.maxOrNull()
         if (minLat == null || maxLat == null || minLon == null || maxLon == null) {
-            return make3DElevationGrid(centerLat = 37.33, centerLon = -122.04)
+            return null
         }
         // A small margin so contours aren't cut hard at the course edge.
         val latM = maxOf((maxLat - minLat) * 0.12, 0.0002)
         val lonM = maxOf((maxLon - minLon) * 0.12, 0.0002)
-        return make3DElevationGrid(
+        return gridForBox(
             minLat = minLat - latM, maxLat = maxLat + latM,
             minLon = minLon - lonM, maxLon = maxLon + lonM,
         )

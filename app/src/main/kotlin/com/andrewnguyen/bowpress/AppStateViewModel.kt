@@ -228,7 +228,8 @@ class AppStateViewModel @Inject constructor(
      */
     private fun seedElevationCache() {
         for (stations in DevMockCourses.all3DCourseStations) {
-            ElevationGridCache.store(MockTerrain.make3DElevationGrid(coveringStations = stations))
+            MockTerrain.gridCoveringCourse(coveringStations = stations)
+                ?.let { ElevationGridCache.store(it) }
         }
     }
 }
