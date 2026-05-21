@@ -14,6 +14,7 @@ import com.andrewnguyen.bowpress.feature.analytics.sessiondetail.SessionDetailSc
 import com.andrewnguyen.bowpress.feature.analytics.suggestion.SuggestionDetailScreen
 import com.andrewnguyen.bowpress.feature.analytics.timeline.ScoreTimelineScreen
 import com.andrewnguyen.bowpress.feature.analytics.trend.TrendFindingDetailScreen
+import com.andrewnguyen.bowpress.feature.session.threed.ThreeDAnalyticsScreen
 import com.andrewnguyen.bowpress.feature.session.threed.ThreeDLogDetailScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -46,6 +47,9 @@ object AnalyticsRoutes {
     const val CourseDetailPattern: String = "analytics/course/{sessionId}"
 
     fun courseDetail(sessionId: String): String = "analytics/course/$sessionId"
+
+    /** The all-courses 3D analytics screen. */
+    const val ThreeDAnalytics: String = "analytics/3d"
 
     /** Pattern: `analytics/trend/{findingJson}`. */
     const val TrendDetailPattern: String = "analytics/trend/{findingJson}"
@@ -165,7 +169,12 @@ fun NavGraphBuilder.analyticsNavGraph(navController: NavController) {
             ThreeDLogDetailScreen(
                 sessionId = sessionId,
                 onBack = { navController.popBackStack() },
+                onOpenAnalytics = { navController.navigate(AnalyticsRoutes.ThreeDAnalytics) },
             )
+        }
+
+        composable(AnalyticsRoutes.ThreeDAnalytics) {
+            ThreeDAnalyticsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

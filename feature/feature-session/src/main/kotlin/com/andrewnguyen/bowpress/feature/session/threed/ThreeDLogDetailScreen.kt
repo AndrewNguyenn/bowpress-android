@@ -47,6 +47,7 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 fun ThreeDLogDetailScreen(
     sessionId: String,
     onBack: () -> Unit,
+    onOpenAnalytics: () -> Unit = {},
     viewModel: ThreeDLogDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -99,6 +100,21 @@ fun ThreeDLogDetailScreen(
                     Text(
                         "● CLEAN ROUND — no fives, no misses",
                         style = interUI(10.sp, FontWeight.SemiBold).copy(color = AppPondDk),
+                    )
+                }
+            }
+            item {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, AppPondDk)
+                        .clickable(onClick = onOpenAnalytics)
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "VIEW 3D ANALYTICS — ANGLE & DISTANCE",
+                        style = interUI(11.sp, FontWeight.SemiBold).copy(color = AppPondDk),
                     )
                 }
             }

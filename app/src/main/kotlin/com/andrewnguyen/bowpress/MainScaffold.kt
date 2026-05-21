@@ -53,6 +53,7 @@ import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentRoutes
 import com.andrewnguyen.bowpress.feature.equipment.nav.equipmentNavGraph
 import com.andrewnguyen.bowpress.feature.session.SessionRoutes
 import com.andrewnguyen.bowpress.feature.session.sessionNavGraph
+import com.andrewnguyen.bowpress.feature.session.threed.ThreeDAnalyticsScreen
 import com.andrewnguyen.bowpress.feature.session.threed.ThreeDLogDetailScreen
 import com.andrewnguyen.bowpress.feature.settings.SettingsRoutes
 import com.andrewnguyen.bowpress.feature.settings.settingsNavGraph
@@ -202,7 +203,11 @@ fun MainScaffold(
                     ThreeDLogDetailScreen(
                         sessionId = sessionId,
                         onBack = { navController.popBackStack() },
+                        onOpenAnalytics = { navController.navigate("tab/log/3d-analytics") },
                     )
+                }
+                composable("tab/log/3d-analytics") {
+                    ThreeDAnalyticsScreen(onBack = { navController.popBackStack() })
                 }
             }
 
