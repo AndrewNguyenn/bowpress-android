@@ -83,7 +83,12 @@ class ThreeDCourseViewModel @Inject constructor(
 
         viewModelScope.launch {
             active3d.collect { session ->
-                _uiState.update { it.copy(session = session) }
+                // Clearing `autoEnded` when a session is present stops a stale
+                // auto-end flag from a previous course bleeding into the next
+                // one (this VM outlives a single course).
+                _uiState.update {
+                    it.copy(session = session, autoEnded = if (session != null) null else it.autoEnded)
+                }
                 if (session != null && !trackersRunning) {
                     trackersRunning = true
                     locationTracker.start()

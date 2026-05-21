@@ -431,8 +431,11 @@ fun CourseInkMapView(
                 .then(
                     if (interactive && onTapStation != null) {
                         Modifier.pointerInput(layout, canvasSize) {
+                            // Density-scaled so the ~26dp pin hit target is a
+                            // real touch target on high-density screens.
+                            val hitSlopPx = 26.dp.toPx()
                             mapTapGesture { point ->
-                                handleTap(point, canvasSize, viewport, layout, onTapStation)
+                                handleTap(point, canvasSize, viewport, layout, hitSlopPx, onTapStation)
                             }
                         }
                     } else {
@@ -579,6 +582,7 @@ private fun handleTap(
     size: Size,
     viewport: MapViewport,
     layout: CourseMapLayout,
+    hitSlopPx: Float,
     onTapStation: (Int) -> Unit,
 ) {
     if (size == Size.Zero) return
@@ -595,9 +599,7 @@ private fun handleTap(
         consider(idx, viewport.place(layout.stations[idx], size))
         layout.targets[idx]?.let { consider(idx, viewport.place(it, size)) }
     }
-    // 26dp ≈ 26 * density px; the hit slop in the iOS spec is in points and
-    // the map is laid out at point-equivalent density, so 26 px is faithful.
-    if (bestIdx >= 0 && bestDist <= 26f) onTapStation(bestIdx)
+    if (bestIdx >= 0 && bestDist <= hitSlopPx) onTapStation(bestIdx)
 }
 
 // ---------------------------------------------------------------------------

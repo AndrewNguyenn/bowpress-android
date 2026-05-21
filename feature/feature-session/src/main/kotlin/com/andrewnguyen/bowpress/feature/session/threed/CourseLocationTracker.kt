@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Mirrors iOS `CourseLocationTracker`. Continuous GPS tracker for a live 3D
@@ -58,24 +59,39 @@ class CourseLocationTracker(private val context: Context) : LocationListener, Se
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
+    private var sensorsRegistered = false
+    private var gpsRegistered = false
+
     fun start() {
-        if (tracking) return
         tracking = true
-        if (hasLocationPermission()) {
-            runCatching {
-                locationManager?.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER, 1_000L, 5f, this,
-                )
+        if (!sensorsRegistered) {
+            sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { rotation ->
+                sensorManager.registerListener(this, rotation, SensorManager.SENSOR_DELAY_UI)
+                sensorsRegistered = true
             }
         }
-        val rotation = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        if (rotation != null) {
-            sensorManager.registerListener(this, rotation, SensorManager.SENSOR_DELAY_UI)
+        ensureLocationUpdates()
+    }
+
+    /**
+     * Register for GPS once permission is held. Safe to call repeatedly — the
+     * permission can be granted *after* the course starts, so the host calls
+     * this again from its permission-result callback to re-arm tracking.
+     */
+    fun ensureLocationUpdates() {
+        if (gpsRegistered || !tracking || !hasLocationPermission()) return
+        runCatching {
+            locationManager?.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER, 1_000L, 5f, this,
+            )
+            gpsRegistered = true
         }
     }
 
     fun stop() {
         tracking = false
+        gpsRegistered = false
+        sensorsRegistered = false
         runCatching { locationManager?.removeUpdates(this) }
         sensorManager?.unregisterListener(this)
     }
@@ -87,16 +103,18 @@ class CourseLocationTracker(private val context: Context) : LocationListener, Se
         val point = GeoPoint(location.latitude, location.longitude)
         _current.value = point
         _hasFix.value = true
+        // Atomic read-modify-write — `update` keeps the breadcrumb + distance
+        // consistent even if location callbacks ever land off the main thread.
         val last = lastRawLocation
         if (last != null) {
             val step = location.distanceTo(last)
             if (step >= minBreadcrumbSpacing) {
-                _distanceMeters.value += step
-                _breadcrumb.value = _breadcrumb.value + point
+                _distanceMeters.update { it + step }
+                _breadcrumb.update { it + point }
                 lastRawLocation = location
             }
         } else {
-            _breadcrumb.value = _breadcrumb.value + point
+            _breadcrumb.update { it + point }
             lastRawLocation = location
         }
     }

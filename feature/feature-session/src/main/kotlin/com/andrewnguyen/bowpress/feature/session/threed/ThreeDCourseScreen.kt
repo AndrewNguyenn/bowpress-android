@@ -73,7 +73,11 @@ fun ThreeDCourseScreen(
     // Ask for location the first time the course screen appears.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> if (granted) viewModel.locationTracker.start() }
+    ) { granted ->
+        // The tracker is already started by the view model; a late grant just
+        // needs to re-arm GPS registration.
+        if (granted) viewModel.locationTracker.ensureLocationUpdates()
+    }
     LaunchedEffect(Unit) {
         if (!viewModel.locationTracker.hasLocationPermission()) {
             permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
