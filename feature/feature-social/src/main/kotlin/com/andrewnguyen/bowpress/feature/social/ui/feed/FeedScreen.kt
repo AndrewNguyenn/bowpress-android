@@ -494,19 +494,22 @@ private fun FeedItemRow(
             // §18 — typed preview band: a scorecard for a range session, a
             // course block for a 3D course.
             val preview = activityPreview(item)
-            item.meta?.let { meta ->
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    text = meta,
-                    style = jetbrainsMono(9.5.sp),
-                    color = AppInk3,
-                )
+            // A range session's preview band carries the target, distance,
+            // score and per-arrow breakdown, so both meta lines below would
+            // just repeat it — drop them for those rows.
+            val bandCarriesMeta = preview is ActivityPreview.Target
+            if (!bandCarriesMeta) {
+                item.meta?.let { meta ->
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        text = meta,
+                        style = jetbrainsMono(9.5.sp),
+                        color = AppInk3,
+                    )
+                }
             }
-            // §15 — shared-session stat line. A range session's scorecard
-            // preview band below already carries the score + distance and
-            // the per-arrow breakdown, so the stat line would just repeat
-            // it — drop it for those rows.
-            if (preview !is ActivityPreview.Target) {
+            // §15 — shared-session stat line.
+            if (!bandCarriesMeta) {
                 item.session?.let { s ->
                     Spacer(Modifier.height(5.dp))
                     Text(

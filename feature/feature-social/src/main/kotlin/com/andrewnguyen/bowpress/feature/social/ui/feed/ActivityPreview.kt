@@ -3,7 +3,6 @@ package com.andrewnguyen.bowpress.feature.social.ui.feed
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -76,10 +75,11 @@ sealed interface ActivityPreview {
     data object Photo : ActivityPreview
 
     /**
-     * A range session — the distance + score and the per-end scorecard
-     * (first 10 ends as arrow ring values).
+     * A range session — the target face, the distance + score, and the
+     * per-end scorecard (first 10 ends as arrow ring values).
      */
     data class Target(
+        val face: String?,
         val distance: String?,
         val score: Int,
         val endRings: List<List<Int>>?,
@@ -103,6 +103,7 @@ fun activityPreview(item: ActivityItem): ActivityPreview {
         ActivityPreview.Course(score = session.score, stations = session.arrowCount)
     } else {
         ActivityPreview.Target(
+            face = session.face,
             distance = session.distance,
             score = session.score,
             endRings = session.endRings,
@@ -120,6 +121,7 @@ fun ActivityPreviewBand(
         is ActivityPreview.None -> Unit
         is ActivityPreview.Photo -> PhotoBand(modifier = modifier)
         is ActivityPreview.Target -> TargetBand(
+            face = preview.face,
             distance = preview.distance,
             score = preview.score,
             endRings = preview.endRings,
@@ -159,12 +161,12 @@ private fun PhotoBand(modifier: Modifier = Modifier) {
 }
 
 /**
- * Range session — the distance + score paired with the per-end scorecard
- * (first 10 ends), grouped on the right of the preview band behind a
- * hairline. No target-face graphic — the scorecard carries the detail.
+ * Range session — the WA target face on the left, with the distance + score
+ * and the per-end scorecard (first 10 ends) grouped together on the right.
  */
 @Composable
 private fun TargetBand(
+    face: String?,
     distance: String?,
     score: Int,
     endRings: List<List<Int>>?,
@@ -179,8 +181,12 @@ private fun TargetBand(
             .padding(horizontal = 14.dp)
             .testTag(TestTags.FeedRowPreview),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.End,
     ) {
+        // Target face — shape derived from the session's `face` label so a
+        // range row shows the actual face it was shot on.
+        BPTargetFace(size = 78.dp, face = faceTypeFor(face))
+        Spacer(Modifier.weight(1f))
+        // Distance + score and the scorecard read as one group on the right.
         Column {
             Text(
                 // The distance is "attached" to the RANGE label, e.g.
@@ -209,6 +215,20 @@ private fun TargetBand(
             Spacer(Modifier.width(14.dp))
             FeedScorecardColumn(ends = endRings)
         }
+    }
+}
+
+/**
+ * Picks a target-face shape from a shared session's free-text `face` label —
+ * a 6-ring / Vegas / 3-spot face reads as [BPTargetFaceType.SixRing],
+ * everything else [BPTargetFaceType.TenRing].
+ */
+private fun faceTypeFor(face: String?): BPTargetFaceType {
+    val f = (face ?: "").lowercase()
+    return if (f.contains("6") || f.contains("spot") || f.contains("vegas")) {
+        BPTargetFaceType.SixRing
+    } else {
+        BPTargetFaceType.TenRing
     }
 }
 
