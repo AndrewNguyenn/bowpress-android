@@ -446,111 +446,131 @@ private fun FeedItemRow(
     // (session → league → club → actor profile).
     val rowModifier = baseModifier.clickable { onItemClick(item) }
 
-    Row(
-        modifier = rowModifier.padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        // Avatar
-        Box(
-            modifier = Modifier
-                .size(30.dp)
-                .border(1.dp, if (item.highlighted) AppMaple else avatarColor)
-                .background(AppPaper2),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = avatarInitials,
-                style = frauncesDisplay(11.5.sp),
-                color = if (item.highlighted) AppMaple else avatarColor,
-            )
-        }
-        Spacer(Modifier.width(10.dp))
+    // The feed's own horizontal content inset — a full-bleed preview (the 3D
+    // course map) negates it so it can sit edge-to-edge (mirrors iOS
+    // `FeedRowView.contentInset` = 16; Android's feed inset is 18).
+    val contentInset = 18.dp
+    val preview = activityPreview(item)
 
-        // Body
-        Column(Modifier.weight(1f)) {
-            // §18 — Instagram-style location tag above the headline. A nested
-            // clickable consumes the tap so it opens the map instead of
-            // drilling into the row's destination.
-            item.session?.location?.let { location ->
-                LocationTag(
-                    name = location.name,
-                    onTap = { onLocationTap(location) },
-                )
-                Spacer(Modifier.height(3.dp))
-            }
-            // Title row: actor name in UI + italic body
-            Row {
+    // The preview drops below the avatar/timestamp row so it spans the full
+    // row width — and a course map bleeds past the feed's own horizontal
+    // inset to sit truly edge-to-edge. A highlighted card keeps the preview
+    // inside its border, matching iOS `HighlightedFeedRow`.
+    Column(modifier = rowModifier.padding(vertical = 12.dp)) {
+        Row(
+            modifier = Modifier.padding(horizontal = contentInset),
+            verticalAlignment = Alignment.Top,
+        ) {
+            // Avatar
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .border(1.dp, if (item.highlighted) AppMaple else avatarColor)
+                    .background(AppPaper2),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
-                    text = item.actorDisplayName.uppercase() + " ",
-                    style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                    color = AppPondDk,
+                    text = avatarInitials,
+                    style = frauncesDisplay(11.5.sp),
+                    color = if (item.highlighted) AppMaple else avatarColor,
                 )
             }
-            Text(
-                text = item.title,
-                style = frauncesDisplay(14.sp),
-                color = AppInk,
-            )
-            item.meta?.let { meta ->
-                Spacer(Modifier.height(5.dp))
+            Spacer(Modifier.width(10.dp))
+
+            // Body
+            Column(Modifier.weight(1f)) {
+                // §18 — Instagram-style location tag above the headline. A
+                // nested clickable consumes the tap so it opens the map
+                // instead of drilling into the row's destination.
+                item.session?.location?.let { location ->
+                    LocationTag(
+                        name = location.name,
+                        onTap = { onLocationTap(location) },
+                    )
+                    Spacer(Modifier.height(3.dp))
+                }
+                // Title row: actor name in UI + italic body
+                Row {
+                    Text(
+                        text = item.actorDisplayName.uppercase() + " ",
+                        style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                        color = AppPondDk,
+                    )
+                }
                 Text(
-                    text = meta,
+                    text = item.title,
+                    style = frauncesDisplay(14.sp),
+                    color = AppInk,
+                )
+                item.meta?.let { meta ->
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        text = meta,
+                        style = jetbrainsMono(9.5.sp),
+                        color = AppInk3,
+                    )
+                }
+                // §15 — shared-session stat line.
+                item.session?.let { s ->
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        text = sessionStatLine(s),
+                        style = jetbrainsMono(9.5.sp),
+                        color = AppMaple,
+                    )
+                }
+                // §15 — achievement badges on a highlighted row.
+                if (item.achievements.isNotEmpty()) {
+                    Spacer(Modifier.height(7.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        item.achievements.forEach { badge ->
+                            AchievementBadgeChip(badge = badge)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+
+            // Right: stamp + time
+            Column(horizontalAlignment = Alignment.End) {
+                item.stamp?.let {
+                    val effectiveStampColor = if (item.highlighted) AppMaple else stampColor
+                    Box(
+                        modifier = Modifier
+                            .border(1.dp, effectiveStampColor)
+                            .padding(horizontal = 5.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = it,
+                            style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                            color = effectiveStampColor,
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
+                Text(
+                    text = item.createdAt.relativeTime(),
                     style = jetbrainsMono(9.5.sp),
                     color = AppInk3,
                 )
             }
-            // §15 — shared-session stat line.
-            item.session?.let { s ->
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    text = sessionStatLine(s),
-                    style = jetbrainsMono(9.5.sp),
-                    color = AppMaple,
-                )
-            }
-            // §18 — typed preview band: a target face for a range session, a
-            // course block for a 3D course.
-            val preview = activityPreview(item)
-            if (!preview.isEmpty) {
-                Spacer(Modifier.height(7.dp))
-                ActivityPreviewBand(preview = preview)
-            }
-            // §15 — achievement badges on a highlighted row.
-            if (item.achievements.isNotEmpty()) {
-                Spacer(Modifier.height(7.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    item.achievements.forEach { badge ->
-                        AchievementBadgeChip(badge = badge)
-                    }
-                }
-            }
         }
-        Spacer(Modifier.width(8.dp))
 
-        // Right: stamp + time
-        Column(horizontalAlignment = Alignment.End) {
-            item.stamp?.let {
-                val effectiveStampColor = if (item.highlighted) AppMaple else stampColor
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, effectiveStampColor)
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = it,
-                        style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                        color = effectiveStampColor,
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
-            }
-            Text(
-                text = item.createdAt.relativeTime(),
-                style = jetbrainsMono(9.5.sp),
-                color = AppInk3,
+        // §18 — typed preview band, dropped below the avatar/timestamp row so
+        // it spans the full width. A 3D-course map bleeds past the feed's
+        // horizontal inset to sit edge-to-edge; a highlighted card keeps it
+        // inside the border (no bleed).
+        if (!preview.isEmpty) {
+            val bleed = preview.wantsFullBleed && !item.highlighted
+            Spacer(Modifier.height(8.dp))
+            ActivityPreviewBand(
+                preview = preview,
+                modifier = Modifier.padding(
+                    horizontal = if (bleed) 0.dp else contentInset,
+                ),
             )
         }
     }

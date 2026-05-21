@@ -34,6 +34,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
@@ -42,8 +43,10 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseInkMapView
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.CourseStation
 
 // ── ActivityPreview ──────────────────────────────────────────────────────────
 //
@@ -83,8 +86,19 @@ sealed interface ActivityPreview {
         val endRings: List<List<Int>>?,
     ) : ActivityPreview
 
-    /** A 3D course — a walked-trail schematic + the score. */
-    data class Course(val score: Int, val stations: Int) : ActivityPreview
+    /**
+     * A 3D course — the real course map, drawn from the activity's ordered
+     * stations. [stations] is empty when the feed payload carried none, in
+     * which case the band falls back to the compact schematic.
+     */
+    data class Course(
+        val score: Int,
+        val stations: List<CourseStation>,
+    ) : ActivityPreview
+
+    /** The 3D-course preview sits edge-to-edge; other previews stay within
+     *  the row. Mirrors iOS `ActivityPreview.wantsFullBleed`. */
+    val wantsFullBleed: Boolean get() = this is Course
 }
 
 /**
@@ -98,7 +112,12 @@ fun activityPreview(item: ActivityItem): ActivityPreview {
     // discipline preview, matching iOS.
     if (TargetPhotoCatalog.hasPhoto(session.sessionId)) return ActivityPreview.Photo
     return if (session.isCourse) {
-        ActivityPreview.Course(score = session.score, stations = session.arrowCount)
+        // The feed payload ships the course's stations so the preview renders
+        // the real map; empty → CourseBlockPreview fallback (mirrors iOS).
+        ActivityPreview.Course(
+            score = session.score,
+            stations = session.stations.orEmpty(),
+        )
     } else {
         ActivityPreview.Target(
             face = session.face,
@@ -285,42 +304,75 @@ private fun ringColor(ring: Int) = when {
     else -> AppInk
 }
 
-/** 3D course — a walked-trail schematic beside the score. */
+/**
+ * 3D course — the real course map, full-bleed width, as the hero of the row
+ * (Strava-style). Falls back to the compact walked-trail schematic only when
+ * the feed payload carried no stations. Mirrors iOS `ActivityPreviewBand.courseBand`.
+ */
 @Composable
-private fun CourseBand(score: Int, stations: Int, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(BAND_HEIGHT)
-            .background(AppCream)
-            .border(1.dp, AppPine.copy(alpha = 0.4f))
-            .padding(horizontal = 14.dp)
-            .testTag(TestTags.FeedRowPreview),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CourseBlockPreview(
-            modifier = Modifier
-                .width(96.dp)
-                .height(BAND_HEIGHT - 36.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column {
+private fun CourseBand(
+    score: Int,
+    stations: List<CourseStation>,
+    modifier: Modifier = Modifier,
+) {
+    if (stations.isEmpty()) {
+        // Fallback — the compact schematic band beside the score.
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(BAND_HEIGHT)
+                .background(AppCream)
+                .border(1.dp, AppPine.copy(alpha = 0.4f))
+                .padding(horizontal = 14.dp)
+                .testTag(TestTags.FeedRowPreview),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CourseBlockPreview(
+                modifier = Modifier
+                    .width(96.dp)
+                    .height(BAND_HEIGHT - 36.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "3D COURSE",
+                    style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                    color = AppPine,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = "$score",
+                    style = frauncesDisplay(26.sp),
+                    color = AppInk,
+                )
+            }
+        }
+    } else {
+        // CourseInkMapView carries its own cream backing + hairline border;
+        // full width + adaptiveAspect lets the course fill the row — landscape
+        // for a wide course, portrait-turned-landscape for a tall one.
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .testTag(TestTags.FeedRowPreview),
+        ) {
+            CourseInkMapView(
+                stations = stations,
+                showChrome = false,
+                adaptiveAspect = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Text(
-                text = "3D COURSE",
-                style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                text = "3D COURSE · ${stations.size} " +
+                    if (stations.size == 1) "STATION" else "STATIONS",
+                style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.2.em),
                 color = AppPine,
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = "$score",
-                style = frauncesDisplay(26.sp),
-                color = AppInk,
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = if (stations == 1) "1 station" else "$stations stations",
-                style = jetbrainsMono(9.sp),
-                color = AppInk3,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(10.dp)
+                    .background(AppPaper)
+                    .border(1.dp, AppLine)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             )
         }
     }
