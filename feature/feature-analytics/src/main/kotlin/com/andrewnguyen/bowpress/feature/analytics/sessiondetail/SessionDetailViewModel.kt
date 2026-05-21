@@ -8,8 +8,9 @@ import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.SessionEnd
-import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -20,9 +21,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * State for SessionDetailScreen. iOS `SessionDetailSheet` exposes the full
- * shot distribution + group stats; this VM stages the underlying data so
- * future iters can layer in the heatmap / stat chips / replot.
+ * State for SessionDetailScreen. Mirrors the data iOS `SessionDetailSheet`
+ * renders for the Kenrokuen redesign: the title-header strings, the per-end
+ * scorecard, and the plotted shot distribution.
  */
 data class SessionDetailUiState(
     val isLoading: Boolean = true,
@@ -30,78 +31,23 @@ data class SessionDetailUiState(
     val arrows: List<ArrowPlot> = emptyList(),
     val ends: List<SessionEnd> = emptyList(),
     val faceType: TargetFaceType = TargetFaceType.TEN_RING,
+    val targetLayout: TargetLayout = TargetLayout.SINGLE,
+    /** Session title, falling back to the distance label — see iOS `sessionDisplayTitle`. */
+    val title: String? = null,
+    val distance: ShootingDistance? = null,
+    val notes: String = "",
+    val feelTags: List<String> = emptyList(),
 ) {
     val arrowCount: Int get() = arrows.size
-    val endCount: Int get() = ends.size.coerceAtLeast(1)
 
-    /**
-     * Precision stats over the session's plotted arrows. Mirrors iOS
-     * `PrecisionStats.compute` in HistoricalSessionsView.swift:
-     *   meanDistMM = mean(sqrt(x² + y²)) × mmPerNorm
-     *   groupSigmaMM = sqrt(mean((x - cx)² + (y - cy)²)) × mmPerNorm
-     * where mmPerNorm = 20 / (119 / 735) ≈ 123.53 for the WA 40cm indoor face.
-     */
-    val precision: PrecisionStats?
-        get() = PrecisionStats.from(arrows)
-}
+    /** Per-end breakdown — every arrow lands in exactly one line (see [Scorecard]). */
+    val scorecard: Scorecard get() = Scorecard.build(arrows, ends, sessionId)
 
-data class PrecisionStats(
-    val centroidX: Double,
-    val centroidY: Double,
-    val meanDistMm: Double,
-    val groupSigmaMm: Double,
-) {
-    /**
-     * Compass arrow pointing from origin to centroid, matching iOS
-     * `directionArrow`. plotY is screen-positive (south), so a positive
-     * centroidY means the grouping sits low → ↓.
-     */
-    val directionArrow: String
-        get() {
-            val dist = kotlin.math.hypot(centroidX, centroidY)
-            if (dist < 0.01) return "⊙"
-            val adx = kotlin.math.abs(centroidX)
-            val ady = kotlin.math.abs(centroidY)
-            if (ady > adx * 2) return if (centroidY > 0) "↓" else "↑"
-            if (adx > ady * 2) return if (centroidX > 0) "→" else "←"
-            return when {
-                centroidX > 0 && centroidY > 0 -> "↘"
-                centroidX > 0 && centroidY < 0 -> "↗"
-                centroidX < 0 && centroidY > 0 -> "↙"
-                else -> "↖"
-            }
-        }
-
-    companion object {
-        const val MM_PER_NORM: Double = 20.0 / (119.0 / 735.0)
-
-        fun from(arrows: List<ArrowPlot>): PrecisionStats? {
-            val pts = arrows.mapNotNull { p ->
-                val x = p.plotX
-                val y = p.plotY
-                if (x == null || y == null) null else x to y
-            }
-            if (pts.isEmpty()) return null
-            val cx = pts.sumOf { it.first } / pts.size
-            val cy = pts.sumOf { it.second } / pts.size
-            val meanDist = kotlin.math.sqrt(
-                pts.sumOf { it.first * it.first + it.second * it.second } / pts.size,
-            )
-            val sigma = kotlin.math.sqrt(
-                pts.sumOf {
-                    val dx = it.first - cx
-                    val dy = it.second - cy
-                    dx * dx + dy * dy
-                } / pts.size,
-            )
-            return PrecisionStats(
-                centroidX = cx,
-                centroidY = cy,
-                meanDistMm = meanDist * MM_PER_NORM,
-                groupSigmaMm = sigma * MM_PER_NORM,
-            )
-        }
-    }
+    /** Title shown in the header — the session's own name, or its distance. */
+    val displayTitle: String
+        get() = title?.trim()?.takeIf { it.isNotEmpty() }
+            ?: distance?.label
+            ?: "Session"
 }
 
 @HiltViewModel
@@ -121,9 +67,19 @@ class SessionDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val arrows = plotRepo.getBySession(sessionId)
             val ends = sessionEndRepo.getBySession(sessionId)
-            val faceType = sessionRepo.getById(sessionId)?.targetFaceType ?: TargetFaceType.TEN_RING
+            val session = sessionRepo.getById(sessionId)
             _state.update {
-                it.copy(isLoading = false, arrows = arrows, ends = ends, faceType = faceType)
+                it.copy(
+                    isLoading = false,
+                    arrows = arrows,
+                    ends = ends,
+                    faceType = session?.targetFaceType ?: TargetFaceType.TEN_RING,
+                    targetLayout = session?.targetLayout ?: TargetLayout.SINGLE,
+                    title = session?.title,
+                    distance = session?.distance,
+                    notes = session?.notes.orEmpty(),
+                    feelTags = session?.feelTags.orEmpty(),
+                )
             }
         }
     }

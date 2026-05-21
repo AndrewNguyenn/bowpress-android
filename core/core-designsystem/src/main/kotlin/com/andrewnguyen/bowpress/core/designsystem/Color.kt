@@ -48,6 +48,23 @@ val AppWABlueFill  = Color(0xFF3A6F8A)
 val AppWABlackFill = Color(0xFF2A2A28)
 val AppWAWhiteFill = Color(0xFFF4F1EA)
 
+// Scorecard ring-tonal tints — translucent per-ring cell backgrounds for the
+// session-detail scorecard table. Mirrors iOS `appRingTint*` (AppTheme.swift).
+// Light-only: like the other direct `App*` tokens these stay light regardless
+// of theme until the CompositionLocal-palette refactor lands. Each is the WA
+// band hue at a hand-tuned alpha so the cell composites over `AppPaper` into a
+// readable band cue — deep amber on X, gold on 10, fading to pale yellow on 9,
+// red on 8/7, blue on 6/5, muted on the rest.
+val AppRingTintX      = Color(0x8CD4A017)
+val AppRingTintGold   = Color(0x73F0D04A)
+val AppRingTintYellow = Color(0x38F0D04A)
+val AppRingTintRed    = Color(0x52D94B3B)
+val AppRingTintRedLt  = Color(0x2BD94B3B)
+val AppRingTintBlue   = Color(0x4D4EA8C9)
+val AppRingTintBlueLt = Color(0x264EA8C9)
+val AppRingTintBlack  = Color(0x141F2A26)
+val AppRingTintMiss   = Color(0x2EB5614A)
+
 val AppSuccess = AppPine
 val AppWarning = AppMaple
 val AppDanger  = Color(0xFFA0392A)
