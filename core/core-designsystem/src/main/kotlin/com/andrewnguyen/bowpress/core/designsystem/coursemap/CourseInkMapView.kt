@@ -294,14 +294,21 @@ private class Projector private constructor(
     private val minY: Double,
     private val spanY: Double,
     private val lonScale: Double,
+    /**
+     * Normalised offsets that centre the content within the (possibly
+     * squared) span — 0 on the axis that fills the span, positive on the
+     * shorter axis so a tall/wide course sits centred, not corner-anchored.
+     */
+    private val centerX: Double,
+    private val centerY: Double,
 ) {
     /** Width : height of the projected box — 1 when squared. */
     val aspect: Float get() = (spanX / spanY).toFloat()
 
     fun project(p: GeoPoint): Offset {
         val usable = 1.0 - 2 * CourseMapLayout.PAD
-        val nx = (p.longitude * lonScale - minX) / spanX
-        val ny = (p.latitude - minY) / spanY
+        val nx = (p.longitude * lonScale - minX) / spanX + centerX
+        val ny = (p.latitude - minY) / spanY + centerY
         return Offset(
             x = (CourseMapLayout.PAD + nx * usable).toFloat(),
             // Flip: north (max latitude) is the top of the map.
@@ -336,6 +343,8 @@ private class Projector private constructor(
                 minY = minLat,
                 spanY = spanY,
                 lonScale = scale,
+                centerX = (spanX - sx) / (2 * spanX),
+                centerY = (spanY - sy) / (2 * spanY),
             )
         }
 
