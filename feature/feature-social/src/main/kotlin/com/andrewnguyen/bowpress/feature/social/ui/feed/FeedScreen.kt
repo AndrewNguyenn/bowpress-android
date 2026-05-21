@@ -70,7 +70,7 @@ fun FeedScreen(
     onLeaguesIndexClick: () -> Unit,
     onClubClick: (String) -> Unit,
     onLeagueClick: (String) -> Unit,
-    onSessionClick: (String) -> Unit,
+    onSessionClick: (sharedSessionId: String, isOwn: Boolean) -> Unit,
     onActorClick: (String) -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
@@ -152,10 +152,12 @@ fun FeedScreen(
             items(state.feed, key = { it.id }) { item ->
                 FeedItemRow(
                     item = item,
+                    photoLoader = viewModel.photoLoader,
                     // Routing precedence lives in feedItemDestination().
                     onItemClick = { row ->
                         when (val dest = feedItemDestination(row)) {
-                            is FeedItemDestination.Session -> onSessionClick(dest.sharedSessionId)
+                            is FeedItemDestination.Session ->
+                                onSessionClick(dest.sharedSessionId, dest.isOwn)
                             is FeedItemDestination.League -> onLeagueClick(dest.leagueId)
                             is FeedItemDestination.Club -> onClubClick(dest.clubId)
                             is FeedItemDestination.Actor -> onActorClick(dest.actorUserId)
@@ -396,7 +398,9 @@ private fun FeedEyebrow() {
                 color = AppPondDk,
             )
             Text(
-                text = " · friends + clubs + leagues",
+                // Social Feed V2 §2 — the caller's own activity now interleaves
+                // into the feed, so the eyebrow names the caller first.
+                text = " · you + friends + clubs + leagues",
                 style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
                 color = AppInk3,
             )
@@ -413,6 +417,7 @@ private fun FeedEyebrow() {
 @Composable
 private fun FeedItemRow(
     item: ActivityItem,
+    photoLoader: com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader,
     onItemClick: (ActivityItem) -> Unit,
     onLocationTap: (SessionLocation) -> Unit,
 ) {
@@ -478,50 +483,56 @@ private fun FeedItemRow(
                 )
                 Spacer(Modifier.height(3.dp))
             }
-            // Title row: actor name in UI + italic body
+            // Actor eyebrow — the acting archer's name (or "YOU" on an own
+            // row). Formatting rule lives in FeedHeadline so it stays testable.
             Row {
                 Text(
-                    text = item.actorDisplayName.uppercase() + " ",
+                    text = FeedHeadline.actorEyebrow(item) + " ",
                     style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
                     color = AppPondDk,
                 )
             }
+            // Headline. §1 — a custom title is the archer's own session name,
+            // rendered as a quoted caption; a generic title renders verbatim.
             Text(
-                text = item.title,
+                text = FeedHeadline.headline(item),
                 style = frauncesDisplay(14.sp),
                 color = AppInk,
             )
-            // §18 — typed preview band: a scorecard for a range session, a
-            // course block for a 3D course.
-            val preview = activityPreview(item)
-            // A range session's preview band carries the target, distance,
-            // score and per-arrow breakdown, so both meta lines below would
-            // just repeat it — drop them for those rows.
-            val bandCarriesMeta = preview is ActivityPreview.Target
-            if (!bandCarriesMeta) {
-                item.meta?.let { meta ->
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        text = meta,
-                        style = jetbrainsMono(9.5.sp),
-                        color = AppInk3,
-                    )
-                }
+            item.meta?.let { meta ->
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = meta,
+                    style = jetbrainsMono(9.5.sp),
+                    color = AppInk3,
+                )
             }
             // §15 — shared-session stat line.
-            if (!bandCarriesMeta) {
-                item.session?.let { s ->
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        text = sessionStatLine(s),
-                        style = jetbrainsMono(9.5.sp),
-                        color = AppMaple,
-                    )
-                }
+            item.session?.let { s ->
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = sessionStatLine(s),
+                    style = jetbrainsMono(9.5.sp),
+                    color = AppMaple,
+                )
             }
-            if (!preview.isEmpty) {
+            // Social Feed V2 §4 — when the shared session carries photos, the
+            // gallery preview replaces the typed discipline band. Otherwise
+            // §18's typed preview band shows (target face / course block).
+            val photos = item.session?.photos.orEmpty()
+            if (photos.isNotEmpty()) {
                 Spacer(Modifier.height(7.dp))
-                ActivityPreviewBand(preview = preview)
+                com.andrewnguyen.bowpress.feature.social.ui.session.FeedPhotoGallery(
+                    sharedSessionId = item.session!!.sharedSessionId,
+                    photos = photos,
+                    loader = photoLoader,
+                )
+            } else {
+                val preview = activityPreview(item)
+                if (!preview.isEmpty) {
+                    Spacer(Modifier.height(7.dp))
+                    ActivityPreviewBand(preview = preview)
+                }
             }
             // §15 — achievement badges on a highlighted row.
             if (item.achievements.isNotEmpty()) {

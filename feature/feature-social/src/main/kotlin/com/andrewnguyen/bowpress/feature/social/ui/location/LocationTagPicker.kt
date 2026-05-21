@@ -195,13 +195,11 @@ fun LocationTagPicker(
                     )
                 },
             )
-            // Map with a fixed centre pin — the map moves under it. weight(1f)
-            // so it fills all the space between the header and the detail
-            // panel (a fixed height left the bottom half of the screen dead).
+            // Map with a fixed centre pin — the map moves under it.
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .height(320.dp),
             ) {
                 SlippyMap(
                     state = mapState,

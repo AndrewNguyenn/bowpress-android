@@ -158,4 +158,11 @@ object TestTags {
     const val LocationPickerMap: String = "location_picker_map"
     const val LocationPickerNameField: String = "location_picker_name_field"
     const val SessionNotesLocationRow: String = "session_notes_location_row"
+    // Social Feed V2 — own-post edit + multi-photo gallery.
+    const val MySessionEditButton: String = "my_session_edit_button"
+    const val MySessionEditTitleField: String = "my_session_edit_title_field"
+    const val MySessionEditSave: String = "my_session_edit_save"
+    const val MySessionEditAddPhoto: String = "my_session_edit_add_photo"
+    const val FeedRowPhotoGallery: String = "feed_row_photo_gallery"
+    const val SessionDetailPhotoGallery: String = "session_detail_photo_gallery"
 }

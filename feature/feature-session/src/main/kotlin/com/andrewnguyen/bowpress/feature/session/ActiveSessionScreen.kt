@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -150,17 +149,6 @@ fun ActiveSessionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-            )
-
-            // Below the target, full width — records a shot that missed the
-            // scoring rings entirely (ring 0, no plot position). Mirrors iOS
-            // RangeMissButton; never overlaps the face.
-            MissButton(
-                enabled = !state.isLoading,
-                onClick = { scope.launch { viewModel.plotMiss() } },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
             )
 
             val breakdown = state.endsBreakdown
@@ -315,35 +303,6 @@ private fun EndActionsDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
-}
-
-/**
- * Full-width "MISS" button shown below the range target — records a shot
- * that didn't land on the scoring rings (ring 0, no plot position). Sits
- * under the face, never over it. Mirrors iOS `RangeMissButton`.
- */
-@Composable
-private fun MissButton(
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .background(AppPaper)
-            .border(1.dp, AppMaple)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "MISS",
-            style = interUI(11.sp, weight = FontWeight.SemiBold).copy(
-                letterSpacing = 0.2.em,
-                color = AppMaple,
-            ),
-        )
-    }
 }
 
 /**
@@ -737,49 +696,54 @@ private fun RecentArrowsStrip(
 
         Spacer(Modifier.height(10.dp))
 
-        // One cell per arrow plotted in this end — dynamic, no empty slots.
-        // Rendered as a single bordered strip of touching ring-tinted
-        // rectangles, exactly like a scorecard row. The last 6 are shown so
-        // a long end can't overflow.
+        // One fixed-width cell per arrow actually plotted in this end — no
+        // empty placeholder slots, so a 3-arrow end shows 3 cells. The last
+        // 6 are shown so a long end can't overflow the row.
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(RecentRowHeight)
-                .border(1.dp, AppLine),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            arrows.takeLast(6).forEach { arrow ->
+            val shown = arrows.takeLast(6)
+            val baseNumber = arrows.size - shown.size
+            shown.forEachIndexed { i, arrow ->
                 RecentCell(
                     arrow = arrow,
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    arrowNumber = baseNumber + i + 1,
+                    modifier = Modifier.width(52.dp),
                 )
             }
         }
     }
 }
 
-private val RecentRowHeight = 38.dp
-
 @Composable
 private fun RecentCell(
     arrow: ArrowPlot,
+    arrowNumber: Int,
     modifier: Modifier = Modifier,
 ) {
-    // A touching ring-tinted rectangle — same fill + value treatment as the
-    // scorecard's shot cells (EndsScorecard.ShotCell). No per-cell border or
-    // gap: the strip's outer border frames the row, like the scorecard table.
-    val (label, valueColor) = when {
-        arrow.ring == 11 -> "X" to AppPondDk
-        arrow.ring <= 0 -> "M" to AppMaple
-        else -> "${arrow.ring}" to AppInk
-    }
-    Box(
-        modifier = modifier.background(ringTint(arrow.ring)),
-        contentAlignment = Alignment.Center,
+    val isX = arrow.ring == 11
+    val border = if (isX) AppPondDk else AppLine
+    val valueColor = if (isX) AppPondDk else AppInk
+    Column(
+        modifier = modifier
+            .background(AppPaper)
+            .border(1.dp, border)
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = label,
-            style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
+            text = ringLabel(arrow.ring),
+            style = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
                 .copy(color = valueColor),
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = "#$arrowNumber",
+            style = interUI(8.sp, weight = FontWeight.SemiBold).copy(
+                letterSpacing = 0.16.em,
+                color = AppInk3,
+            ),
         )
     }
 }

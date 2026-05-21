@@ -367,6 +367,65 @@ class BowPressDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate_15_to_16_adds_social_feed_v2_columns() {
+        val dbName = "migration-15-16-test.db"
+
+        // Create a v15 DB with a pre-V2 activity_feed row to confirm it
+        // survives the Social Feed V2 column additions.
+        helper.createDatabase(dbName, 15).apply {
+            execSQL(
+                """
+                INSERT INTO activity_feed (
+                    id, kind, sourceKind, actorHandle, actorDisplayName,
+                    title, createdAt
+                ) VALUES (
+                    'act-1', 'friend_session', 'friend', 'sara.l', 'Sara Lin',
+                    'logged a session', 1700000000000
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // AutoMigration 15→16 adds titleIsCustom / isOwn — pure additive, both
+        // NOT NULL with a SQL DEFAULT of 0. (The photo gallery is not a
+        // separate column — it lives inside the serialized sessionJson blob.)
+        val db = helper.runMigrationsAndValidate(dbName, 16, /* validateDroppedTables = */ true)
+
+        // The pre-V2 row survives and the new NOT NULL columns take their
+        // SQL defaults.
+        db.query(
+            "SELECT titleIsCustom, isOwn FROM activity_feed WHERE id = 'act-1'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getInt(0)).isEqualTo(0)
+            assertThat(cursor.getInt(1)).isEqualTo(0)
+        }
+
+        // A V2 row with the new columns set inserts cleanly.
+        db.execSQL(
+            """
+            INSERT INTO activity_feed (
+                id, kind, sourceKind, actorHandle, actorDisplayName,
+                title, createdAt, titleIsCustom, isOwn
+            ) VALUES (
+                'act-2', 'friend_session', 'friend', 'andrew.n', 'Andrew N',
+                'Saturday 70m practice', 1700000000001, 1, 1
+            )
+            """.trimIndent(),
+        )
+        db.query(
+            "SELECT titleIsCustom, isOwn FROM activity_feed WHERE id = 'act-2'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getInt(0)).isEqualTo(1)
+            assertThat(cursor.getInt(1)).isEqualTo(1)
+        }
+
+        db.close()
+    }
+
+    @Test
     fun migrate_1_to_2_adds_targetFaceType_column_with_default() {
         val dbName = "migration-test.db"
 

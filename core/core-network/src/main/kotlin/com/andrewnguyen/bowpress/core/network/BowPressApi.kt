@@ -36,6 +36,7 @@ import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
+import com.andrewnguyen.bowpress.core.model.SharedSessionPhoto
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShareSessionBody
@@ -545,6 +546,63 @@ interface BowPressApi {
     suspend fun getSharedSessionDetail(
         @Path("sharedSessionId") sharedSessionId: String,
     ): SharedSessionDetail
+
+    // ---- Social Feed V2 — edit a shared session (contract §3) ------------------
+
+    /**
+     * Owner-only partial update of a shared session: title and/or location.
+     * The server recomputes the activity headline, updates every feed row
+     * carrying this `sharedSessionId`, and renames the owner's
+     * `shooting_sessions` row. Returns the updated [SharedSession].
+     *
+     * The body is a pre-encoded JSON [okhttp3.RequestBody], not a typed DTO:
+     * contract §3 distinguishes an **omitted** field (leave it unchanged) from
+     * an explicit JSON `null` (clear it). The shared network `Json` has
+     * `explicitNulls = false`, which would silently drop a clear, so
+     * `SocialRepository.editSharedSession` builds the object by hand.
+     */
+    @PATCH("social/sessions/{sharedSessionId}")
+    suspend fun patchSharedSession(
+        @Path("sharedSessionId") sharedSessionId: String,
+        @Body body: okhttp3.RequestBody,
+    ): PatchSharedSessionResponse
+
+    // ---- Social Feed V2 — multi-photo gallery (contract §4) --------------------
+
+    /**
+     * Owner-only photo upload — a raw JPEG body. Inserts a `pending` photo
+     * record and enqueues the display-JPEG transcode. Returns the record, 201.
+     * The display image is fetched later from [getSharedSessionPhoto].
+     */
+    @POST("social/sessions/{sharedSessionId}/photos")
+    suspend fun uploadSharedSessionPhoto(
+        @Path("sharedSessionId") sharedSessionId: String,
+        @Body body: okhttp3.RequestBody,
+    ): SharedSessionPhoto
+
+    /** All photos on a shared session, ordered by position. Visibility-gated. */
+    @GET("social/sessions/{sharedSessionId}/photos")
+    suspend fun listSharedSessionPhotos(
+        @Path("sharedSessionId") sharedSessionId: String,
+    ): List<SharedSessionPhoto>
+
+    /**
+     * The display JPEG for one photo. Visibility-gated, Bearer auth required —
+     * the raw bytes come back as a [okhttp3.ResponseBody]. 202 while the
+     * transcode is still `pending`, 404 if `failed`/missing.
+     */
+    @GET("social/sessions/{sharedSessionId}/photos/{photoId}")
+    suspend fun getSharedSessionPhoto(
+        @Path("sharedSessionId") sharedSessionId: String,
+        @Path("photoId") photoId: String,
+    ): Response<okhttp3.ResponseBody>
+
+    /** Owner-only — deletes both R2 objects and the photo record. */
+    @DELETE("social/sessions/{sharedSessionId}/photos/{photoId}")
+    suspend fun deleteSharedSessionPhoto(
+        @Path("sharedSessionId") sharedSessionId: String,
+        @Path("photoId") photoId: String,
+    )
 
     // ---- Social — Club announcement board (§17) --------------------------------
 

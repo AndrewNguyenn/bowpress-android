@@ -18,6 +18,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
+    // Social Feed V2 — building a raw-JPEG RequestBody for the photo upload
+    // endpoint. Retrofit exposes okhttp transitively; declared explicitly
+    // because SocialRepository references okhttp3 types directly.
+    implementation(libs.okhttp)
 
     // WorkManager + Hilt worker support for BackgroundSyncService
     implementation(libs.androidx.work.runtime.ktx)

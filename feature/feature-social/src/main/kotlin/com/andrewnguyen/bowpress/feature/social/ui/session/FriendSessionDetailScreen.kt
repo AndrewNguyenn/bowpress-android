@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -32,37 +35,43 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppLine2
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
-import com.andrewnguyen.bowpress.core.designsystem.bp.ScorecardTable
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
-import com.andrewnguyen.bowpress.core.model.Scorecard
+import com.andrewnguyen.bowpress.core.model.ArrowPlot
+import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.SharedSession
 
 /**
- * Friend session detail (§16) — drilled into from a tapped feed session row.
+ * Shared-session detail — drilled into from a tapped feed session row.
  *
- * Renders the friend's session: the target face with their arrows plotted
- * (shared [BPPlottedTarget]), a read-only scorecard (ends × arrows with each
- * end's running total), and a header (handle / name / score / distance /
- * face). When the owner has deleted the underlying session the detail comes
- * back with `session == null` and only the stat summary is shown.
+ * §16 read-only mode (a friend's session): the target face with the friend's
+ * arrows plotted, a read-only scorecard, a stat header.
+ *
+ * Social Feed V2 owner-editable mode (`isOwn = true`): the same detail plus an
+ * Edit button that opens [MySessionEditSheet] — title, location, and a
+ * tap-to-remove / system-picker-to-add multi-photo gallery (§3, §4).
  */
 @Composable
 fun FriendSessionDetailScreen(
     sharedSessionId: String,
+    isOwn: Boolean,
     onBack: () -> Unit,
     viewModel: FriendSessionDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(sharedSessionId) { viewModel.load(sharedSessionId) }
+    LaunchedEffect(sharedSessionId, isOwn) { viewModel.load(sharedSessionId, isOwn) }
+
+    // Owner-only edit sheet visibility.
+    var editing by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -85,7 +94,11 @@ fun FriendSessionDetailScreen(
                     color = AppPondDk,
                     modifier = Modifier.clickable(onClick = onBack),
                 )
-                Text("Session", style = frauncesDisplay(28.sp), color = AppInk)
+                Text(
+                    if (state.isOwn) "Your session" else "Session",
+                    style = frauncesDisplay(28.sp),
+                    color = AppInk,
+                )
                 state.detail?.let { d ->
                     Text(
                         "@${d.ownerHandle} · ${d.ownerDisplayName}",
@@ -93,6 +106,19 @@ fun FriendSessionDetailScreen(
                         color = AppInk3,
                     )
                 }
+            }
+            // Social Feed V2 §3 — the owner edit affordance. Only on an own row.
+            if (state.isOwn && state.detail != null) {
+                Text(
+                    text = "EDIT",
+                    style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.26.em),
+                    color = AppPondDk,
+                    modifier = Modifier
+                        .border(1.dp, AppPondDk)
+                        .clickable { editing = true }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .testTag(TestTags.MySessionEditButton),
+                )
             }
         }
         HorizontalDivider(color = AppLine, thickness = 1.dp)
@@ -108,7 +134,7 @@ fun FriendSessionDetailScreen(
                 )
             }
 
-            state.error != null -> {
+            state.error != null && state.detail == null -> {
                 Spacer(Modifier.height(20.dp))
                 Text(
                     state.error.orEmpty(),
@@ -125,6 +151,20 @@ fun FriendSessionDetailScreen(
                     item {
                         Spacer(Modifier.height(14.dp))
                         SessionStatHeader(shared = detail.sharedSession)
+                    }
+
+                    // Social Feed V2 §4 — the photo gallery, when present.
+                    if (detail.photos.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(18.dp))
+                            SectionEyebrow("PHOTOS")
+                            Spacer(Modifier.height(10.dp))
+                            DetailPhotoGallery(
+                                sharedSessionId = detail.sharedSession.id,
+                                photos = detail.photos,
+                                loader = viewModel.photoLoader,
+                            )
+                        }
                     }
 
                     val shotSession = detail.session
@@ -148,23 +188,27 @@ fun FriendSessionDetailScreen(
                             )
                         }
 
-                        // Scorecard — the canonical ruled table, identical to
-                        // the session-detail screen (read-only here).
+                        // Scorecard — ends × arrows.
+                        val endRows = endRows(detail.arrows, detail.ends)
                         item {
                             Spacer(Modifier.height(18.dp))
                             SectionEyebrow("SCORECARD")
-                            Spacer(Modifier.height(10.dp))
-                            val scorecard = Scorecard.build(
-                                detail.arrows, detail.ends, shotSession.id,
-                            )
-                            if (scorecard.lines.isEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                            HorizontalDivider(color = AppLine, thickness = 1.dp)
+                        }
+                        if (endRows.isEmpty()) {
+                            item {
+                                Spacer(Modifier.height(10.dp))
                                 Text(
                                     "No arrows recorded for this session.",
                                     style = frauncesDisplay(13.sp, italic = true),
                                     color = AppInk3,
                                 )
-                            } else {
-                                ScorecardTable(scorecard = scorecard)
+                            }
+                        } else {
+                            items(endRows, key = { it.endLabel }) { row ->
+                                EndScoreRow(row = row)
+                                HorizontalDivider(color = AppLine2, thickness = 1.dp)
                             }
                         }
                     }
@@ -173,6 +217,26 @@ fun FriendSessionDetailScreen(
                 }
             }
         }
+    }
+
+    // Social Feed V2 §3/§4 — owner edit sheet.
+    if (editing && state.detail != null) {
+        val detail = state.detail!!
+        MySessionEditSheet(
+            sharedSessionId = detail.sharedSession.id,
+            initialTitle = detail.sharedSession.title.orEmpty(),
+            initialLocation = detail.sharedSession.location,
+            photos = detail.photos,
+            photoLoader = viewModel.photoLoader,
+            isSaving = state.isSaving,
+            onSave = { title, location ->
+                viewModel.saveEdit(title, location)
+                editing = false
+            },
+            onAddPhotos = { uris -> viewModel.addPhotos(uris) },
+            onRemovePhoto = { photo -> viewModel.removePhoto(photo) },
+            onDismiss = { editing = false },
+        )
     }
 }
 
@@ -208,6 +272,14 @@ private fun SessionStatHeader(shared: SharedSession) {
                 color = AppMaple,
             )
         }
+        shared.location?.let { loc ->
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "◇ ${loc.name}",
+                style = jetbrainsMono(9.5.sp),
+                color = AppInk3,
+            )
+        }
     }
 }
 
@@ -239,4 +311,77 @@ private fun SectionEyebrow(label: String) {
         style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
         color = AppInk3,
     )
+}
+
+/** One scorecard end — label, arrow ring chips, end total. */
+@Composable
+private fun EndScoreRow(row: EndScoreData) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 11.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                row.endLabel,
+                style = interUI(10.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                color = AppInk3,
+            )
+            Text("${row.total}", style = frauncesDisplay(18.sp), color = AppInk)
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            row.rings.forEach { ring ->
+                Box(
+                    modifier = Modifier
+                        .border(1.dp, AppLine)
+                        .background(AppPaper)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        ringLabel(ring),
+                        style = jetbrainsMono(11.sp),
+                        color = AppInk,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Ring 11 prints as "X"; everything else as its number. */
+private fun ringLabel(ring: Int): String = if (ring == 11) "X" else "$ring"
+
+/** Score value of a ring — X (11) scores 10. */
+private fun ringScore(ring: Int): Int = if (ring == 11) 10 else ring
+
+private data class EndScoreData(
+    val endLabel: String,
+    val rings: List<Int>,
+    val total: Int,
+)
+
+/**
+ * Group arrows into scorecard ends by `endId`, ordered by the end's number;
+ * arrows with no end ref fall into a trailing "UNASSIGNED" group. Mirrors the
+ * own-session scorecard grouping in feature-analytics `SessionDetailScreen`.
+ */
+private fun endRows(arrows: List<ArrowPlot>, ends: List<SessionEnd>): List<EndScoreData> {
+    val endNumberById = ends.associate { it.id to it.endNumber }
+    return arrows
+        .groupBy { it.endId }
+        .entries
+        .sortedBy { (endId, _) -> endId?.let { endNumberById[it] } ?: Int.MAX_VALUE }
+        .map { (endId, plots) ->
+            val endNumber = endId?.let { endNumberById[it] }
+            EndScoreData(
+                endLabel = endNumber?.let { "END $it" } ?: "UNASSIGNED",
+                rings = plots.map { it.ring },
+                total = plots.sumOf { ringScore(it.ring) },
+            )
+        }
 }

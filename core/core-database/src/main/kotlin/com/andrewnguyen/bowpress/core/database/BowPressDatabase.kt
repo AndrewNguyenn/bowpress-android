@@ -45,9 +45,11 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
  * version 8, the blocks table in version 9, the §15 shared-session columns on
  * `activity_feed` in version 10, the achievements table in version 11, the
  * activity-feed routing-target columns in version 12, the
- * `sightPinDistance` column on `bow_configurations` in version 13, and the
+ * `sightPinDistance` column on `bow_configurations` in version 13, the
  * nullable `sharedSessionId` on `achievements` in version 14 (league and
- * club trophies are not earned from a shared session).
+ * club trophies are not earned from a shared session), the `course_stations`
+ * table in version 15, and the Social Feed V2 columns on `activity_feed`
+ * (`titleIsCustom`, `isOwn`, `photosJson`) in version 16.
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -78,7 +80,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 3D Course stations — added v15
         CourseStationEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -111,6 +113,11 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // scoringSystem columns on sessions. Pure additive — the new column
         // is NOT NULL with a SQL DEFAULT of 'RANGE', scoringSystem is nullable.
         AutoMigration(from = 14, to = 15),
+        // 15→16: added Social Feed V2 columns to activity_feed
+        // (titleIsCustom, isOwn, photosJson). Pure additive — titleIsCustom
+        // and isOwn are NOT NULL with a SQL DEFAULT of 0, photosJson is
+        // nullable.
+        AutoMigration(from = 15, to = 16),
     ],
 )
 @TypeConverters(Converters::class)

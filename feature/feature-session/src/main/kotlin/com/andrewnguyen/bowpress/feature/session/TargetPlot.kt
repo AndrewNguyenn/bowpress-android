@@ -145,11 +145,7 @@ fun TargetPlot(
             if (multiSpot != null) {
                 drawMultiSpotCard(multiSpot, size)
             } else {
-                drawTargetFace(
-                    faceType = faceType,
-                    radiusPx = minOf(size.width, size.height) / 2f,
-                    center = Offset(size.width / 2f, size.height / 2f),
-                )
+                drawTargetFace(faceType)
             }
             drawExistingArrows(
                 arrows = arrows,
@@ -214,25 +210,17 @@ internal fun scorePlot(
 
 // ---- Drawing helpers ----
 
-/**
- * Draw the full WA face at an explicit [radiusPx]/[center] — `internal` and
- * size-parameterised so the Pen lens can render the *same* face magnified
- * (the lens previously drew its own crude even-rings-only version, which
- * dropped the X ring and merged bands into blobs).
- */
-internal fun DrawScope.drawTargetFace(
-    faceType: TargetFaceType,
-    radiusPx: Float,
-    center: Offset,
-) {
+private fun DrawScope.drawTargetFace(faceType: TargetFaceType) {
     when (faceType) {
-        TargetFaceType.SIX_RING -> drawSixRingFace(radiusPx, center)
-        TargetFaceType.TEN_RING -> drawTenRingFace(radiusPx, center)
+        TargetFaceType.SIX_RING -> drawSixRingFace()
+        TargetFaceType.TEN_RING -> drawTenRingFace()
     }
 }
 
 /** Inner-6 indoor face — keeps the legacy Android look (blue→red→yellow plus X). */
-private fun DrawScope.drawSixRingFace(radiusPx: Float, center: Offset) {
+private fun DrawScope.drawSixRingFace() {
+    val radiusPx = minOf(size.width, size.height) / 2f
+    val center = Offset(size.width / 2f, size.height / 2f)
     val g = TargetGeometry.SixRing
 
     val rings: List<Pair<Float, Color>> = listOf(
@@ -257,7 +245,9 @@ private fun DrawScope.drawSixRingFace(radiusPx: Float, center: Offset) {
  * Full WA 10-ring face — ten concentric fills outer→inner alternating the
  * canonical WA colours, plus an X tick at the centre.
  */
-private fun DrawScope.drawTenRingFace(radiusPx: Float, center: Offset) {
+private fun DrawScope.drawTenRingFace() {
+    val radiusPx = minOf(size.width, size.height) / 2f
+    val center = Offset(size.width / 2f, size.height / 2f)
     val g = TargetGeometry.TenRing
 
     val ringFills: List<Pair<Double, Color>> = listOf(

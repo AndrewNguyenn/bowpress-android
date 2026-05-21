@@ -1,6 +1,7 @@
 package com.andrewnguyen.bowpress.feature.social
 
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
+import com.andrewnguyen.bowpress.core.data.social.PhotoDownscaler
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.SharedSession
@@ -30,6 +31,7 @@ class FriendSessionDetailViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: SocialRepository
+    private lateinit var photoDownscaler: PhotoDownscaler
 
     private fun sharedSession(id: String) = SharedSession(
         id = id,
@@ -78,7 +80,10 @@ class FriendSessionDetailViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         repository = mockk(relaxed = true)
+        photoDownscaler = mockk(relaxed = true)
     }
+
+    private fun viewModel() = FriendSessionDetailViewModel(repository, photoDownscaler)
 
     @After
     fun tearDown() {
@@ -89,7 +94,7 @@ class FriendSessionDetailViewModelTest {
     fun `load resolves a populated detail with ends and arrows`() = runTest {
         coEvery { repository.getSharedSessionDetail("ss-1") } returns populatedDetail("ss-1")
 
-        val vm = FriendSessionDetailViewModel(repository)
+        val vm = viewModel()
         vm.load("ss-1")
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -112,7 +117,7 @@ class FriendSessionDetailViewModelTest {
             session = null,
         )
 
-        val vm = FriendSessionDetailViewModel(repository)
+        val vm = viewModel()
         vm.load("ss-2")
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -128,7 +133,7 @@ class FriendSessionDetailViewModelTest {
     fun `a fetch failure surfaces the error and stops loading`() = runTest {
         coEvery { repository.getSharedSessionDetail(any()) } throws RuntimeException("not found")
 
-        val vm = FriendSessionDetailViewModel(repository)
+        val vm = viewModel()
         vm.load("ss-missing")
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -147,12 +152,135 @@ class FriendSessionDetailViewModelTest {
             layout = TargetLayout.TRIANGLE,
         )
 
-        val vm = FriendSessionDetailViewModel(repository)
+        val vm = viewModel()
         vm.load("ss-3")
         testDispatcher.scheduler.advanceUntilIdle()
 
         val session = vm.uiState.value.detail?.session
         assertThat(session?.targetFaceType).isEqualTo(TargetFaceType.SIX_RING)
         assertThat(session?.targetLayout).isEqualTo(TargetLayout.TRIANGLE)
+    }
+
+    // -------------------------------------------------------------------------
+    // Social Feed V2 — owner-editable mode (§3, §4)
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `load with isOwn flags the owner-editable mode`() = runTest {
+        coEvery { repository.getSharedSessionDetail("ss-own") } returns populatedDetail("ss-own")
+
+        val vm = viewModel()
+        vm.load("ss-own", isOwn = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertThat(vm.uiState.value.isOwn).isTrue()
+    }
+
+    @Test
+    fun `load without isOwn stays read-only`() = runTest {
+        coEvery { repository.getSharedSessionDetail("ss-ro") } returns populatedDetail("ss-ro")
+
+        val vm = viewModel()
+        vm.load("ss-ro")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertThat(vm.uiState.value.isOwn).isFalse()
+    }
+
+    @Test
+    fun `saveEdit forwards new and loaded values so the repository can diff`() = runTest {
+        // populatedDetail("ss-e") loads a session titled "Pre-comp check".
+        coEvery { repository.getSharedSessionDetail("ss-e") } returns populatedDetail("ss-e")
+        coEvery {
+            repository.editSharedSession(any(), any(), any(), any(), any())
+        } returns sharedSession("ss-e")
+
+        val vm = viewModel()
+        vm.load("ss-e", isOwn = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val place = com.andrewnguyen.bowpress.core.model.SessionLocation(
+            name = "Riverside Range", latitude = 1.0, longitude = 2.0,
+        )
+        vm.saveEdit(title = "  Comp prep  ", location = place)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The ViewModel passes the new values plus the values it loaded; the
+        // repository does the change-diff + trimming.
+        coVerify {
+            repository.editSharedSession(
+                sharedSessionId = "ss-e",
+                newTitle = "  Comp prep  ",
+                newLocation = place,
+                originalTitle = "Pre-comp check",
+                originalLocation = null,
+            )
+        }
+        // A reload pulls the recomputed detail back.
+        coVerify(atLeast = 2) { repository.getSharedSessionDetail("ss-e") }
+        assertThat(vm.uiState.value.isSaving).isFalse()
+    }
+
+    @Test
+    fun `addPhotos downscales and uploads each picked uri`() = runTest {
+        coEvery { repository.getSharedSessionDetail("ss-p") } returns populatedDetail("ss-p")
+        val uriA = mockk<android.net.Uri>()
+        val uriB = mockk<android.net.Uri>()
+        coEvery { photoDownscaler.downscaleToJpeg(uriA) } returns byteArrayOf(1, 2, 3)
+        coEvery { photoDownscaler.downscaleToJpeg(uriB) } returns byteArrayOf(4, 5, 6)
+        coEvery { repository.uploadSharedSessionPhoto(any(), any()) } returns mockk(relaxed = true)
+        coEvery { repository.listSharedSessionPhotos("ss-p") } returns emptyList()
+
+        val vm = viewModel()
+        vm.load("ss-p", isOwn = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.addPhotos(listOf(uriA, uriB))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { repository.uploadSharedSessionPhoto("ss-p", byteArrayOf(1, 2, 3)) }
+        coVerify { repository.uploadSharedSessionPhoto("ss-p", byteArrayOf(4, 5, 6)) }
+        assertThat(vm.uiState.value.isSaving).isFalse()
+    }
+
+    @Test
+    fun `addPhotos skips a uri that cannot be downscaled and flags the error`() = runTest {
+        coEvery { repository.getSharedSessionDetail("ss-bad") } returns populatedDetail("ss-bad")
+        val bad = mockk<android.net.Uri>()
+        coEvery { photoDownscaler.downscaleToJpeg(bad) } returns null
+        coEvery { repository.listSharedSessionPhotos("ss-bad") } returns emptyList()
+
+        val vm = viewModel()
+        vm.load("ss-bad", isOwn = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.addPhotos(listOf(bad))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The unreadable pick is skipped — no upload attempted.
+        coVerify(exactly = 0) { repository.uploadSharedSessionPhoto(any(), any()) }
+        assertThat(vm.uiState.value.error).isNotNull()
+    }
+
+    @Test
+    fun `removePhoto deletes the photo and refreshes the gallery`() = runTest {
+        coEvery { repository.getSharedSessionDetail("ss-rm") } returns populatedDetail("ss-rm")
+        coEvery { repository.deleteSharedSessionPhoto(any(), any()) } returns Unit
+        coEvery { repository.listSharedSessionPhotos("ss-rm") } returns emptyList()
+
+        val vm = viewModel()
+        vm.load("ss-rm", isOwn = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val photo = com.andrewnguyen.bowpress.core.model.ActivityPhoto(
+            id = "photo-9",
+            status = com.andrewnguyen.bowpress.core.model.PhotoStatus.ready,
+            position = 0,
+        )
+        vm.removePhoto(photo)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { repository.deleteSharedSessionPhoto("ss-rm", "photo-9") }
+        coVerify { repository.listSharedSessionPhotos("ss-rm") }
     }
 }

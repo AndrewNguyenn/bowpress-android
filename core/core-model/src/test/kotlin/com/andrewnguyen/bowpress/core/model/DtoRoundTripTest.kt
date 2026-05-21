@@ -562,4 +562,114 @@ class DtoRoundTripTest {
         val decoded = json.decodeFromString(ShareSessionBody.serializer(), encoded)
         assertThat(decoded.location).isEqualTo(body.location)
     }
+
+    // -------------------------------------------------------------------------
+    // Social Feed V2 (contract §1, §3, §4)
+    // -------------------------------------------------------------------------
+
+    /** Json mirroring the network module's config (coercion + explicitNulls off). */
+    private val networkJson = Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+        encodeDefaults = true
+        coerceInputValues = true
+    }
+
+    @Test
+    fun `ActivityPhoto deserializes from the contract wire shape`() {
+        val photo = networkJson.decodeFromString(
+            ActivityPhoto.serializer(),
+            """{"id":"ph-1","status":"ready","position":2}""",
+        )
+        assertThat(photo.id).isEqualTo("ph-1")
+        assertThat(photo.status).isEqualTo(PhotoStatus.ready)
+        assertThat(photo.position).isEqualTo(2)
+    }
+
+    @Test
+    fun `an unknown ActivityPhoto status coerces to unknown instead of failing`() {
+        // A status a newer API emits must not fail the whole feed decode.
+        val photo = networkJson.decodeFromString(
+            ActivityPhoto.serializer(),
+            """{"id":"ph-2","status":"archived","position":0}""",
+        )
+        assertThat(photo.status).isEqualTo(PhotoStatus.unknown)
+    }
+
+    @Test
+    fun `ActivityItem V2 flags decode and default to false on an older payload`() {
+        // A pre-V2 feed row omits titleIsCustom / isOwn entirely.
+        val legacy = networkJson.decodeFromString(
+            ActivityItem.serializer(),
+            """{"id":"a1","kind":"friend_session","sourceKind":"friend",
+                "actorHandle":"sara.l","actorDisplayName":"Sara Lin",
+                "title":"logged a session","createdAt":"2026-05-01T10:00:00Z"}""",
+        )
+        assertThat(legacy.titleIsCustom).isFalse()
+        assertThat(legacy.isOwn).isFalse()
+
+        // A V2 row carries both flags.
+        val v2 = networkJson.decodeFromString(
+            ActivityItem.serializer(),
+            """{"id":"a2","kind":"friend_session","sourceKind":"friend",
+                "actorHandle":"sara.l","actorDisplayName":"Sara Lin",
+                "title":"Saturday 70m practice","createdAt":"2026-05-01T10:00:00Z",
+                "titleIsCustom":true,"isOwn":true}""",
+        )
+        assertThat(v2.titleIsCustom).isTrue()
+        assertThat(v2.isOwn).isTrue()
+    }
+
+    @Test
+    fun `ActivitySession photos decode in position order`() {
+        val session = networkJson.decodeFromString(
+            ActivitySession.serializer(),
+            """{"sharedSessionId":"ss-1","sessionId":"sess-1","score":548,
+                "xCount":12,"arrowCount":60,
+                "photos":[{"id":"ph-a","status":"ready","position":0},
+                          {"id":"ph-b","status":"pending","position":1}]}""",
+        )
+        assertThat(session.photos).hasSize(2)
+        assertThat(session.photos.map { it.id }).containsExactly("ph-a", "ph-b").inOrder()
+    }
+
+    @Test
+    fun `ActivitySession photos default empty on a pre-V2 payload`() {
+        val session = networkJson.decodeFromString(
+            ActivitySession.serializer(),
+            """{"sharedSessionId":"ss-1","sessionId":"sess-1","score":548,
+                "xCount":12,"arrowCount":60}""",
+        )
+        assertThat(session.photos).isEmpty()
+    }
+
+    // NOTE — the §3 PATCH body has no typed DTO; it is a JSON object built by
+    // hand in SocialRepository so a cleared field serializes as an explicit
+    // `"field":null` (the contract's "clear" signal) rather than being dropped
+    // by the network Json's `explicitNulls = false`. The explicit-null wire
+    // shape is covered in SocialRepositoryFeedV2Test.
+
+    @Test
+    fun `SharedSessionDetail photos round-trip`() {
+        val detail = SharedSessionDetail(
+            sharedSession = SharedSession(
+                id = "ss-1",
+                userId = "u-1",
+                sessionId = "sess-1",
+                score = 548,
+                xCount = 12,
+                arrowCount = 60,
+                shotAt = Instant.parse("2026-05-01T10:00:00Z"),
+                createdAt = Instant.parse("2026-05-01T10:05:00Z"),
+            ),
+            ownerHandle = "sara.l",
+            ownerDisplayName = "Sara Lin",
+            photos = listOf(
+                ActivityPhoto(id = "ph-1", status = PhotoStatus.ready, position = 0),
+            ),
+        )
+        val encoded = networkJson.encodeToString(SharedSessionDetail.serializer(), detail)
+        val decoded = networkJson.decodeFromString(SharedSessionDetail.serializer(), encoded)
+        assertThat(decoded.photos).isEqualTo(detail.photos)
+    }
 }
