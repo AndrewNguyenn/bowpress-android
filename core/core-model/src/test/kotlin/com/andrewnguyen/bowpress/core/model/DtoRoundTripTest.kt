@@ -469,4 +469,83 @@ class DtoRoundTripTest {
         assertThat(legacyDecoded.clubId).isNull()
         assertThat(legacyDecoded.leagueId).isNull()
     }
+
+    // ── §18 location tagging + discipline ────────────────────────────────────
+
+    @Test
+    fun `SessionLocation round-trips`() {
+        val loc = SessionLocation(
+            name = "Bay Area Archery",
+            latitude = 37.33182,
+            longitude = -122.03118,
+        )
+        val encoded = json.encodeToString(SessionLocation.serializer(), loc)
+        val decoded = json.decodeFromString(SessionLocation.serializer(), encoded)
+        assertThat(decoded).isEqualTo(loc)
+    }
+
+    @Test
+    fun `ActivitySession decodes discipline and location`() {
+        val raw = """
+            {
+              "sharedSessionId": "ss1", "sessionId": "s1", "score": 285,
+              "xCount": 12, "arrowCount": 90, "distance": "20yd", "face": "6-ring",
+              "discipline": "3d_course",
+              "location": {"name": "Rocky Mill", "latitude": 37.3362, "longitude": -122.0423}
+            }
+        """.trimIndent()
+        val decoded = json.decodeFromString(ActivitySession.serializer(), raw)
+        assertThat(decoded.discipline).isEqualTo("3d_course")
+        assertThat(decoded.isCourse).isTrue()
+        assertThat(decoded.location?.name).isEqualTo("Rocky Mill")
+    }
+
+    @Test
+    fun `ActivitySession tolerates missing v18 fields`() {
+        // A pre-v1.6 feed payload omits discipline + location entirely.
+        val raw = """
+            {
+              "sharedSessionId": "ss1", "sessionId": "s1", "score": 285,
+              "xCount": 12, "arrowCount": 90, "distance": "20yd", "face": "6-ring"
+            }
+        """.trimIndent()
+        val decoded = json.decodeFromString(ActivitySession.serializer(), raw)
+        assertThat(decoded.discipline).isNull()
+        assertThat(decoded.isCourse).isFalse()
+        assertThat(decoded.location).isNull()
+    }
+
+    @Test
+    fun `SharedSession tolerates missing v18 location`() {
+        // A pre-v1.6 shared-session payload omits location.
+        val raw = """
+            {
+              "id": "ss-3", "userId": "u-1", "sessionId": "sess-3",
+              "score": 540, "xCount": 12, "arrowCount": 60,
+              "shotAt": "2026-05-18T10:00:00Z", "createdAt": "2026-05-18T11:00:00Z"
+            }
+        """.trimIndent()
+        val decoded = json.decodeFromString(SharedSession.serializer(), raw)
+        assertThat(decoded.location).isNull()
+    }
+
+    @Test
+    fun `ShareSessionBody round-trips with a location`() {
+        val body = ShareSessionBody(
+            sessionId = "sess-4",
+            score = 285,
+            xCount = 12,
+            arrowCount = 90,
+            distance = "20yd",
+            face = "6-ring",
+            location = SessionLocation(
+                name = "Bay Area Archery",
+                latitude = 37.33182,
+                longitude = -122.03118,
+            ),
+        )
+        val encoded = json.encodeToString(ShareSessionBody.serializer(), body)
+        val decoded = json.decodeFromString(ShareSessionBody.serializer(), encoded)
+        assertThat(decoded.location).isEqualTo(body.location)
+    }
 }

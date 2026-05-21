@@ -374,6 +374,17 @@ enum class ActivityKind {
 enum class ActivitySourceKind { friend, club, league }
 
 /**
+ * An Instagram-style location tag on a shared session (§18) — the named place
+ * an archer shot at, plus the coordinate the map popup centres on.
+ */
+@Serializable
+data class SessionLocation(
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+)
+
+/**
  * Mirrors API §5 `ActivityItem`, extended in §15 with the shared-session
  * payload, achievement badges, and the `highlighted` flag that drives the
  * Strava-style highlighted-row treatment in the feed.
@@ -608,6 +619,9 @@ data class SharedSession(
     val shotAt: Instant,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant,
+    // §18 — the tagged location, or null when shared untagged. New, so
+    // decoding tolerates pre-v1.6 payloads that omit it.
+    val location: SessionLocation? = null,
 )
 
 /**
@@ -655,7 +669,19 @@ data class ActivitySession(
     val arrowCount: Int,
     val distance: String? = null,
     val face: String? = null,
-)
+    // §18 — discipline picks the feed-row preview (a target face for a range
+    // session, a course block for a 3D course); location backs the "in {place}"
+    // tag + map popup. Both are new, so decoding is backward-tolerant:
+    // pre-v1.6 feed payloads omit them → null.
+    val discipline: String? = null,
+    val location: SessionLocation? = null,
+) {
+    /**
+     * True when the shared session is a walked 3D course rather than a
+     * fixed-distance range session — drives the feed-row preview choice.
+     */
+    val isCourse: Boolean get() = discipline == "3d_course"
+}
 
 /** Request body for `POST /social/sessions/share`. */
 @Serializable
@@ -669,6 +695,8 @@ data class ShareSessionBody(
     val title: String? = null,
     @Serializable(with = InstantSerializer::class)
     val shotAt: Instant? = null,
+    // §18 — the Instagram-style location tag, omitted when shared untagged.
+    val location: SessionLocation? = null,
 )
 
 /** Response from `POST /social/sessions/share`. */

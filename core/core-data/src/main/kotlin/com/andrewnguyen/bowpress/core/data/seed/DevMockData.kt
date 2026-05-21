@@ -55,6 +55,7 @@ import com.andrewnguyen.bowpress.core.model.LeagueType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
 import com.andrewnguyen.bowpress.core.model.RoundDef
 import com.andrewnguyen.bowpress.core.model.SessionEnd
+import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
@@ -894,6 +895,14 @@ internal object DevMockData {
                 arrowCount = 18,
                 distance = "50m",
                 face = "10-Ring",
+                // §18 — a range session: the feed row shows the target-face
+                // preview band + an Instagram-style location tag.
+                discipline = "range",
+                location = SessionLocation(
+                    name = "Easton Foundation Center",
+                    latitude = 34.06994,
+                    longitude = -118.44382,
+                ),
             ),
             achievements = listOf(
                 AchievementBadge(
@@ -966,6 +975,13 @@ internal object DevMockData {
                 arrowCount = 60,
                 distance = "20yd",
                 face = "6-Ring",
+                // §18 — a range session with a location tag.
+                discipline = "range",
+                location = SessionLocation(
+                    name = "Bay Area Archery",
+                    latitude = 37.33182,
+                    longitude = -122.03118,
+                ),
             ),
             achievements = listOf(
                 AchievementBadge(
@@ -984,6 +1000,7 @@ internal object DevMockData {
             highlighted = true,
         ),
         // §15 — a non-PR shared session (plain stat line, not highlighted).
+        // §18 — a range session with a location tag + target-face preview.
         ActivityItem(
             id = "act_007",
             kind = ActivityKind.friend_session,
@@ -1002,6 +1019,40 @@ internal object DevMockData {
                 arrowCount = 36,
                 distance = "70m",
                 face = "10-Ring",
+                discipline = "range",
+                location = SessionLocation(
+                    name = "Redlands Shooting Park",
+                    latitude = 34.05560,
+                    longitude = -117.18250,
+                ),
+            ),
+        ),
+        // §18 — a 3D-course shared session: the feed row shows the walked-trail
+        // course-block preview instead of a target face.
+        ActivityItem(
+            id = "act_008",
+            kind = ActivityKind.friend_session,
+            sourceKind = ActivitySourceKind.friend,
+            actorHandle = "nora.k",
+            actorDisplayName = "Nora Keller",
+            title = "Walked a 3D course",
+            meta = "ASA · 20 stations",
+            stamp = "6d ago",
+            createdAt = daysAgo(6),
+            session = ActivitySession(
+                sharedSessionId = "ss_nora_3d",
+                sessionId = "sess_nora_3d",
+                score = 187,
+                xCount = 0,
+                arrowCount = 20,
+                distance = null,
+                face = "3D course",
+                discipline = "3d_course",
+                location = SessionLocation(
+                    name = "Rocky Mill 3D Range",
+                    latitude = 37.33620,
+                    longitude = -122.04230,
+                ),
             ),
         ),
     )

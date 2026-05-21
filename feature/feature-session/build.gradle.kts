@@ -17,6 +17,9 @@ dependencies {
     implementation(project(":core:core-data"))
     implementation(project(":core:core-designsystem"))
     implementation(project(":core:core-navigation"))
+    // §18 — the end-session sheet opens feature-social's LocationTagPicker so
+    // a session can be tagged with a place before it is shared to the feed.
+    implementation(project(":feature:feature-social"))
 
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

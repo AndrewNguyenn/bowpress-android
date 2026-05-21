@@ -23,6 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -49,11 +52,13 @@ import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.EmptyAction
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.SocialEmptyState
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.location.LocationMapSheet
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -70,6 +75,10 @@ fun FeedScreen(
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    // §18 — the location whose map popup is open, or null when none. Tapping a
+    // feed row's location tag opens it.
+    var mapLocation by remember { mutableStateOf<SessionLocation?>(null) }
 
     Column(
         modifier = Modifier
@@ -152,6 +161,8 @@ fun FeedScreen(
                             is FeedItemDestination.Actor -> onActorClick(dest.actorUserId)
                         }
                     },
+                    // §18 — tapping the location tag opens the map popup.
+                    onLocationTap = { location -> mapLocation = location },
                 )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp, modifier = Modifier.padding(horizontal = 0.dp))
             }
@@ -215,6 +226,14 @@ fun FeedScreen(
 
             item { Spacer(Modifier.height(24.dp)) }
         }
+    }
+
+    // §18 — the location map popup behind a feed post's location tag.
+    mapLocation?.let { location ->
+        LocationMapSheet(
+            location = location,
+            onDismiss = { mapLocation = null },
+        )
     }
 }
 
@@ -395,6 +414,7 @@ private fun FeedEyebrow() {
 private fun FeedItemRow(
     item: ActivityItem,
     onItemClick: (ActivityItem) -> Unit,
+    onLocationTap: (SessionLocation) -> Unit,
 ) {
     val avatarInitials = when (item.sourceKind) {
         ActivitySourceKind.club -> avatarInitials(item.actorDisplayName)
@@ -448,6 +468,16 @@ private fun FeedItemRow(
 
         // Body
         Column(Modifier.weight(1f)) {
+            // §18 — Instagram-style location tag above the headline. A nested
+            // clickable consumes the tap so it opens the map instead of
+            // drilling into the row's destination.
+            item.session?.location?.let { location ->
+                LocationTag(
+                    name = location.name,
+                    onTap = { onLocationTap(location) },
+                )
+                Spacer(Modifier.height(3.dp))
+            }
             // Title row: actor name in UI + italic body
             Row {
                 Text(
@@ -477,6 +507,13 @@ private fun FeedItemRow(
                     style = jetbrainsMono(9.5.sp),
                     color = AppMaple,
                 )
+            }
+            // §18 — typed preview band: a target face for a range session, a
+            // course block for a 3D course.
+            val preview = activityPreview(item)
+            if (!preview.isEmpty) {
+                Spacer(Modifier.height(7.dp))
+                ActivityPreviewBand(preview = preview)
             }
             // §15 — achievement badges on a highlighted row.
             if (item.achievements.isNotEmpty()) {

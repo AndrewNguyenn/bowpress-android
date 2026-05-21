@@ -196,9 +196,9 @@ fun ActiveSessionScreen(
     if (showEndSheet) {
         EndSessionSheet(
             onDismiss = { showEndSheet = false },
-            onFinish = { notes, feelTags ->
+            onFinish = { notes, feelTags, location ->
                 scope.launch {
-                    viewModel.endSession(notes, feelTags)
+                    viewModel.endSession(notes, feelTags, location)
                     showEndSheet = false
                     onSessionEnded()
                 }

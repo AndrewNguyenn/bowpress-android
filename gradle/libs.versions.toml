@@ -43,6 +43,7 @@ coroutines = "1.9.0"
 firebaseBom = "33.7.0"
 googleServices = "4.4.2"
 playBilling = "7.1.1"
+playServicesLocation = "21.3.0"
 
 # Charts / animation
 lottieCompose = "6.6.0"
@@ -124,6 +125,9 @@ firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics
 
 # Play Billing
 play-billing = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "playBilling" }
+
+# Play Services — fused location (§18 "use current location")
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 # Charts / animation
 lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version.ref = "lottieCompose" }

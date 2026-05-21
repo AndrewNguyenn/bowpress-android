@@ -20,7 +20,10 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.serialization.json)
+    // §18 location tagging — fused location for "use current location".
+    implementation(libs.play.services.location)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

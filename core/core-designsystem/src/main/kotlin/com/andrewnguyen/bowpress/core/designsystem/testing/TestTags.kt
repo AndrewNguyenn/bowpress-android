@@ -147,4 +147,13 @@ object TestTags {
     const val SocialBlocksRoot: String = "social_blocks_root"
     const val SocialSessionDetailRoot: String = "social_session_detail_root"
     const val SocialSessionTarget: String = "social_session_target"
+    // §18 — activity-feed previews + location tagging.
+    const val FeedRowLocationTag: String = "feed_row_location_tag"
+    const val FeedRowPreview: String = "feed_row_preview"
+    const val LocationMap: String = "location_map"
+    const val LocationMapClose: String = "location_map_close"
+    const val LocationMapRecenter: String = "location_map_recenter"
+    const val LocationPickerMap: String = "location_picker_map"
+    const val LocationPickerNameField: String = "location_picker_name_field"
+    const val SessionNotesLocationRow: String = "session_notes_location_row"
 }

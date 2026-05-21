@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.data.social
 
 import android.util.Log
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
+import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.ShareSessionBody
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import java.time.Instant
@@ -42,6 +43,7 @@ class SocialSessionSharer @Inject constructor(
      * @param face target-face label — null if unset
      * @param title optional user-supplied session name
      * @param shotAt when the session was shot
+     * @param location §18 Instagram-style location tag — null if shared untagged
      */
     suspend fun shareCompletedSession(
         sessionId: String,
@@ -52,6 +54,7 @@ class SocialSessionSharer @Inject constructor(
         face: String?,
         title: String?,
         shotAt: Instant,
+        location: SessionLocation? = null,
     ) {
         runCatching {
             val visibility = socialRepository.getMyProfile().visibility
@@ -69,6 +72,7 @@ class SocialSessionSharer @Inject constructor(
                     face = face,
                     title = title,
                     shotAt = shotAt,
+                    location = location,
                 ),
             )
             // A new feed row exists server-side now — pull it into the cache so
