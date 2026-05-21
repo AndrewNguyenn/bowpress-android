@@ -67,6 +67,7 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
+import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySession
@@ -115,6 +116,10 @@ fun ActivityCard(
     onOpenComments: (String) -> Unit,
     modifier: Modifier = Modifier,
     photoLoader: SessionPhotoLoader? = null,
+    // The signed-in caller as an actor — used to put the caller's own avatar
+    // into the kudos stack on an optimistic self-like (M4). Null when unknown
+    // (e.g. previews); the kudos stack then just bumps the count.
+    selfActor: ActivityActor? = null,
 ) {
     val preview = activityPreview(item)
     Column(
@@ -134,7 +139,7 @@ fun ActivityCard(
         // Club / league / config-change / milestone rows are not likeable or
         // commentable, matching the design handoff's non-session card, which
         // has no reactions block. The card stays tappable for navigation
-        // regardless — only the like/comment/OPEN bar is gated.
+        // regardless — only the kudos row is gated.
         if (item.session != null) {
             // Reactions bar — top hairline, then the borderless action row.
             HorizontalDivider(color = AppLine2, thickness = 1.dp)
@@ -142,6 +147,7 @@ fun ActivityCard(
                 item = item,
                 onToggleLike = onToggleLike,
                 onOpenComments = onOpenComments,
+                selfActor = selfActor,
             )
         }
     }
@@ -619,16 +625,21 @@ private fun endRingColor(ring: Int) = when {
 // ── Reactions bar ────────────────────────────────────────────────────────────
 
 /**
- * The card-footer reactions bar — a borderless icon row (like · comment ·
- * OPEN) with the actor's @handle on the right. The like button toggles
- * optimistically and reconciles against the server, the same wiring as the
- * old `LikeCommentBar`, folded into the card's own footer.
+ * The card-footer reactions row — Section 03's reworked Strava-style kudos
+ * row. A left kudos stack (≤3 overlapping 22dp avatars + a `+N` chip + a
+ * "Name & N others" summary, or a quiet "Be the first" when empty), with the
+ * like + comment icons pinned right. The "OPEN" affordance is gone — the whole
+ * card carries the tap into the thread.
+ *
+ * The like button toggles optimistically and reconciles against the server,
+ * the same wiring as the old `LikeCommentBar`, folded into the card's footer.
  */
 @Composable
 private fun ReactionsBar(
     item: ActivityItem,
     onToggleLike: suspend (String, Boolean) -> ToggleLikeResponse,
     onOpenComments: (String) -> Unit,
+    selfActor: ActivityActor?,
 ) {
     val scope = rememberCoroutineScope()
     val subjectId = item.resolvedSubjectId
@@ -645,6 +656,24 @@ private fun ReactionsBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
+        // Left — the kudos stack. It tracks the optimistic like count, AND on
+        // a self-like the caller's own avatar is spliced into the liker list
+        // (M4) so a first-like on an empty post shows the caller's avatar
+        // instead of "Be the first" next to a filled heart.
+        KudosRow(
+            likers = optimisticLikers(
+                serverLikers = item.likers,
+                serverLikedByMe = item.likedByMe,
+                likedNow = liked,
+                selfActor = selfActor,
+            ),
+            likeCount = likeCountState,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .testTag(TestTags.FeedRowKudos),
+        )
+        Spacer(Modifier.width(10.dp))
+        // Right — like + comment icons, pinned.
         Row(verticalAlignment = Alignment.CenterVertically) {
             // ── Like ──
             ReactionAction(
@@ -653,10 +682,10 @@ private fun ReactionsBar(
                         imageVector = if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = if (liked) "Unlike" else "Like",
                         tint = tint,
-                        modifier = Modifier.size(13.dp),
+                        modifier = Modifier.size(15.dp),
                     )
                 },
-                label = "$likeCountState",
+                label = null,
                 tint = if (liked) AppPine else AppInk3,
                 testTag = TestTags.FeedRowLikeButton,
                 onClick = {
@@ -688,44 +717,27 @@ private fun ReactionsBar(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = "Comments",
                         tint = tint,
-                        modifier = Modifier.size(13.dp),
+                        modifier = Modifier.size(15.dp),
                     )
                 },
-                label = "${item.commentCount}",
+                label = item.commentCount.takeIf { it > 0 }?.toString(),
                 tint = AppInk3,
                 testTag = TestTags.FeedRowCommentButton,
                 onClick = { onOpenComments(subjectId) },
             )
-            Spacer(Modifier.width(14.dp))
-            // ── Open ── a quiet cue that the card drills into its detail. The
-            // whole card carries the tap; this is the visible hint, not a
-            // separate target. Mirrors iOS `ActivityCardReactionsBar`.
-            ReactionAction(
-                icon = null,
-                label = "OPEN",
-                tint = AppInk3,
-                testTag = null,
-                onClick = null,
-            )
         }
-        // Right — the actor's @handle in mono.
-        Text(
-            text = "@${item.actorHandle}",
-            style = jetbrainsMono(9.sp),
-            color = AppInk3,
-        )
     }
 }
 
 /**
- * One borderless reaction action — optional icon + uppercase Inter label. A
- * null [onClick] makes it a non-interactive cue (the "OPEN" hint), since the
- * whole card already carries the tap.
+ * One borderless reaction action — an icon plus an optional mono count. A null
+ * [label] renders the icon alone (a count of 0 is dropped, matching the
+ * design's bare like icon).
  */
 @Composable
 private fun ReactionAction(
-    icon: (@Composable (tint: androidx.compose.ui.graphics.Color) -> Unit)?,
-    label: String,
+    icon: @Composable (tint: androidx.compose.ui.graphics.Color) -> Unit,
+    label: String?,
     tint: androidx.compose.ui.graphics.Color,
     testTag: String?,
     onClick: (() -> Unit)?,
@@ -737,15 +749,15 @@ private fun ReactionAction(
             .let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(vertical = 4.dp, horizontal = 2.dp),
     ) {
-        if (icon != null) {
-            icon(tint)
+        icon(tint)
+        if (label != null) {
             Spacer(Modifier.width(5.dp))
+            Text(
+                text = label,
+                style = jetbrainsMono(10.sp),
+                color = AppInk2,
+            )
         }
-        Text(
-            text = label,
-            style = interUI(9.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.18.em),
-            color = tint,
-        )
     }
 }
 

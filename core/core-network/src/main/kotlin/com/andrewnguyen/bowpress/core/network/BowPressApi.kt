@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.network
 
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.Achievement
+import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
@@ -625,17 +626,23 @@ interface BowPressApi {
     suspend fun unlikeActivity(@Path("subjectId") subjectId: String): ToggleLikeResponse
 
     /**
-     * The comment thread for a feed subject, oldest→newest, each comment
-     * hydrated with its author's handle + display name. Visibility-gated.
+     * The comment thread for a feed subject — returns the **top-level**
+     * comments, each with a nested `replies` list (oldest→newest) and a
+     * `replyCount` (§6.3). `sort` is `recent` (newest first, the default) or
+     * `top` (most-liked first, then newest). Each comment is hydrated with its
+     * author handle + display name and the caller's like state. Visibility-gated.
      */
     @GET("social/activity/{subjectId}/comments")
     suspend fun getActivityComments(
         @Path("subjectId") subjectId: String,
+        @Query("sort") sort: String? = null,
     ): List<ActivityComment>
 
     /**
-     * Post a comment to a feed subject — body `{ body }`, 1–1000 chars. Returns
-     * the created [ActivityComment], 201.
+     * Post a comment to a feed subject — body `{ body, parentCommentId? }`,
+     * body 1–1000 chars. When `parentCommentId` is set the comment is a reply
+     * (the API normalises it to the top-level comment id, §6.3). Returns the
+     * created [ActivityComment], 201.
      */
     @POST("social/activity/{subjectId}/comments")
     suspend fun postActivityComment(
@@ -645,13 +652,24 @@ interface BowPressApi {
 
     /**
      * Delete a comment — allowed for the comment's author or the subject owner
-     * (moderation); 403 otherwise.
+     * (moderation); 403 otherwise. Deleting a top-level comment cascades its
+     * replies (§6.3).
      */
     @DELETE("social/activity/{subjectId}/comments/{commentId}")
     suspend fun deleteActivityComment(
         @Path("subjectId") subjectId: String,
         @Path("commentId") commentId: String,
     )
+
+    /**
+     * The full liker list for a feed subject — `GET /social/activity/:subjectId/likers`
+     * (§6.4). Visibility-gated; backs the tap-to-see-all kudos sheet (the feed
+     * card only carries the ≤3 most-recent `likers`).
+     */
+    @GET("social/activity/{subjectId}/likers")
+    suspend fun getActivityLikers(
+        @Path("subjectId") subjectId: String,
+    ): List<ActivityActor>
 
     // ---- Social — Club announcement board (§17) --------------------------------
 

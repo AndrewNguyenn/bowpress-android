@@ -434,6 +434,12 @@ data class ActivityItem(
     val likeCount: Int = 0,
     val likedByMe: Boolean = false,
     val commentCount: Int = 0,
+    // ── Social Feed V2 Part 3 — Comment threads & kudos (contract §6.4) ──
+    // `likers` is up to 3 most-recent likers, hydrated for the Strava-style
+    // kudos avatar stack on the feed card; `likeCount` carries the true total
+    // (the stack shows `likers` + a `+{likeCount - likers.size}` chip).
+    // Defaulted so a pre-§6 feed payload still decodes.
+    val likers: List<ActivityActor> = emptyList(),
 ) {
     /**
      * The id likes/comments attach to. The §5 API always sends `subjectId`,
@@ -443,6 +449,17 @@ data class ActivityItem(
      */
     val resolvedSubjectId: String get() = subjectId.ifBlank { id }
 }
+
+/**
+ * Mirrors API contract §6.5 `ActivityActor` — a minimal actor descriptor used
+ * for the kudos avatar stack (the `likers` list) and the full liker list.
+ */
+@Serializable
+data class ActivityActor(
+    val userId: String,
+    val handle: String,
+    val displayName: String,
+)
 
 // ── §11 Invitations (club + league) ──────────────────────────────────────────
 
@@ -831,17 +848,27 @@ data class SharedSessionDetail(
     val likeCount: Int = 0,
     val likedByMe: Boolean = false,
     val commentCount: Int = 0,
+    // Social Feed V2 Part 3 (contract §6.4) — up to 3 most-recent likers for
+    // the kudos avatar stack. Empty on a pre-§6 detail payload.
+    val likers: List<ActivityActor> = emptyList(),
 )
 
 // ── §5 Likes & Comments (Social Feed V2 Part 2) ──────────────────────────────
 
 /**
- * Mirrors API contract §5.5 `ActivityComment` — one comment on a feed
- * subject, hydrated with its author's handle + display name. The thread is
- * rendered oldest→newest.
+ * Mirrors API contract §5.5 / §6.5 `ActivityComment` — one comment on a feed
+ * subject, hydrated with its author's handle + display name.
+ *
+ * Part 3 (§6) adds one level of threading: a top-level comment carries its
+ * nested [replies] (oldest→newest) and [replyCount]; a reply carries the
+ * top-level [parentCommentId] it hangs under (the API normalises a
+ * reply-to-a-reply up to its top-level parent, the addressee then living in an
+ * `@mention` in the body). It is also a likeable subject — [likeCount] /
+ * [likedByMe] reuse the generic like infra keyed on the comment's own id.
  *
  * `createdAt`/`updatedAt` are ISO-8601 strings on the wire; decoded to
- * [Instant] with the shared [InstantSerializer].
+ * [Instant] with the shared [InstantSerializer]. All §6 fields are defaulted
+ * so a pre-§6 comment payload still decodes.
  */
 @Serializable
 data class ActivityComment(
@@ -855,11 +882,31 @@ data class ActivityComment(
     val createdAt: Instant,
     @Serializable(with = InstantSerializer::class)
     val updatedAt: Instant,
+    // ── §6 comment threads + comment likes ──
+    val parentCommentId: String? = null,
+    val likeCount: Int = 0,
+    val likedByMe: Boolean = false,
+    val replies: List<ActivityComment> = emptyList(),
+    val replyCount: Int = 0,
 )
+
+/** Sort order for the comment thread — `GET .../comments?sort=` (§6.3). */
+@Serializable
+enum class CommentSort {
+    /** Newest top-level comments first — the default. */
+    recent,
+
+    /** Most-liked top-level comments first, then newest. */
+    top;
+
+    /** The lowercase wire value the API expects on the `sort` query param. */
+    val wire: String get() = name
+}
 
 /**
  * Response from `POST`/`DELETE social/activity/:subjectId/like` (§5.3) — the
- * fresh like count plus whether the caller now likes the subject.
+ * fresh like count plus whether the caller now likes the subject. Part 3
+ * (§6.2) reuses the same endpoint with a comment id as the subject.
  */
 @Serializable
 data class ToggleLikeResponse(
@@ -867,9 +914,16 @@ data class ToggleLikeResponse(
     val likedByMe: Boolean = false,
 )
 
-/** Request body for `POST social/activity/:subjectId/comments` (§5.3). */
+/**
+ * Request body for `POST social/activity/:subjectId/comments` (§5.3, §6.3).
+ * [parentCommentId] is set when the comment is a reply — the API normalises it
+ * to the top-level comment id.
+ */
 @Serializable
-data class PostCommentBody(val body: String)
+data class PostCommentBody(
+    val body: String,
+    val parentCommentId: String? = null,
+)
 
 /**
  * Whether [callerUserId] may delete [comment] — true for the comment's own

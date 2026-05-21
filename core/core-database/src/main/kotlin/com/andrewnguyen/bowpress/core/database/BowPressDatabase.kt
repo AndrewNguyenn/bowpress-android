@@ -49,9 +49,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
  * nullable `sharedSessionId` on `achievements` in version 14 (league and
  * club trophies are not earned from a shared session), the `course_stations`
  * table in version 15, the Social Feed V2 columns on `activity_feed`
- * (`titleIsCustom`, `isOwn`) in version 16, and the Likes & Comments
+ * (`titleIsCustom`, `isOwn`) in version 16, the Likes & Comments
  * columns on `activity_feed` (`subjectId`, `likeCount`, `likedByMe`,
- * `commentCount`) in version 17.
+ * `commentCount`) in version 17, and the Comment-threads kudos column on
+ * `activity_feed` (`likersJson`) in version 18.
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -82,7 +83,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 3D Course stations — added v15
         CourseStationEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -124,6 +125,9 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // subjectId is NOT NULL with a SQL DEFAULT of '', the three counters
         // are NOT NULL with a SQL DEFAULT of 0.
         AutoMigration(from = 16, to = 17),
+        // 17→18: added the Comment-threads kudos column to activity_feed
+        // (likersJson). Pure additive — nullable, defaults to NULL.
+        AutoMigration(from = 17, to = 18),
     ],
 )
 @TypeConverters(Converters::class)

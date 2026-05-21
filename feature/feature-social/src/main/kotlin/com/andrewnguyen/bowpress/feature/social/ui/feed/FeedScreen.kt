@@ -182,6 +182,15 @@ fun FeedScreen(
                     onToggleLike = viewModel::toggleLike,
                     onOpenComments = openComments,
                     photoLoader = viewModel.photoLoader,
+                    // The signed-in caller, so an optimistic self-like puts
+                    // the caller's own avatar into the kudos stack (M4).
+                    selfActor = state.myProfile?.let { p ->
+                        com.andrewnguyen.bowpress.core.model.ActivityActor(
+                            userId = p.userId,
+                            handle = p.handle,
+                            displayName = p.displayName,
+                        )
+                    },
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 )
             }

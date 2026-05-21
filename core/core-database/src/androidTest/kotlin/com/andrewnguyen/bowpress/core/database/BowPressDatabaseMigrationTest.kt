@@ -495,6 +495,65 @@ class BowPressDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate_17_to_18_adds_likers_column() {
+        val dbName = "migration-17-18-test.db"
+
+        // Create a v17 DB with a pre-§6 activity_feed row to confirm it
+        // survives the Comment-threads kudos column addition.
+        helper.createDatabase(dbName, 17).apply {
+            execSQL(
+                """
+                INSERT INTO activity_feed (
+                    id, kind, sourceKind, actorHandle, actorDisplayName,
+                    title, createdAt, titleIsCustom, isOwn,
+                    subjectId, likeCount, likedByMe, commentCount
+                ) VALUES (
+                    'act-1', 'friend_session', 'friend', 'sara.l', 'Sara Lin',
+                    'logged a session', 1700000000000, 0, 0,
+                    'ss-1', 0, 0, 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // AutoMigration 17→18 adds likersJson — pure additive, nullable.
+        val db = helper.runMigrationsAndValidate(dbName, 18, /* validateDroppedTables = */ true)
+
+        // The pre-§6 row survives and the new nullable column defaults to NULL.
+        db.query(
+            "SELECT likersJson FROM activity_feed WHERE id = 'act-1'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.isNull(0)).isTrue()
+        }
+
+        // A §6 row carrying a kudos stack inserts cleanly.
+        db.execSQL(
+            """
+            INSERT INTO activity_feed (
+                id, kind, sourceKind, actorHandle, actorDisplayName,
+                title, createdAt, titleIsCustom, isOwn,
+                subjectId, likeCount, likedByMe, commentCount, likersJson
+            ) VALUES (
+                'act-2', 'friend_session', 'friend', 'andrew.n', 'Andrew N',
+                'Saturday 70m practice', 1700000000001, 1, 1,
+                'ss-9', 4, 1, 2,
+                '[{"userId":"u-1","handle":"marcus.t","displayName":"Marcus T."}]'
+            )
+            """.trimIndent(),
+        )
+        db.query(
+            "SELECT likersJson FROM activity_feed WHERE id = 'act-2'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).contains("marcus.t")
+        }
+
+        db.close()
+    }
+
+    @Test
     fun migrate_1_to_2_adds_targetFaceType_column_with_default() {
         val dbName = "migration-test.db"
 

@@ -2,7 +2,9 @@ package com.andrewnguyen.bowpress.core.data.repository
 
 import com.andrewnguyen.bowpress.core.data.social.SessionPhotoCache
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
+import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityComment
+import com.andrewnguyen.bowpress.core.model.CommentSort
 import com.andrewnguyen.bowpress.core.model.PostCommentBody
 import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import com.andrewnguyen.bowpress.core.network.BowPressApi
@@ -92,14 +94,30 @@ class SocialRepositoryLikesCommentsTest {
     // ── comments ─────────────────────────────────────────────────────────────
 
     @Test
-    fun `getActivityComments returns the thread sorted oldest-to-newest`() = runTest {
-        val older = comment("c-old").copy(createdAt = Instant.parse("2026-05-01T10:00:00Z"))
-        val newer = comment("c-new").copy(createdAt = Instant.parse("2026-05-01T12:00:00Z"))
-        coEvery { api.getActivityComments("ss-1") } returns listOf(newer, older)
+    fun `getActivityComments forwards the sort and keeps the server's top-level order`() = runTest {
+        // The §6.3 API returns top-level comments already in the requested
+        // order — the repository must NOT re-sort them.
+        val first = comment("c-1").copy(createdAt = Instant.parse("2026-05-01T12:00:00Z"))
+        val second = comment("c-2").copy(createdAt = Instant.parse("2026-05-01T10:00:00Z"))
+        coEvery { api.getActivityComments("ss-1", "top") } returns listOf(first, second)
 
-        val thread = repo.getActivityComments("ss-1")
+        val thread = repo.getActivityComments("ss-1", CommentSort.top)
 
-        assertThat(thread.map { it.id }).containsExactly("c-old", "c-new").inOrder()
+        assertThat(thread.map { it.id }).containsExactly("c-1", "c-2").inOrder()
+        coVerify { api.getActivityComments("ss-1", "top") }
+    }
+
+    @Test
+    fun `getActivityComments normalises each reply chain to oldest-to-newest`() = runTest {
+        val newerReply = comment("r-new").copy(createdAt = Instant.parse("2026-05-01T12:00:00Z"))
+        val olderReply = comment("r-old").copy(createdAt = Instant.parse("2026-05-01T10:00:00Z"))
+        val top = comment("c-1").copy(replies = listOf(newerReply, olderReply))
+        coEvery { api.getActivityComments("ss-1", "recent") } returns listOf(top)
+
+        val thread = repo.getActivityComments("ss-1", CommentSort.recent)
+
+        assertThat(thread.single().replies.map { it.id })
+            .containsExactly("r-old", "r-new").inOrder()
     }
 
     @Test
@@ -112,9 +130,64 @@ class SocialRepositoryLikesCommentsTest {
         assertThat(created.id).isEqualTo("c-1")
         // The body is trimmed before it reaches the API.
         assertThat(bodySlot.captured.body).isEqualTo("Solid session")
+        // A top-level comment carries no parent.
+        assertThat(bodySlot.captured.parentCommentId).isNull()
         // The cached comment count is bumped atomically (+1) — a single
         // delta UPDATE, no read-modify-write that two posts could race.
         coVerify { feedDao.adjustCommentCount("ss-1", +1) }
+    }
+
+    @Test
+    fun `postComment forwards the parentCommentId when the comment is a reply`() = runTest {
+        val bodySlot = slot<PostCommentBody>()
+        coEvery { api.postActivityComment("ss-1", capture(bodySlot)) } returns comment("r-1")
+
+        repo.postComment("ss-1", "good point", parentCommentId = "c-7")
+
+        assertThat(bodySlot.captured.parentCommentId).isEqualTo("c-7")
+        // A reply still counts toward the subject's total thread size.
+        coVerify { feedDao.adjustCommentCount("ss-1", +1) }
+    }
+
+    // ── §6.2 comment likes ───────────────────────────────────────────────────
+
+    @Test
+    fun `toggleCommentLike likes a comment via POST without patching the feed cache`() = runTest {
+        coEvery { api.likeActivity("c-1") } returns ToggleLikeResponse(likeCount = 4, likedByMe = true)
+
+        val result = repo.toggleCommentLike(commentId = "c-1", currentlyLiked = false)
+
+        assertThat(result.likeCount).isEqualTo(4)
+        assertThat(result.likedByMe).isTrue()
+        coVerify { api.likeActivity("c-1") }
+        // A comment has no activity_feed row — no cache patch happens.
+        coVerify(exactly = 0) { feedDao.updateLikeState(any(), any(), any()) }
+    }
+
+    @Test
+    fun `toggleCommentLike un-likes a comment via DELETE`() = runTest {
+        coEvery { api.unlikeActivity("c-1") } returns ToggleLikeResponse(likeCount = 3, likedByMe = false)
+
+        val result = repo.toggleCommentLike(commentId = "c-1", currentlyLiked = true)
+
+        assertThat(result.likedByMe).isFalse()
+        coVerify { api.unlikeActivity("c-1") }
+        coVerify(exactly = 0) { api.likeActivity(any()) }
+    }
+
+    // ── §6.4 likers ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `getActivityLikers returns the full liker list from the API`() = runTest {
+        val likers = listOf(
+            ActivityActor(userId = "u-1", handle = "marcus.t", displayName = "Marcus T."),
+            ActivityActor(userId = "u-2", handle = "jamie.a", displayName = "Jamie A."),
+        )
+        coEvery { api.getActivityLikers("ss-1") } returns likers
+
+        val result = repo.getActivityLikers("ss-1")
+
+        assertThat(result.map { it.handle }).containsExactly("marcus.t", "jamie.a").inOrder()
     }
 
     @Test

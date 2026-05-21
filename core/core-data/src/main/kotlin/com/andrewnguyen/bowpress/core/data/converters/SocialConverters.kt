@@ -11,6 +11,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SocialProfileEntity
 import com.andrewnguyen.bowpress.core.model.Achievement
 import com.andrewnguyen.bowpress.core.model.AchievementBadge
 import com.andrewnguyen.bowpress.core.model.AchievementKind
+import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySession
@@ -164,6 +165,11 @@ fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
     likeCount = likeCount,
     likedByMe = likedByMe,
     commentCount = commentCount,
+    // §6 — the kudos avatar stack. A pre-§6 cached row has a null
+    // `likersJson` → empty list.
+    likers = likersJson
+        ?.let { runCatching { json.decodeFromString<List<ActivityActor>>(it) }.getOrNull() }
+        ?: emptyList(),
 )
 
 fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
@@ -190,6 +196,9 @@ fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
     likeCount = likeCount,
     likedByMe = likedByMe,
     commentCount = commentCount,
+    // §6 — persist the kudos stack as its own column so a club/league row
+    // with no session blob still caches its likers.
+    likersJson = if (likers.isEmpty()) null else json.encodeToString(likers),
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

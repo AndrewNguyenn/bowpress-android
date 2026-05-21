@@ -17,8 +17,10 @@ import com.andrewnguyen.bowpress.core.database.dao.SessionEndDao
 import com.andrewnguyen.bowpress.core.database.dao.SocialProfileDao
 import com.andrewnguyen.bowpress.core.model.AcceptInvitationBody
 import com.andrewnguyen.bowpress.core.model.Achievement
+import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.CommentSort
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.BlockMode
@@ -543,27 +545,69 @@ class SocialRepository @Inject constructor(
     }
 
     /**
-     * The comment thread for a feed subject — oldest→newest, each comment
-     * hydrated with its author's handle + display name. Visibility-gated
-     * server-side.
+     * The comment thread for a feed subject (§6.3) — the **top-level** comments
+     * in the requested [sort] order, each carrying its nested `replies`
+     * (oldest→newest) and `replyCount`. Each comment is hydrated with its
+     * author handle + display name and the caller's like state.
+     * Visibility-gated server-side.
+     *
+     * The server is authoritative on ordering; this only normalises the reply
+     * lists to oldest→newest defensively so the UI never has to re-sort them.
      */
-    suspend fun getActivityComments(subjectId: String): List<ActivityComment> =
-        api.getActivityComments(subjectId).sortedBy { it.createdAt }
+    suspend fun getActivityComments(
+        subjectId: String,
+        sort: CommentSort = CommentSort.recent,
+    ): List<ActivityComment> =
+        api.getActivityComments(subjectId, sort.wire)
+            .map { c -> c.copy(replies = c.replies.sortedBy { it.createdAt }) }
 
     /**
-     * Post a comment to a feed subject. [body] is trimmed; the server enforces
-     * the 1–1000-char bound (a blank/over-long body is rejected 400). On
-     * success the cached feed rows for [subjectId] get their `commentCount`
-     * atomically incremented so the comment button reflects the new total
-     * without a feed refresh.
+     * Post a comment (or, when [parentCommentId] is set, a reply) to a feed
+     * subject. [body] is trimmed; the server enforces the 1–1000-char bound (a
+     * blank/over-long body is rejected 400). On success the cached feed rows
+     * for [subjectId] get their `commentCount` atomically incremented so the
+     * comment button reflects the new total without a feed refresh.
+     *
+     * A reply also counts toward the subject's `commentCount` — the count is
+     * the total thread size, top-level comments plus replies.
      */
-    suspend fun postComment(subjectId: String, body: String): ActivityComment {
-        val created = api.postActivityComment(subjectId, PostCommentBody(body.trim()))
+    suspend fun postComment(
+        subjectId: String,
+        body: String,
+        parentCommentId: String? = null,
+    ): ActivityComment {
+        val created = api.postActivityComment(
+            subjectId,
+            PostCommentBody(body.trim(), parentCommentId = parentCommentId?.takeIf { it.isNotBlank() }),
+        )
         // Atomic +1 on every cached row for the subject — concurrent posts
         // cannot lose an increment (see ActivityFeedDao.adjustCommentCount).
         feedDao.adjustCommentCount(subjectId, +1)
         return created
     }
+
+    /**
+     * The full liker list for a feed subject (§6.4) — backs the tap-to-see-all
+     * kudos sheet. Visibility-gated server-side.
+     */
+    suspend fun getActivityLikers(subjectId: String): List<ActivityActor> =
+        api.getActivityLikers(subjectId)
+
+    /**
+     * Toggle the caller's like on a **comment** (§6.2). A comment is a likeable
+     * subject — liking comment `c` reuses the generic
+     * `POST/DELETE /social/activity/:subjectId/like` with the comment id as the
+     * subject. [currentlyLiked] is the caller's current like state as the UI
+     * knows it. Unlike [toggleLike], no feed-cache row is patched (a comment
+     * never has an `activity_feed` row); the fresh `{ likeCount, likedByMe }`
+     * is returned for the caller's optimistic UI to reconcile against.
+     */
+    suspend fun toggleCommentLike(commentId: String, currentlyLiked: Boolean): ToggleLikeResponse =
+        if (currentlyLiked) {
+            api.unlikeActivity(commentId)
+        } else {
+            api.likeActivity(commentId)
+        }
 
     /**
      * Delete a comment. The server allows the comment's author **or** the

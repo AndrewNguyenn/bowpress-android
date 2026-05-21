@@ -107,6 +107,12 @@ data class ActivityItemEntity(
     val likedByMe: Boolean = false,
     @ColumnInfo(defaultValue = "0")
     val commentCount: Int = 0,
+    // Social Feed V2 Part 3 (Comment threads & kudos §6.4) column — added v18.
+    // `likersJson` is the JSON-encoded ≤3 most-recent likers for the kudos
+    // avatar stack. Kept as its own column (not inside `sessionJson`) so a
+    // club/league row that has no session blob still caches its kudos stack.
+    // Nullable → the v17→v18 AutoMigration is purely additive.
+    val likersJson: String? = null,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

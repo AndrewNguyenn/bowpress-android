@@ -171,4 +171,10 @@ object TestTags {
     const val CommentsRoot: String = "comments_root"
     const val CommentsComposeField: String = "comments_compose_field"
     const val CommentsSendButton: String = "comments_send_button"
+    // Social Feed V2 Part 3 — comment threads & kudos.
+    const val FeedRowKudos: String = "feed_row_kudos"
+    const val CommentsSortRecent: String = "comments_sort_recent"
+    const val CommentsSortTop: String = "comments_sort_top"
+    const val CommentRowLikeButton: String = "comment_row_like_button"
+    const val CommentRowReplyButton: String = "comment_row_reply_button"
 }
