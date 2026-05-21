@@ -43,6 +43,7 @@ class SocialRepositoryBoardTest {
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
             mockk(relaxed = true), mockk(relaxed = true),
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
+            mockk(relaxed = true), // photoCache
             debugContext,
         )
     }

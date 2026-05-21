@@ -21,10 +21,14 @@ object SocialRoutes {
     fun friendProfile(otherUserId: String) = "social/friends/$otherUserId/profile"
     fun friendCompare(otherUserId: String) = "social/friends/$otherUserId/compare"
 
-    // Friend session detail (§16) — drilled into from a feed session row.
-    const val SESSION_DETAIL = "social/sessions/{sharedSessionId}"
+    // Shared session detail (§16) — drilled into from a feed session row.
+    // The `isOwn` query arg flags an own row → the screen opens in
+    // owner-editable mode (Social Feed V2 §3/§4). Defaults false so an
+    // external deep link without the arg still resolves to read-only.
+    const val SESSION_DETAIL = "social/sessions/{sharedSessionId}?isOwn={isOwn}"
 
-    fun sessionDetail(sharedSessionId: String) = "social/sessions/$sharedSessionId"
+    fun sessionDetail(sharedSessionId: String, isOwn: Boolean = false) =
+        "social/sessions/$sharedSessionId?isOwn=$isOwn"
 
     // Clubs
     const val CLUBS = "social/clubs"

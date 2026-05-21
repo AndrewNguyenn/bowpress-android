@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.network
 
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.core.model.SharedSession
 import com.andrewnguyen.bowpress.core.model.User
 import kotlinx.serialization.Serializable
 
@@ -117,3 +118,12 @@ data class UpdateBowConfigRequest(
 /** Body for `PATCH /suggestions/:id/read` / `/dismiss` — no payload needed but present for parity. */
 @Serializable
 class EmptyBody
+
+/**
+ * Response from `PATCH /social/sessions/:sharedSessionId` (Social Feed V2
+ * contract §3) — the updated shared-session row wrapped in `{ sharedSession }`.
+ */
+@Serializable
+data class PatchSharedSessionResponse(
+    val sharedSession: SharedSession,
+)

@@ -135,6 +135,9 @@ fun Club.toEntity(): ClubEntity = ClubEntity(
 
 // ── ActivityItem ───────────────────────────────────────────────────────────
 
+// Social Feed V2 §4 — the photo gallery is not a separate cache column: it
+// already round-trips inside the serialized `ActivitySession` (`sessionJson`).
+
 fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
     id = id,
     kind = runCatching { ActivityKind.valueOf(kind) }.getOrDefault(ActivityKind.unknown),
@@ -153,6 +156,8 @@ fun ActivityItemEntity.toDto(): ActivityItem = ActivityItem(
     actorUserId = actorUserId,
     clubId = clubId,
     leagueId = leagueId,
+    titleIsCustom = titleIsCustom,
+    isOwn = isOwn,
 )
 
 fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
@@ -171,6 +176,8 @@ fun ActivityItem.toEntity(): ActivityItemEntity = ActivityItemEntity(
     actorUserId = actorUserId,
     clubId = clubId,
     leagueId = leagueId,
+    titleIsCustom = titleIsCustom,
+    isOwn = isOwn,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

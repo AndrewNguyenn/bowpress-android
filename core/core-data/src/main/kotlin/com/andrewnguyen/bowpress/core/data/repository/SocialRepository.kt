@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.core.data.repository
 import com.andrewnguyen.bowpress.core.data.converters.toDto
 import com.andrewnguyen.bowpress.core.data.converters.toEntity
 import com.andrewnguyen.bowpress.core.data.seed.DevMockData
+import com.andrewnguyen.bowpress.core.data.social.SessionPhotoCache
 import com.andrewnguyen.bowpress.core.database.dao.AchievementDao
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
@@ -44,10 +45,12 @@ import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
+import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.ShareSessionBody
 import com.andrewnguyen.bowpress.core.model.ShareSessionResult
 import com.andrewnguyen.bowpress.core.model.SharedSession
 import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
+import com.andrewnguyen.bowpress.core.model.SharedSessionPhoto
 import com.andrewnguyen.bowpress.core.model.SocialBlock
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialPendingCount
@@ -66,6 +69,13 @@ import android.content.pm.ApplicationInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -95,6 +105,7 @@ class SocialRepository @Inject constructor(
     private val sessionDao: SessionDao,
     private val sessionEndDao: SessionEndDao,
     private val plotDao: ArrowPlotDao,
+    private val photoCache: SessionPhotoCache,
     @ApplicationContext private val context: Context,
 ) {
 
@@ -504,6 +515,129 @@ class SocialRepository @Inject constructor(
             }
     }
 
+    // ── Social Feed V2 — edit a shared session (contract §3) ─────────────────────
+
+    /**
+     * Owner-only edit of a shared session — set/clear the title and/or the
+     * location tag. The server recomputes the activity headline across every
+     * feed row carrying this `sharedSessionId` and renames the owner's
+     * underlying session, so on success the local feed cache is refreshed.
+     *
+     * Contract §3 is a **partial** update: an omitted field is left unchanged,
+     * an explicit JSON `null` clears it. The PATCH JSON object is built by hand
+     * so each field is included only when it actually changed from the
+     * [originalTitle] / [originalLocation] loaded with the session:
+     *  - title unchanged   → key omitted (no spurious session rename, §3 effect 3)
+     *  - title set blank   → `"title": null` (clears the custom headline)
+     *  - title set         → `"title": "…"`
+     *  - location unchanged→ key omitted
+     *  - location cleared  → `"location": null`
+     *  - location set      → `"location": { … }`
+     *
+     * When nothing changed the PATCH is skipped and the loaded summary is
+     * returned. [newTitle] is trimmed; a blank trimmed title counts as a clear.
+     */
+    suspend fun editSharedSession(
+        sharedSessionId: String,
+        newTitle: String?,
+        newLocation: SessionLocation?,
+        originalTitle: String?,
+        originalLocation: SessionLocation?,
+    ): SharedSession {
+        // Normalise: a blank title is a clear (null); trim a real one.
+        val normalizedNewTitle = newTitle?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedOriginalTitle = originalTitle?.trim()?.takeIf { it.isNotEmpty() }
+        val titleChanged = normalizedNewTitle != normalizedOriginalTitle
+        val locationChanged = newLocation != originalLocation
+
+        if (!titleChanged && !locationChanged) {
+            // Nothing to send — return the current summary unchanged.
+            return api.getSharedSessionDetail(sharedSessionId).sharedSession
+        }
+
+        val patch: JsonObject = buildJsonObject {
+            if (titleChanged) {
+                // null → explicit JSON null (clear); else the new value.
+                if (normalizedNewTitle == null) {
+                    put("title", JsonNull)
+                } else {
+                    put("title", normalizedNewTitle)
+                }
+            }
+            if (locationChanged) {
+                if (newLocation == null) {
+                    put("location", JsonNull)
+                } else {
+                    put("location", patchJson.encodeToJsonElement(SessionLocation.serializer(), newLocation))
+                }
+            }
+        }
+
+        val body = patchJson.encodeToString(JsonObject.serializer(), patch)
+            .toRequestBody(JSON_MEDIA_TYPE)
+        val result = api.patchSharedSession(sharedSessionId, body)
+        // The server rewrote every activity row for this shared session —
+        // refresh so the feed shows the new headline / location immediately.
+        runCatching { refreshFeed() }
+        return result.sharedSession
+    }
+
+    // ── Social Feed V2 — multi-photo gallery (contract §4) ───────────────────────
+
+    /**
+     * Upload one JPEG to a shared session's gallery. [jpegBytes] must already
+     * be a downscaled display-ready JPEG (the caller bounds the long edge).
+     * Returns the new `pending` photo record; its display image becomes
+     * fetchable from [fetchSharedSessionPhotoBytes] once the server transcode
+     * finishes.
+     */
+    suspend fun uploadSharedSessionPhoto(
+        sharedSessionId: String,
+        jpegBytes: ByteArray,
+    ): SharedSessionPhoto {
+        val body = jpegBytes.toRequestBody(JPEG_MEDIA_TYPE)
+        return api.uploadSharedSessionPhoto(sharedSessionId, body)
+    }
+
+    /** All photos on a shared session, ordered by position. Visibility-gated. */
+    suspend fun listSharedSessionPhotos(sharedSessionId: String): List<SharedSessionPhoto> =
+        api.listSharedSessionPhotos(sharedSessionId).sortedBy { it.position }
+
+    /**
+     * Fetch the display-JPEG bytes for one photo through the authenticated
+     * Retrofit stack (the photo endpoint is Bearer-gated, so the image cannot
+     * be loaded by a plain URL fetch). Returns null when the photo is still
+     * transcoding (202) or has failed / been removed (404) — the caller shows
+     * a placeholder rather than an error.
+     *
+     * Bytes for a `ready` photo are immutable, so a successful fetch is cached
+     * in the process-scoped [SessionPhotoCache]: the feed recycles rows as it
+     * scrolls and would otherwise re-download the same photo on every recycle.
+     */
+    suspend fun fetchSharedSessionPhotoBytes(
+        sharedSessionId: String,
+        photoId: String,
+    ): ByteArray? {
+        photoCache.get(photoId)?.let { return it }
+        return runCatching {
+            val response = api.getSharedSessionPhoto(sharedSessionId, photoId)
+            if (response.isSuccessful && response.code() == 200) {
+                response.body()?.bytes()?.also { bytes ->
+                    photoCache.put(photoId, bytes)
+                }
+            } else {
+                // 202 still transcoding, or 404 failed/missing — don't cache.
+                response.body()?.close()
+                null
+            }
+        }.getOrNull()
+    }
+
+    /** Owner-only — remove a photo (both R2 objects + the record). */
+    suspend fun deleteSharedSessionPhoto(sharedSessionId: String, photoId: String) {
+        api.deleteSharedSessionPhoto(sharedSessionId, photoId)
+    }
+
     /**
      * Offline/DEBUG fallback for [getSharedSessionDetail]: locate the tapped
      * shared session in the cached activity feed (the §15 feed rows carry an
@@ -625,5 +759,20 @@ class SocialRepository @Inject constructor(
     /** Host-only: remove an attachment. */
     suspend fun deleteLeagueAttachment(leagueId: String, attachmentId: String) {
         api.deleteLeagueAttachment(leagueId, attachmentId)
+    }
+
+    private companion object {
+        /** Content type for the §4 photo upload — always a JPEG. */
+        val JPEG_MEDIA_TYPE = "image/jpeg".toMediaType()
+
+        /** Content type for the §3 hand-built PATCH body. */
+        val JSON_MEDIA_TYPE = "application/json".toMediaType()
+
+        /**
+         * Json for the §3 PATCH body. `explicitNulls = true` (unlike the shared
+         * network Json) so a `JsonNull` written for a cleared field actually
+         * serializes as `"field": null` — the contract's "clear" signal.
+         */
+        val patchJson = Json { explicitNulls = true }
     }
 }

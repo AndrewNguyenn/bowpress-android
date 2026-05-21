@@ -85,6 +85,14 @@ data class ActivityItemEntity(
     val actorUserId: String = "",
     val clubId: String? = null,
     val leagueId: String? = null,
+    // Social Feed V2 columns — added v16. `titleIsCustom`/`isOwn` are NOT NULL
+    // booleans so they need an explicit SQL default for the AutoMigration.
+    // The photo gallery is NOT a separate column — `photos` already lives
+    // inside the serialized `ActivitySession` blob in `sessionJson`.
+    @ColumnInfo(defaultValue = "0")
+    val titleIsCustom: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val isOwn: Boolean = false,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

@@ -78,6 +78,15 @@ class FeedViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
 ) : ViewModel() {
 
+    /**
+     * Photo loader for feed-row photo previews — fetches the Bearer-gated
+     * display JPEG through the repository. Stable across recompositions.
+     */
+    val photoLoader = com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader {
+            sharedSessionId, photoId ->
+        socialRepository.fetchSharedSessionPhotoBytes(sharedSessionId, photoId)
+    }
+
     private val _error = MutableStateFlow<String?>(null)
     private val _isLoading = MutableStateFlow(false)
     private val _myProfile = MutableStateFlow<SocialProfile?>(null)

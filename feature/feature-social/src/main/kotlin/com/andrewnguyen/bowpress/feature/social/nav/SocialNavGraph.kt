@@ -51,8 +51,8 @@ fun NavGraphBuilder.socialNavGraph(
             onLeaguesIndexClick = { navController.navigate(SocialRoutes.LEAGUES) },
             onClubClick = { clubId -> navController.navigate(SocialRoutes.clubHome(clubId)) },
             onLeagueClick = { leagueId -> navController.navigate(SocialRoutes.leagueHome(leagueId)) },
-            onSessionClick = { sharedSessionId ->
-                navController.navigate(SocialRoutes.sessionDetail(sharedSessionId))
+            onSessionClick = { sharedSessionId, isOwn ->
+                navController.navigate(SocialRoutes.sessionDetail(sharedSessionId, isOwn))
             },
             onActorClick = { actorUserId ->
                 // A blank actorUserId (older API) has nowhere to drill — skip.
@@ -126,15 +126,23 @@ fun NavGraphBuilder.socialNavGraph(
         )
     }
 
-    // ── Friend session detail (§16) ─────────────────────────────────────────────
+    // ── Shared session detail (§16 + Social Feed V2 §3/§4) ──────────────────────
 
     composable(
         route = SocialRoutes.SESSION_DETAIL,
-        arguments = listOf(navArgument("sharedSessionId") { type = NavType.StringType }),
+        arguments = listOf(
+            navArgument("sharedSessionId") { type = NavType.StringType },
+            navArgument("isOwn") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+        ),
     ) { entry ->
         val sharedSessionId = entry.arguments?.getString("sharedSessionId").orEmpty()
+        val isOwn = entry.arguments?.getBoolean("isOwn") ?: false
         FriendSessionDetailScreen(
             sharedSessionId = sharedSessionId,
+            isOwn = isOwn,
             onBack = { navController.popBackStack() },
         )
     }

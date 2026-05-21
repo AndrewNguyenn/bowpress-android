@@ -1,5 +1,8 @@
-package com.andrewnguyen.bowpress.core.model
+package com.andrewnguyen.bowpress.feature.analytics.sessiondetail
 
+import com.andrewnguyen.bowpress.core.model.ArrowPlot
+import com.andrewnguyen.bowpress.core.model.SessionEnd
+import com.andrewnguyen.bowpress.core.model.Zone
 import com.google.common.truth.Truth.assertThat
 import java.time.Instant
 import org.junit.Test

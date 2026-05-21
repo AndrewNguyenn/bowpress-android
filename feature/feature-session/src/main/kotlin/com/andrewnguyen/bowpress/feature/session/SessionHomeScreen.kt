@@ -213,13 +213,8 @@ fun SessionHomeScreen(
                     else -> "Begin session"
                 },
                 subtitle = ctaSubtitle(state),
-                // A range session can't start until a bow, an arrow and a
-                // distance are all picked — the CTA stays greyed out until
-                // then. A 3D course is walked at varying distances, so it
-                // requires no distance pick.
                 enabled = state.selectedBow != null
                     && state.selectedArrow != null
-                    && (isThreeD || state.selectedDistance != null)
                     && !state.isLoading,
                 onClick = {
                     val bow = state.selectedBow ?: return@BPPrimaryButton
@@ -502,9 +497,7 @@ private fun splitDistance(d: ShootingDistance): Pair<String, String> = when (d) 
 }
 
 private fun distanceHint(selected: ShootingDistance?): String =
-    // A range session needs a distance to start, so the field is required —
-    // not "optional" as it once read.
-    if (selected == null) "required" else "usual · ${selected.label}"
+    if (selected == null) "optional" else "usual · ${selected.label}"
 
 // ---------------------------------------------------------------------------
 // Target face field — two tiles (10-ring / 6-ring) without subtitles

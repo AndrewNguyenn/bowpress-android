@@ -307,20 +307,37 @@ private val EDGE_BUFFER_DP = 4.dp
 
 /**
  * Draw the magnified target face inside the lens — a single WA face, or the
- * 3-spot Vegas card when the session uses a multi-spot layout. Both reuse the
- * exact `TargetPlot` drawing routines so the magnified face is the same face
- * as the one under the finger (every ring, the dividers and the X tick).
+ * 3-spot Vegas card when the session uses a multi-spot layout.
  */
 private fun DrawScope.drawLensFace(snapshot: PenLensSnapshot, sizePx: Float) {
     val multiSpot = MultiSpotGeometry.preset(snapshot.targetLayout)
     if (multiSpot != null) {
         drawMultiSpotCard(multiSpot, Size(sizePx, sizePx))
     } else {
-        drawTargetFace(
-            faceType = snapshot.faceType,
-            radiusPx = sizePx / 2f,
-            center = Offset(sizePx / 2f, sizePx / 2f),
-        )
+        drawSingleLensFace(snapshot.faceType, sizePx)
+    }
+}
+
+/** Draw one WA face filling [sizePx], no dividers (the lens is already clear). */
+private fun DrawScope.drawSingleLensFace(faceType: TargetFaceType, sizePx: Float) {
+    val center = Offset(sizePx / 2f, sizePx / 2f)
+    val radius = sizePx / 2f
+    drawCircle(color = Color(0xFFF6F8F3), radius = radius, center = center)
+    when (faceType) {
+        TargetFaceType.SIX_RING -> {
+            val g = TargetGeometry.SixRing
+            drawCircle(color = Color(0xFF4EA8C9), radius = (g.R7_RADIUS * radius).toFloat(), center = center)
+            drawCircle(color = Color(0xFFD94B3B), radius = (g.R8_RADIUS * radius).toFloat(), center = center)
+            drawCircle(color = Color(0xFFF0D04A), radius = (g.R10_RADIUS * radius).toFloat(), center = center)
+        }
+        TargetFaceType.TEN_RING -> {
+            val g = TargetGeometry.TenRing
+            drawCircle(color = Color(0xFFF6F8F3), radius = (g.R2_RADIUS * radius).toFloat(), center = center)
+            drawCircle(color = Color(0xFF1F2A26), radius = (g.R4_RADIUS * radius).toFloat(), center = center)
+            drawCircle(color = Color(0xFF4EA8C9), radius = (g.R6_RADIUS * radius).toFloat(), center = center)
+            drawCircle(color = Color(0xFFD94B3B), radius = (g.R8_RADIUS * radius).toFloat(), center = center)
+            drawCircle(color = Color(0xFFF0D04A), radius = (g.R10_RADIUS * radius).toFloat(), center = center)
+        }
     }
 }
 

@@ -59,9 +59,7 @@ class ActivityPreviewTest {
         assertThat(ActivityPreview.None.isEmpty).isTrue()
         assertThat(ActivityPreview.Photo.isEmpty).isFalse()
         assertThat(
-            ActivityPreview.Target(
-                face = "6-ring", distance = "20yd", score = 285, endRings = null,
-            ).isEmpty,
+            ActivityPreview.Target(face = "6-ring", score = 285, endRings = null).isEmpty,
         ).isFalse()
         assertThat(
             ActivityPreview.Course(score = 64, stations = emptyList()).isEmpty,
@@ -85,7 +83,6 @@ class ActivityPreviewTest {
         assertThat(preview).isInstanceOf(ActivityPreview.Target::class.java)
         val target = preview as ActivityPreview.Target
         assertThat(target.face).isEqualTo("6-ring")
-        assertThat(target.distance).isEqualTo("20yd")
         assertThat(target.score).isEqualTo(285)
         assertThat(target.endRings).isEqualTo(rings)
     }

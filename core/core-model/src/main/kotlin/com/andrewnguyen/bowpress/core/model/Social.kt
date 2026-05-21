@@ -414,6 +414,16 @@ data class ActivityItem(
     val actorUserId: String = "",
     val clubId: String? = null,
     val leagueId: String? = null,
+    // ── Social Feed V2 (contract §1, §2) ──
+    // `titleIsCustom` is true when [title] is the archer's own session name
+    // rather than a generic verb phrase — clients may render it as a quoted
+    // caption instead of gluing it to the actor verb.
+    // `isOwn` is true when the actor is the signed-in caller — the API now
+    // interleaves the caller's own activity into the feed, and only `isOwn`
+    // rows expose the edit affordance.
+    // Both defaulted so a feed row from an older API still decodes.
+    val titleIsCustom: Boolean = false,
+    val isOwn: Boolean = false,
 )
 
 // ── §11 Invitations (club + league) ──────────────────────────────────────────
@@ -657,6 +667,59 @@ data class AchievementBadge(
 )
 
 /**
+ * Status of a shared-session photo's display-JPEG transcode.
+ *
+ * Defaults to [unknown] so the network Json's `coerceInputValues` maps an
+ * unrecognised status from a newer API here instead of failing the decode.
+ */
+@Serializable
+enum class PhotoStatus {
+    pending, ready, failed,
+    // Forward-compat fallback.
+    unknown,
+}
+
+/**
+ * Mirrors API contract §4 `ActivityPhoto` — the wire subset of a
+ * shared-session photo carried on feed rows and the shared-session detail
+ * payload. Ordered by [position]. Clients fetch each `ready` photo's bytes
+ * from the GET-by-id endpoint (Bearer auth).
+ */
+@Serializable
+data class ActivityPhoto(
+    val id: String,
+    val status: PhotoStatus = PhotoStatus.unknown,
+    val position: Int = 0,
+)
+
+/**
+ * Mirrors API contract §4 `SharedSessionPhoto` — the full photo record
+ * returned by the photo upload / list endpoints.
+ */
+@Serializable
+data class SharedSessionPhoto(
+    val id: String,
+    val sharedSessionId: String,
+    val userId: String,
+    val position: Int = 0,
+    val status: PhotoStatus = PhotoStatus.unknown,
+    val contentType: String? = null,
+    val byteSize: Long? = null,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+    @Serializable(with = InstantSerializer::class)
+    val updatedAt: Instant,
+)
+
+// NOTE — `PATCH /social/sessions/:sharedSessionId` (contract §3) has no typed
+// request DTO on purpose. The contract distinguishes an *omitted* field
+// (leave unchanged) from an explicit JSON `null` (clear it); a plain
+// `@Serializable data class` cannot express that distinction (the shared
+// network `Json` has `explicitNulls = false`, which drops a `null` entirely).
+// `SocialRepository.editSharedSession` builds the patch JSON object by hand,
+// putting only the keys that actually changed and `JsonNull` for a clear.
+
+/**
  * Shared-session payload embedded in an [ActivityItem] — the stat line shown
  * on a session feed row.
  */
@@ -684,6 +747,9 @@ data class ActivitySession(
     // the real course map. The bowpress-api `/social/feed` returns them for
     // `3d_course` items; null for a range session or a pre-v1.7 payload.
     val stations: List<CourseStation>? = null,
+    // Social Feed V2 (contract §4) — the multi-photo gallery, ordered by
+    // position. Empty on a session with no photos or a pre-V2 feed payload.
+    val photos: List<ActivityPhoto> = emptyList(),
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a
@@ -736,6 +802,9 @@ data class SharedSessionDetail(
     // Course stations — populated only when the shared session is a walked
     // 3D course; empty for a range session (which carries ends/arrows).
     val stations: List<CourseStation> = emptyList(),
+    // Social Feed V2 (contract §4) — the multi-photo gallery, ordered by
+    // position. Empty on a session with no photos or a pre-V2 payload.
+    val photos: List<ActivityPhoto> = emptyList(),
 )
 
 // ── §17 Club announcement board + league attachments ────────────────────────

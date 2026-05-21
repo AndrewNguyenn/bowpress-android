@@ -22,6 +22,7 @@ class FeedItemDestinationTest {
         actorUserId: String = "u-actor",
         clubId: String? = null,
         leagueId: String? = null,
+        isOwn: Boolean = false,
     ) = ActivityItem(
         id = "act-1",
         kind = kind,
@@ -34,6 +35,7 @@ class FeedItemDestinationTest {
         actorUserId = actorUserId,
         clubId = clubId,
         leagueId = leagueId,
+        isOwn = isOwn,
     )
 
     private fun sessionPayload() = ActivitySession(
@@ -79,5 +81,19 @@ class FeedItemDestinationTest {
         // actorUserId defaults to "" for a pre-routing-fields payload.
         val dest = feedItemDestination(item(actorUserId = ""))
         assertThat(dest).isEqualTo(FeedItemDestination.Actor(""))
+    }
+
+    // Social Feed V2 §2 — an own session row routes into owner-editable mode.
+
+    @Test
+    fun `an own session row carries isOwn to the session destination`() {
+        val dest = feedItemDestination(item(session = sessionPayload(), isOwn = true))
+        assertThat(dest).isEqualTo(FeedItemDestination.Session("ss-1", isOwn = true))
+    }
+
+    @Test
+    fun `a friend's session row routes read-only`() {
+        val dest = feedItemDestination(item(session = sessionPayload(), isOwn = false))
+        assertThat(dest).isEqualTo(FeedItemDestination.Session("ss-1", isOwn = false))
     }
 }

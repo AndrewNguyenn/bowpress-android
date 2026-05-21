@@ -6,8 +6,15 @@ import com.andrewnguyen.bowpress.core.model.ActivityItem
  * Where a tapped feed row drills to. Every row routes somewhere.
  */
 sealed interface FeedItemDestination {
-    /** A friend's shared session detail. */
-    data class Session(val sharedSessionId: String) : FeedItemDestination
+    /**
+     * A shared-session detail. [isOwn] is true when the signed-in caller owns
+     * the session — the detail screen then opens in owner-editable mode
+     * (Social Feed V2 §3/§4).
+     */
+    data class Session(
+        val sharedSessionId: String,
+        val isOwn: Boolean = false,
+    ) : FeedItemDestination
 
     /** A league home screen. */
     data class League(val leagueId: String) : FeedItemDestination
@@ -34,7 +41,11 @@ fun feedItemDestination(item: ActivityItem): FeedItemDestination {
     val leagueId = item.leagueId
     val clubId = item.clubId
     return when {
-        session != null -> FeedItemDestination.Session(session.sharedSessionId)
+        session != null -> FeedItemDestination.Session(
+            sharedSessionId = session.sharedSessionId,
+            // §2 — an own row drills into the owner-editable detail.
+            isOwn = item.isOwn,
+        )
         leagueId != null -> FeedItemDestination.League(leagueId)
         clubId != null -> FeedItemDestination.Club(clubId)
         else -> FeedItemDestination.Actor(item.actorUserId)
