@@ -87,7 +87,7 @@ fun ThreeDCourseScreen(
     var shooting by remember { mutableStateOf(false) }
     var shootStationId by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<com.andrewnguyen.bowpress.core.model.CourseStation?>(null) }
-    var confirmFinish by remember { mutableStateOf(false) }
+    var finishing by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
 
     if (shooting) {
@@ -95,6 +95,15 @@ fun ThreeDCourseScreen(
             stationId = shootStationId,
             viewModel = viewModel,
             onDone = { shooting = false },
+        )
+        return
+    }
+    if (finishing) {
+        ThreeDFinishReview(
+            state = state,
+            breadcrumb = breadcrumb,
+            onSign = { viewModel.finishCourse() },
+            onBack = { finishing = false },
         )
         return
     }
@@ -184,20 +193,11 @@ fun ThreeDCourseScreen(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SecondaryAction("Discard", AppMaple, Modifier.weight(1f)) { confirmDiscard = true }
-                SecondaryAction("Finish course", AppPondDk, Modifier.weight(1f)) { confirmFinish = true }
+                SecondaryAction("Finish course", AppPondDk, Modifier.weight(1f)) { finishing = true }
             }
         }
     }
 
-    if (confirmFinish) {
-        ConfirmDialog(
-            title = "Finish the course?",
-            body = "${state.stations.size} stations · ${state.totalScore} points. Sign it off to the Log.",
-            confirm = "Finish",
-            onConfirm = { confirmFinish = false; viewModel.finishCourse() },
-            onDismiss = { confirmFinish = false },
-        )
-    }
     if (confirmDiscard) {
         ConfirmDialog(
             title = "Discard this course?",
