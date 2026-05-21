@@ -30,6 +30,7 @@ class ActivityPreviewTest {
     private fun session(
         discipline: String?,
         sessionId: String = "s1",
+        endRings: List<List<Int>>? = null,
     ): ActivitySession = ActivitySession(
         sharedSessionId = "ss1",
         sessionId = sessionId,
@@ -39,13 +40,16 @@ class ActivityPreviewTest {
         distance = "20yd",
         face = "6-ring",
         discipline = discipline,
+        endRings = endRings,
     )
 
     @Test
     fun `isEmpty is true only for None`() {
         assertThat(ActivityPreview.None.isEmpty).isTrue()
         assertThat(ActivityPreview.Photo.isEmpty).isFalse()
-        assertThat(ActivityPreview.Target(face = "6-ring", score = 285).isEmpty).isFalse()
+        assertThat(
+            ActivityPreview.Target(face = "6-ring", score = 285, endRings = null).isEmpty,
+        ).isFalse()
         assertThat(ActivityPreview.Course(score = 64, stations = 6).isEmpty).isFalse()
     }
 
@@ -60,12 +64,14 @@ class ActivityPreviewTest {
     }
 
     @Test
-    fun `range session picks the target preview`() {
-        val preview = activityPreview(item(session(discipline = "range")))
+    fun `range session picks the target preview, carrying the scorecard ends`() {
+        val rings = listOf(listOf(11, 10, 10), listOf(10, 9, 9))
+        val preview = activityPreview(item(session(discipline = "range", endRings = rings)))
         assertThat(preview).isInstanceOf(ActivityPreview.Target::class.java)
         val target = preview as ActivityPreview.Target
         assertThat(target.face).isEqualTo("6-ring")
         assertThat(target.score).isEqualTo(285)
+        assertThat(target.endRings).isEqualTo(rings)
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.feature.social.ui.feed
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -34,6 +36,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
+import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
@@ -70,8 +73,15 @@ sealed interface ActivityPreview {
     /** A target-paper photo the actor attached to the session. */
     data object Photo : ActivityPreview
 
-    /** A range session — a World Archery target face + the score. */
-    data class Target(val face: String?, val score: Int) : ActivityPreview
+    /**
+     * A range session — a World Archery target face + the score, plus the
+     * first 10 ends as per-arrow ring values for the inline scorecard.
+     */
+    data class Target(
+        val face: String?,
+        val score: Int,
+        val endRings: List<List<Int>>?,
+    ) : ActivityPreview
 
     /** A 3D course — a walked-trail schematic + the score. */
     data class Course(val score: Int, val stations: Int) : ActivityPreview
@@ -90,7 +100,11 @@ fun activityPreview(item: ActivityItem): ActivityPreview {
     return if (session.isCourse) {
         ActivityPreview.Course(score = session.score, stations = session.arrowCount)
     } else {
-        ActivityPreview.Target(face = session.face, score = session.score)
+        ActivityPreview.Target(
+            face = session.face,
+            score = session.score,
+            endRings = session.endRings,
+        )
     }
 }
 
@@ -106,6 +120,7 @@ fun ActivityPreviewBand(
         is ActivityPreview.Target -> TargetBand(
             face = preview.face,
             score = preview.score,
+            endRings = preview.endRings,
             modifier = modifier,
         )
         is ActivityPreview.Course -> CourseBand(
@@ -156,9 +171,18 @@ internal fun faceTypeFor(face: String?): BPTargetFaceType {
     }
 }
 
-/** Range session — a WA target face thumbnail beside the score. */
+/**
+ * Range session — a WA target face thumbnail beside the score, with the
+ * per-end scorecard (first 10 ends) on the right when the feed payload
+ * carries one.
+ */
 @Composable
-private fun TargetBand(face: String?, score: Int, modifier: Modifier = Modifier) {
+private fun TargetBand(
+    face: String?,
+    score: Int,
+    endRings: List<List<Int>>?,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -194,7 +218,71 @@ private fun TargetBand(face: String?, score: Int, modifier: Modifier = Modifier)
                 )
             }
         }
+        if (!endRings.isNullOrEmpty()) {
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(BAND_HEIGHT - 12.dp)
+                    .background(AppLine),
+            )
+            Spacer(Modifier.width(10.dp))
+            FeedScorecardColumn(ends = endRings)
+        }
     }
+}
+
+/**
+ * The compact per-end scorecard rendered on the right of a range feed row's
+ * target preview — the first 10 ends, each row the end number followed by
+ * its arrow ring values (X / 10 / 9 … / M). Sized to fit the fixed-height
+ * preview band without scrolling. Mirrors iOS `FeedScorecardColumn`.
+ */
+@Composable
+private fun FeedScorecardColumn(ends: List<List<Int>>, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.testTag(TestTags.FeedRowScorecard),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        ends.take(10).forEachIndexed { idx, rings ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${idx + 1}",
+                    style = jetbrainsMono(6.5.sp),
+                    color = AppInk3,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(11.dp),
+                )
+                rings.forEach { ring ->
+                    Text(
+                        text = ringLabel(ring),
+                        style = frauncesDisplay(8.sp, italic = true, weight = FontWeight.Medium),
+                        color = ringColor(ring),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** X for the inner ring (11), M for a miss (≤0), the ring number otherwise. */
+private fun ringLabel(ring: Int): String = when {
+    ring >= 11 -> "X"
+    ring <= 0 -> "M"
+    else -> ring.toString()
+}
+
+/**
+ * X reads pond, a miss reads maple, everything else ink — matches the
+ * session-detail scorecard's shot-cell colouring.
+ */
+private fun ringColor(ring: Int) = when {
+    ring >= 11 -> AppPondDk
+    ring <= 0 -> AppMaple
+    else -> AppInk
 }
 
 /** 3D course — a walked-trail schematic beside the score. */

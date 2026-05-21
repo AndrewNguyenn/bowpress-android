@@ -150,6 +150,8 @@ object TestTags {
     // §18 — activity-feed previews + location tagging.
     const val FeedRowLocationTag: String = "feed_row_location_tag"
     const val FeedRowPreview: String = "feed_row_preview"
+    /** The per-end scorecard inside a range feed row's target preview. */
+    const val FeedRowScorecard: String = "feed_row_scorecard"
     const val LocationMap: String = "location_map"
     const val LocationMapClose: String = "location_map_close"
     const val LocationMapRecenter: String = "location_map_recenter"

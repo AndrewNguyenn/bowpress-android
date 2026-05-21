@@ -975,6 +975,13 @@ internal object DevMockData {
                     latitude = 34.06994,
                     longitude = -118.44382,
                 ),
+                // First 10 ends for the feed-row scorecard preview — the
+                // dev_s1_8 rings chunked into 3-arrow ends, so the inline
+                // scorecard matches the friend-session-detail screen.
+                endRings = listOf(
+                    listOf(10, 11, 11), listOf(10, 11, 10), listOf(11, 11, 10),
+                    listOf(11, 10, 11), listOf(11, 10, 11), listOf(10, 11, 11),
+                ),
             ),
             achievements = listOf(
                 AchievementBadge(

@@ -675,6 +675,11 @@ data class ActivitySession(
     // pre-v1.6 feed payloads omit them → null.
     val discipline: String? = null,
     val location: SessionLocation? = null,
+    // First 10 ends of the scorecard, each a list of arrow ring values
+    // (11 = X … 0 = miss) in shot order — drives the feed-row scorecard
+    // preview beside the target face. null for a 3D course, a session with
+    // no recorded arrows, or a pre-scorecard feed payload.
+    val endRings: List<List<Int>>? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a

@@ -513,6 +513,20 @@ class DtoRoundTripTest {
         assertThat(decoded.discipline).isNull()
         assertThat(decoded.isCourse).isFalse()
         assertThat(decoded.location).isNull()
+        assertThat(decoded.endRings).isNull()
+    }
+
+    @Test
+    fun `ActivitySession decodes the scorecard endRings`() {
+        val raw = """
+            {
+              "sharedSessionId": "ss1", "sessionId": "s1", "score": 59,
+              "xCount": 1, "arrowCount": 6,
+              "endRings": [[11, 10, 10], [10, 9, 9]]
+            }
+        """.trimIndent()
+        val decoded = json.decodeFromString(ActivitySession.serializer(), raw)
+        assertThat(decoded.endRings).isEqualTo(listOf(listOf(11, 10, 10), listOf(10, 9, 9)))
     }
 
     @Test
