@@ -680,6 +680,10 @@ data class ActivitySession(
     // preview beside the target face. null for a 3D course, a session with
     // no recorded arrows, or a pre-scorecard feed payload.
     val endRings: List<List<Int>>? = null,
+    // For a 3D course — the ordered stations, so the feed preview can draw
+    // the real course map. The bowpress-api `/social/feed` returns them for
+    // `3d_course` items; null for a range session or a pre-v1.7 payload.
+    val stations: List<CourseStation>? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a
@@ -729,6 +733,9 @@ data class SharedSessionDetail(
     val session: ShootingSession? = null,
     val ends: List<SessionEnd> = emptyList(),
     val arrows: List<ArrowPlot> = emptyList(),
+    // Course stations — populated only when the shared session is a walked
+    // 3D course; empty for a range session (which carries ends/arrows).
+    val stations: List<CourseStation> = emptyList(),
 )
 
 // ── §17 Club announcement board + league attachments ────────────────────────
