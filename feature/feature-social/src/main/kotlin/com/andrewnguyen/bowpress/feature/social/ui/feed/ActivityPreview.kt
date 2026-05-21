@@ -44,6 +44,7 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseInkMapView
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.ElevationGridCache
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.CourseStation
@@ -356,8 +357,11 @@ private fun CourseBand(
                 .fillMaxWidth()
                 .testTag(TestTags.FeedRowPreview),
         ) {
+            // The cached terrain grid (seeded for every mock course at
+            // startup) draws topographic contours under the route.
             CourseInkMapView(
                 stations = stations,
+                elevationGrid = ElevationGridCache.covering(stations),
                 showChrome = false,
                 adaptiveAspect = true,
                 modifier = Modifier.fillMaxWidth(),

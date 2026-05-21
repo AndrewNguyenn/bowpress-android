@@ -1,6 +1,7 @@
 package com.andrewnguyen.bowpress.feature.session.threed
 
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.*
+import com.andrewnguyen.bowpress.core.model.CourseStation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -13,8 +14,9 @@ import kotlin.math.max
  * course map draws its topographic contours from, from Open-Meteo's free
  * elevation API (no key required).
  *
- * The Android port holds the fetched grid in the view model for the course's
- * lifetime rather than caching it to disk (an offline-cache is a follow-up).
+ * A fetched grid is also stored in [ElevationGridCache] so other screens (the
+ * social feed's course maps) can draw contours without their own fetch — the
+ * cross-screen role iOS's on-disk elevation cache plays.
  */
 object ElevationService {
 
@@ -61,7 +63,15 @@ object ElevationService {
                 ElevationGrid(
                     minLat = minLat, maxLat = maxLat, minLon = minLon, maxLon = maxLon,
                     rows = GRID_SIZE, cols = GRID_SIZE, samples = samples,
-                )
+                ).also { ElevationGridCache.store(it) }
             }.getOrNull()
         }
+
+    /**
+     * The cached grid covering a course — looked up by the centroid of its
+     * stations. Lets the feed map draw contours the same way the live and
+     * Log-detail maps do. Mirrors iOS `ElevationService.cachedGrid(coveringStations:)`.
+     */
+    fun cachedGrid(coveringStations: List<CourseStation>): ElevationGrid? =
+        ElevationGridCache.covering(coveringStations)
 }

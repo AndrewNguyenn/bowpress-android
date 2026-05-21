@@ -8,7 +8,10 @@ import com.andrewnguyen.bowpress.core.data.repository.ThemePreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.model.ThemePreference
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
+import com.andrewnguyen.bowpress.core.data.seed.DevMockCourses
 import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.ElevationGridCache
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.MockTerrain
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.Entitlement
@@ -190,6 +193,11 @@ class AppStateViewModel @Inject constructor(
     }
 
     private fun hydrate() {
+        // DEBUG: seed synthetic terrain grids for every mock 3D course first
+        // thing — synchronous, pure-CPU — so the social feed's course maps
+        // find a cached grid the moment they render and draw real contours
+        // instead of blank paper. Mirrors iOS `DevSocialMockData.seedElevationCache()`.
+        if (BuildConfig.DEBUG) seedElevationCache()
         viewModelScope.launch {
             // DEBUG: seed Room with mock archery data so the Analytics tab
             // doesn't show "Not enough data" on a fresh emulator. Mirrors
@@ -207,6 +215,20 @@ class AppStateViewModel @Inject constructor(
             // empty — bump the refresh bus once after seeding so they
             // re-query and pick up the fixture data.
             if (seededFresh) analyticsRefreshBus.bump()
+        }
+    }
+
+    /**
+     * Synthesizes a terrain grid covering each mock 3D course's footprint and
+     * stores it in [ElevationGridCache] — sized to the course's own stations +
+     * inferred targets (a fixed 800 m box would shrink the course inside it and
+     * break the feed map's edge-to-edge fill). The feed `CourseBand` then looks
+     * the grid up and draws contours, mirroring what a live session caches
+     * after its elevation fetch.
+     */
+    private fun seedElevationCache() {
+        for (stations in DevMockCourses.all3DCourseStations) {
+            ElevationGridCache.store(MockTerrain.make3DElevationGrid(coveringStations = stations))
         }
     }
 }

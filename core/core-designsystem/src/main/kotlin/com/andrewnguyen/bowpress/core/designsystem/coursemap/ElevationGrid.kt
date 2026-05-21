@@ -1,6 +1,11 @@
 package com.andrewnguyen.bowpress.core.designsystem.coursemap
 
+import com.andrewnguyen.bowpress.core.model.CourseStation
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.acos
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.pow
 
 /** A single walked point — a lightweight value-type coordinate. */
 data class GeoPoint(
@@ -159,5 +164,145 @@ object ThreeDGeometry {
         // acos(-g.z). 90° at the horizon, 0° straight down — centre on 0.
         val nz = (-gz / magnitude).coerceIn(-1.0, 1.0)
         return acos(nz) * 180.0 / Math.PI - 90.0
+    }
+}
+
+/**
+ * Mirrors iOS `DevMockData.make3DElevationGrid`. Synthesizes a rolling-terrain
+ * elevation grid — a gentle slope plus two hills — so a course map shows real
+ * contour lines on the emulator without a live elevation fetch.
+ */
+object MockTerrain {
+
+    private const val GRID_SIZE = 12
+    private const val METERS_PER_DEGREE_LAT = 111_320.0
+
+    /** A synthesized terrain grid filling the given geographic box. */
+    fun make3DElevationGrid(
+        minLat: Double,
+        maxLat: Double,
+        minLon: Double,
+        maxLon: Double,
+    ): ElevationGrid {
+        val samples = ArrayList<Double>(GRID_SIZE * GRID_SIZE)
+        for (r in 0 until GRID_SIZE) {
+            for (c in 0 until GRID_SIZE) {
+                val nx = c.toDouble() / (GRID_SIZE - 1)
+                val ny = r.toDouble() / (GRID_SIZE - 1)
+                val slope = 120 + 58 * ny
+                val hill1 = 36 * exp(-(((nx - 0.32).pow(2) + (ny - 0.62).pow(2)) / 0.03))
+                val hill2 = 27 * exp(-(((nx - 0.74).pow(2) + (ny - 0.30).pow(2)) / 0.045))
+                samples.add(slope + hill1 + hill2)
+            }
+        }
+        return ElevationGrid(
+            minLat = minLat, maxLat = maxLat, minLon = minLon, maxLon = maxLon,
+            rows = GRID_SIZE, cols = GRID_SIZE, samples = samples,
+        )
+    }
+
+    /** An 800 m terrain box centred on a point — the live/Log-detail variant. */
+    fun make3DElevationGrid(centerLat: Double, centerLon: Double): ElevationGrid {
+        val latDelta = 800.0 / METERS_PER_DEGREE_LAT
+        val lonDelta = 800.0 /
+            (METERS_PER_DEGREE_LAT * maxOf(cos(centerLat * Math.PI / 180.0), 0.01))
+        return make3DElevationGrid(
+            minLat = centerLat - latDelta, maxLat = centerLat + latDelta,
+            minLon = centerLon - lonDelta, maxLon = centerLon + lonDelta,
+        )
+    }
+
+    /**
+     * A terrain grid sized to cover a course's stations *and* inferred targets
+     * — so the feed/detail map's contours fill the same frame the course is
+     * projected into. A fixed 800 m box would leave the course small inside it
+     * and break the feed map's edge-to-edge fill.
+     */
+    fun make3DElevationGrid(coveringStations: List<CourseStation>): ElevationGrid {
+        val lats = ArrayList<Double>()
+        val lons = ArrayList<Double>()
+        for (s in coveringStations) {
+            val lat = s.latitude
+            val lon = s.longitude
+            if (lat != null && lon != null) {
+                lats.add(lat); lons.add(lon)
+            }
+            CourseMapLayout.inferredTargetGeo(s)?.let { t ->
+                lats.add(t.latitude); lons.add(t.longitude)
+            }
+        }
+        val minLat = lats.minOrNull()
+        val maxLat = lats.maxOrNull()
+        val minLon = lons.minOrNull()
+        val maxLon = lons.maxOrNull()
+        if (minLat == null || maxLat == null || minLon == null || maxLon == null) {
+            return make3DElevationGrid(centerLat = 37.33, centerLon = -122.04)
+        }
+        // A small margin so contours aren't cut hard at the course edge.
+        val latM = maxOf((maxLat - minLat) * 0.12, 0.0002)
+        val lonM = maxOf((maxLon - minLon) * 0.12, 0.0002)
+        return make3DElevationGrid(
+            minLat = minLat - latM, maxLat = maxLat + latM,
+            minLon = minLon - lonM, maxLon = maxLon + lonM,
+        )
+    }
+}
+
+/**
+ * A process-wide in-memory cache of fetched/seeded elevation grids, keyed by
+ * each grid's own bounding box.
+ *
+ * iOS `ElevationService` caches grids to disk; the Android port has always
+ * held the fetched grid only in the view model. This cache adds the missing
+ * cross-screen lookup so the social feed's mock 3D courses (whose grids are
+ * seeded at startup) can draw contours — the same role iOS's disk cache plays.
+ * It is in-memory rather than on-disk: seeding and reads happen in one process
+ * session, so persistence isn't needed for the mock-data use case.
+ */
+object ElevationGridCache {
+
+    /** Cap on cached grids — terrain doesn't change; oldest-first eviction. */
+    private const val MAX_GRIDS = 50
+
+    /** Box-keyed grids; insertion order preserved for oldest-first eviction. */
+    private val grids = ConcurrentHashMap.newKeySet<ElevationGrid>()
+    private val order = java.util.concurrent.ConcurrentLinkedQueue<ElevationGrid>()
+
+    /** Cache a grid. Two distinct course areas keep distinct boxes. */
+    @Synchronized
+    fun store(grid: ElevationGrid) {
+        if (!grids.add(grid)) return
+        order.add(grid)
+        while (order.size > MAX_GRIDS) {
+            order.poll()?.let { grids.remove(it) }
+        }
+    }
+
+    /** A cached grid whose box contains the point, or null. */
+    fun covering(latitude: Double, longitude: Double): ElevationGrid? =
+        grids.firstOrNull { it.contains(latitude, longitude) }
+
+    /**
+     * The cached grid covering a course — looked up by the centroid of its
+     * stations. Lets the feed map draw contours, the same way the live and
+     * Log-detail maps do. Mirrors iOS `ElevationService.cachedGrid(coveringStations:)`.
+     */
+    fun covering(stations: List<CourseStation>): ElevationGrid? {
+        val geo = stations.mapNotNull { s ->
+            val lat = s.latitude ?: return@mapNotNull null
+            val lon = s.longitude ?: return@mapNotNull null
+            lat to lon
+        }
+        if (geo.isEmpty()) return null
+        val lat = geo.sumOf { it.first } / geo.size
+        val lon = geo.sumOf { it.second } / geo.size
+        return covering(lat, lon)
+    }
+
+    /** Test seam — drop all cached grids. */
+    @Synchronized
+    fun clear() {
+        grids.clear()
+        order.clear()
     }
 }
