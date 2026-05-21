@@ -53,6 +53,7 @@ import com.andrewnguyen.bowpress.feature.equipment.nav.EquipmentRoutes
 import com.andrewnguyen.bowpress.feature.equipment.nav.equipmentNavGraph
 import com.andrewnguyen.bowpress.feature.session.SessionRoutes
 import com.andrewnguyen.bowpress.feature.session.sessionNavGraph
+import com.andrewnguyen.bowpress.feature.session.threed.ThreeDLogDetailScreen
 import com.andrewnguyen.bowpress.feature.settings.SettingsRoutes
 import com.andrewnguyen.bowpress.feature.settings.settingsNavGraph
 import com.andrewnguyen.bowpress.feature.social.nav.SocialRoutes
@@ -177,8 +178,9 @@ fun MainScaffold(
                     HistoricalSessionsScreen(
                         // Log is a top-level tab — there is no nav back from the root.
                         onBack = { /* no-op at tab root */ },
-                        onOpenSession = { sessionId ->
-                            navController.navigate("tab/log/session/$sessionId")
+                        onOpenSession = { sessionId, isThreeDCourse ->
+                            val leaf = if (isThreeDCourse) "course" else "session"
+                            navController.navigate("tab/log/$leaf/$sessionId")
                         },
                     )
                 }
@@ -188,6 +190,16 @@ fun MainScaffold(
                 ) { entry ->
                     val sessionId = entry.arguments?.getString("sessionId").orEmpty()
                     SessionDetailScreen(
+                        sessionId = sessionId,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(
+                    route = "tab/log/course/{sessionId}",
+                    arguments = listOf(navArgument("sessionId") { type = NavType.StringType }),
+                ) { entry ->
+                    val sessionId = entry.arguments?.getString("sessionId").orEmpty()
+                    ThreeDLogDetailScreen(
                         sessionId = sessionId,
                         onBack = { navController.popBackStack() },
                     )

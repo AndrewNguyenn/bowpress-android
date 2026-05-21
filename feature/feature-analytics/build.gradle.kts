@@ -27,6 +27,8 @@ dependencies {
     implementation(project(":core:core-analytics"))
     implementation(project(":core:core-designsystem"))
     implementation(project(":core:core-navigation"))
+    // The 3D-course Log detail reuses the 3D map + station components.
+    implementation(project(":feature:feature-session"))
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)

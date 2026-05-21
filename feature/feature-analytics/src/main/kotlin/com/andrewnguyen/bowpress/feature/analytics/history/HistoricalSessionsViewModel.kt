@@ -47,6 +47,8 @@ data class SessionRow(
     val xPct: Int,
     val previousAvg: Double?,
     val isBest: Boolean,
+    /** True for a 3D-course session — the row taps through to the 3D detail. */
+    val isThreeDCourse: Boolean = false,
 )
 
 /** One group header + its rows. */
@@ -221,8 +223,10 @@ class HistoricalSessionsViewModel @Inject constructor(
                     // check", "Long-distance work", etc.). Fall back to the
                     // distance-derived label for sessions without a name so the
                     // row still has something to lead with.
+                    val isThreeD =
+                        session.sessionType == com.andrewnguyen.bowpress.core.model.SessionType.THREE_D_COURSE
                     val title: String? = session.title?.takeIf { it.isNotBlank() }
-                        ?: session.distance?.let { "Range · ${it.label}" }
+                        ?: if (isThreeD) "3D Course" else session.distance?.let { "Range · ${it.label}" }
                     SessionRow(
                         id = session.id,
                         startedAt = session.startedAt,
@@ -240,6 +244,7 @@ class HistoricalSessionsViewModel @Inject constructor(
                         xPct = xPct,
                         previousAvg = prevAvg?.takeIf { it > 0.0 },
                         isBest = isBest,
+                        isThreeDCourse = isThreeD,
                     )
                 },
             )

@@ -14,6 +14,7 @@ import com.andrewnguyen.bowpress.feature.analytics.sessiondetail.SessionDetailSc
 import com.andrewnguyen.bowpress.feature.analytics.suggestion.SuggestionDetailScreen
 import com.andrewnguyen.bowpress.feature.analytics.timeline.ScoreTimelineScreen
 import com.andrewnguyen.bowpress.feature.analytics.trend.TrendFindingDetailScreen
+import com.andrewnguyen.bowpress.feature.session.threed.ThreeDLogDetailScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -40,6 +41,11 @@ object AnalyticsRoutes {
     const val SessionDetailPattern: String = "analytics/session/{sessionId}"
 
     fun sessionDetail(sessionId: String): String = "analytics/session/$sessionId"
+
+    /** Pattern: `analytics/course/{sessionId}` — the 3D-course Log detail. */
+    const val CourseDetailPattern: String = "analytics/course/{sessionId}"
+
+    fun courseDetail(sessionId: String): String = "analytics/course/$sessionId"
 
     /** Pattern: `analytics/trend/{findingJson}`. */
     const val TrendDetailPattern: String = "analytics/trend/{findingJson}"
@@ -138,9 +144,27 @@ fun NavGraphBuilder.analyticsNavGraph(navController: NavController) {
         composable(AnalyticsRoutes.History) {
             HistoricalSessionsScreen(
                 onBack = { navController.popBackStack() },
-                onOpenSession = { sessionId ->
-                    navController.navigate(AnalyticsRoutes.sessionDetail(sessionId))
+                onOpenSession = { sessionId, isThreeDCourse ->
+                    val route = if (isThreeDCourse) {
+                        AnalyticsRoutes.courseDetail(sessionId)
+                    } else {
+                        AnalyticsRoutes.sessionDetail(sessionId)
+                    }
+                    navController.navigate(route)
                 },
+            )
+        }
+
+        composable(
+            route = AnalyticsRoutes.CourseDetailPattern,
+            arguments = listOf(
+                navArgument(AnalyticsRoutes.Args.SessionId) { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val sessionId = entry.arguments?.getString(AnalyticsRoutes.Args.SessionId).orEmpty()
+            ThreeDLogDetailScreen(
+                sessionId = sessionId,
+                onBack = { navController.popBackStack() },
             )
         }
 
