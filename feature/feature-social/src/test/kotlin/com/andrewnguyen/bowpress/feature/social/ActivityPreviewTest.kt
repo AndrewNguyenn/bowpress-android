@@ -4,6 +4,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySession
 import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
+import com.andrewnguyen.bowpress.core.model.CourseStation
 import com.andrewnguyen.bowpress.feature.social.ui.feed.ActivityPreview
 import com.andrewnguyen.bowpress.feature.social.ui.feed.activityPreview
 import com.google.common.truth.Truth.assertThat
@@ -31,6 +32,7 @@ class ActivityPreviewTest {
         discipline: String?,
         sessionId: String = "s1",
         endRings: List<List<Int>>? = null,
+        stations: List<CourseStation>? = null,
     ): ActivitySession = ActivitySession(
         sharedSessionId = "ss1",
         sessionId = sessionId,
@@ -41,6 +43,15 @@ class ActivityPreviewTest {
         face = "6-ring",
         discipline = discipline,
         endRings = endRings,
+        stations = stations,
+    )
+
+    private fun courseStation(n: Int): CourseStation = CourseStation(
+        id = "st$n",
+        sessionId = "s1",
+        stationNumber = n,
+        ring = 10,
+        shotAt = Instant.parse("2026-05-19T08:00:00Z"),
     )
 
     @Test
@@ -50,7 +61,9 @@ class ActivityPreviewTest {
         assertThat(
             ActivityPreview.Target(face = "6-ring", score = 285, endRings = null).isEmpty,
         ).isFalse()
-        assertThat(ActivityPreview.Course(score = 64, stations = 6).isEmpty).isFalse()
+        assertThat(
+            ActivityPreview.Course(score = 64, stations = emptyList()).isEmpty,
+        ).isFalse()
     }
 
     @Test
@@ -75,13 +88,25 @@ class ActivityPreviewTest {
     }
 
     @Test
-    fun `3d course session picks the course preview`() {
-        val preview = activityPreview(item(session(discipline = "3d_course")))
+    fun `3d course session picks the course preview, carrying its stations`() {
+        val stations = listOf(courseStation(1), courseStation(2), courseStation(3))
+        val preview = activityPreview(
+            item(session(discipline = "3d_course", stations = stations)),
+        )
         assertThat(preview).isInstanceOf(ActivityPreview.Course::class.java)
         val course = preview as ActivityPreview.Course
         assertThat(course.score).isEqualTo(285)
-        // Stations come from the arrow count — one shot per station.
-        assertThat(course.stations).isEqualTo(90)
+        // The feed payload's ordered stations drive the real course map.
+        assertThat(course.stations).isEqualTo(stations)
+    }
+
+    @Test
+    fun `3d course with no stations still picks the course preview`() {
+        // A pre-v1.7 payload omits stations → Course with an empty list, which
+        // the CourseBand renders as the schematic fallback.
+        val preview = activityPreview(item(session(discipline = "3d_course")))
+        assertThat(preview).isInstanceOf(ActivityPreview.Course::class.java)
+        assertThat((preview as ActivityPreview.Course).stations).isEmpty()
     }
 
     @Test

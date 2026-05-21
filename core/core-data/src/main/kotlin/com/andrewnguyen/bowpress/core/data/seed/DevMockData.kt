@@ -34,6 +34,7 @@ import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.ClubAnnouncement
 import com.andrewnguyen.bowpress.core.model.ClubRole
+import com.andrewnguyen.bowpress.core.model.CourseStation
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.FletchingType
 import com.andrewnguyen.bowpress.core.model.Friendship
@@ -191,6 +192,7 @@ internal object DevMockData {
     private val userId = "dev-user"
     private val now: Instant = Instant.now()
     private fun daysAgo(n: Long): Instant = now.minus(n, ChronoUnit.DAYS)
+    private fun hoursAgo(n: Long): Instant = now.minus(n, ChronoUnit.HOURS)
     private fun minutesAfter(at: Instant, n: Long): Instant = at.plus(n, ChronoUnit.MINUTES)
 
     // --- Bows --------------------------------------------------------------
@@ -944,6 +946,149 @@ internal object DevMockData {
         ),
     )
 
+    // --- 3D-course gallery (§18) ------------------------------------------
+    //
+    // Mirrors iOS DevSocialMockData `course3DGallery` — four varied 3D
+    // courses (a 10-station line, a 24-station loop, a 45-station line and a
+    // 70-station loop) so the feed's adaptive course map is exercised against
+    // very different course shapes and sizes.
+
+    /** Course shape — a point-to-point line or a closed loop. */
+    private enum class Course3DShape { LINE, LOOP }
+
+    /**
+     * Builds a georeferenced 3D course of [count] stations shaped as a line
+     * or a loop. Deterministic. Mirrors iOS `make3DCourseStations`.
+     */
+    private fun make3DCourseStations(
+        sessionId: String,
+        base: Instant,
+        shape: Course3DShape,
+        count: Int,
+        centerLat: Double,
+        centerLon: Double,
+    ): List<CourseStation> {
+        val perLat = 1.0 / 111_320.0
+        val perLon = 1.0 / (111_320.0 * kotlin.math.cos(centerLat * Math.PI / 180.0))
+        return (0 until count).map { i ->
+            val t = if (count > 1) i.toDouble() / (count - 1) else 0.5
+            val mx: Double
+            val my: Double
+            when (shape) {
+                Course3DShape.LINE -> {
+                    val along = (t - 0.5) * maxOf(count, 2) * 24
+                    val wander = 30 * kotlin.math.sin(t * Math.PI * 2.4)
+                    mx = along * 0.82 + wander * 0.57
+                    my = along * 0.57 - wander * 0.82
+                }
+                Course3DShape.LOOP -> {
+                    val ang = t * Math.PI * 2 * (count - 1) / maxOf(count, 1)
+                    val radius = 38 + count * 3.2
+                    mx = kotlin.math.cos(ang) * radius
+                    my = kotlin.math.sin(ang) * radius * 0.74
+                }
+            }
+            CourseStation(
+                id = "${sessionId}_st${i + 1}",
+                sessionId = sessionId,
+                stationNumber = i + 1,
+                estimatedDistance = 16 + ((i * 37) % 30).toDouble(),
+                distanceUnit = "yd",
+                angleDegrees = (((i * 53) % 24) - 12).toDouble(),
+                bearingDegrees = ((i * 67 + 23) % 360).toDouble(),
+                latitude = centerLat + my * perLat,
+                longitude = centerLon + mx * perLon,
+                ring = intArrayOf(14, 12, 10, 8, 5)[(i * 3) % 5],
+                plotX = 0.1,
+                plotY = -0.05,
+                hasScenePhoto = true,
+                hasArrowPhoto = i % 2 == 0,
+                shotAt = base.plus(i * 6L, ChronoUnit.MINUTES),
+            )
+        }
+    }
+
+    /** A varied 3D course in the feed gallery — owner, place, shape, size. */
+    private data class Course3DSpec(
+        val shared: String,
+        val ownerHandle: String,
+        val ownerName: String,
+        val name: String,
+        val place: String,
+        val shape: Course3DShape,
+        val count: Int,
+        val lat: Double,
+        val lon: Double,
+        val hoursAgo: Long,
+    )
+
+    private val course3DSpecs: List<Course3DSpec> = listOf(
+        Course3DSpec(
+            shared = "ss3d_line10", ownerHandle = "m.okonkwo", ownerName = "Marcus Okonkwo",
+            name = "Pine Ridge Traverse", place = "Pine Ridge 3D",
+            shape = Course3DShape.LINE, count = 10,
+            lat = 37.4150, lon = -122.1200, hoursAgo = 7,
+        ),
+        Course3DSpec(
+            shared = "ss3d_loop24", ownerHandle = "jamie.r", ownerName = "Jamie Reyes",
+            name = "Cedar Hollow Loop", place = "Cedar Hollow Range",
+            shape = Course3DShape.LOOP, count = 24,
+            lat = 37.2600, lon = -121.9700, hoursAgo = 11,
+        ),
+        Course3DSpec(
+            shared = "ss3d_line45", ownerHandle = "emma.t", ownerName = "Emma Tan",
+            name = "Granite Ridge Long Walk", place = "Granite Ridge 3D",
+            shape = Course3DShape.LINE, count = 45,
+            lat = 37.5100, lon = -122.2600, hoursAgo = 26,
+        ),
+        Course3DSpec(
+            shared = "ss3d_loop70", ownerHandle = "riku.s", ownerName = "Riku Sato",
+            name = "Big Antler 70", place = "Big Antler Wilderness",
+            shape = Course3DShape.LOOP, count = 70,
+            lat = 37.1900, lon = -121.8400, hoursAgo = 33,
+        ),
+    )
+
+    /** Each gallery course as a feed item carrying its ordered stations. */
+    private val course3DGallery: List<ActivityItem> = course3DSpecs.map { spec ->
+        val sessionId = "sess_${spec.shared}"
+        val base = daysAgo(2)
+        val stations = make3DCourseStations(
+            sessionId = sessionId, base = base, shape = spec.shape,
+            count = spec.count, centerLat = spec.lat, centerLon = spec.lon,
+        )
+        val score = stations.sumOf { it.ring }
+        ActivityItem(
+            id = "act_${spec.shared}",
+            kind = ActivityKind.friend_session,
+            sourceKind = ActivitySourceKind.friend,
+            actorHandle = spec.ownerHandle,
+            actorDisplayName = spec.ownerName,
+            title = "Walked a 3D course",
+            meta = "${spec.name} · ${spec.count} stations · @${spec.ownerHandle}",
+            stamp = null,
+            createdAt = hoursAgo(spec.hoursAgo),
+            session = ActivitySession(
+                sharedSessionId = spec.shared,
+                sessionId = sessionId,
+                score = score,
+                xCount = 0,
+                arrowCount = spec.count,
+                distance = null,
+                face = "3D course",
+                discipline = "3d_course",
+                location = SessionLocation(
+                    name = spec.place,
+                    latitude = spec.lat,
+                    longitude = spec.lon,
+                ),
+                // §18 — the ordered stations so the feed preview draws the
+                // real adaptive course map.
+                stations = stations,
+            ),
+        )
+    }
+
     val activityFeed: List<ActivityItem> = listOf(
         // §15 — a highlighted shared-session row with achievement badges.
         ActivityItem(
@@ -1110,35 +1255,10 @@ internal object DevMockData {
                 ),
             ),
         ),
-        // §18 — a 3D-course shared session: the feed row shows the walked-trail
-        // course-block preview instead of a target face.
-        ActivityItem(
-            id = "act_008",
-            kind = ActivityKind.friend_session,
-            sourceKind = ActivitySourceKind.friend,
-            actorHandle = "nora.k",
-            actorDisplayName = "Nora Keller",
-            title = "Walked a 3D course",
-            meta = "ASA · 20 stations",
-            stamp = "6d ago",
-            createdAt = daysAgo(6),
-            session = ActivitySession(
-                sharedSessionId = "ss_nora_3d",
-                sessionId = "sess_nora_3d",
-                score = 187,
-                xCount = 0,
-                arrowCount = 20,
-                distance = null,
-                face = "3D course",
-                discipline = "3d_course",
-                location = SessionLocation(
-                    name = "Rocky Mill 3D Range",
-                    latitude = 37.33620,
-                    longitude = -122.04230,
-                ),
-            ),
-        ),
-    )
+        // §18 — 3D-course shared sessions follow: the four varied courses of
+        // `course3DGallery`, each carrying its stations so the feed row draws
+        // the real adaptive course map.
+    ) + course3DGallery
 
     // --- Invitations (§11) ------------------------------------------------
     //
