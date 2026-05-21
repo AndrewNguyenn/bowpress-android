@@ -83,7 +83,7 @@ internal sealed interface PhotoStripLayout {
         override val visibleCells: Int get() = 3
     }
 
-    /** [overflow] = total ready photos − 3, the "+N" on the last cell. 0 = exactly 4. */
+    /** [overflow] = total ready photos − 4, the "+N" on the last cell. 0 = exactly 4. */
     data class Grid(val overflow: Int) : PhotoStripLayout {
         override val visibleCells: Int get() = 4
     }
@@ -95,18 +95,16 @@ internal sealed interface PhotoStripLayout {
  *
  * 4 or more photos all collapse to the 2×2 [PhotoStripLayout.Grid]. Exactly 4
  * photos fill the grid with no overlay ([PhotoStripLayout.Grid.overflow] = 0).
- * *Past* 4, the 4th cell carries a "+N more" overlay where N = [readyCount] − 3
- * — the three photos in the other cells are shown, not "more", so the count
- * includes the photo hidden under the 4th-cell scrim. Matches the design's
- * State C (7 photos → "+4 more").
+ * *Past* 4, the 4th cell carries a "+N more" overlay where N = [readyCount] − 4
+ * — all four cells show a photo, so the count is only the photos *not* shown.
+ * Matches the design's State C (7 photos → "+3 more").
  */
 internal fun photoStripLayout(readyCount: Int): PhotoStripLayout? = when {
     readyCount <= 0 -> null
     readyCount == 1 -> PhotoStripLayout.Single
     readyCount == 2 -> PhotoStripLayout.Pair
     readyCount == 3 -> PhotoStripLayout.Trio
-    readyCount == 4 -> PhotoStripLayout.Grid(overflow = 0)
-    else -> PhotoStripLayout.Grid(overflow = readyCount - 3)
+    else -> PhotoStripLayout.Grid(overflow = readyCount - 4)
 }
 
 /**

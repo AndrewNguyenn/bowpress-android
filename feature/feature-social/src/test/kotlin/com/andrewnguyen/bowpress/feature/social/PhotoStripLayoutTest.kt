@@ -54,26 +54,26 @@ class PhotoStripLayoutTest {
 
     @Test
     fun `five photos show plus one more`() {
-        // 5 ready → 4 cells, 4th carries "+N" where N = total − 3 = 2.
-        assertThat(photoStripLayout(5)).isEqualTo(PhotoStripLayout.Grid(overflow = 2))
+        // 5 ready → 4 cells, 4th carries "+N" where N = total − 4 = 1.
+        assertThat(photoStripLayout(5)).isEqualTo(PhotoStripLayout.Grid(overflow = 1))
     }
 
     @Test
-    fun `seven photos show plus four more`() {
-        // The design's State C: 7 photos → 2x2 grid, 4th cell "+4 more".
-        // overflow = 7 − 3 = 4 (three photos sit in the other cells).
-        assertThat(photoStripLayout(7)).isEqualTo(PhotoStripLayout.Grid(overflow = 4))
+    fun `seven photos show plus three more`() {
+        // The design's State C: 7 photos → 2x2 grid, 4th cell "+3 more".
+        // overflow = 7 − 4 = 3 (all four cells show a photo).
+        assertThat(photoStripLayout(7)).isEqualTo(PhotoStripLayout.Grid(overflow = 3))
     }
 
     @Test
-    fun `the overflow count is total minus three for more than 4 photos`() {
+    fun `the overflow count is total minus four for more than 4 photos`() {
         // The grid never shows more than 4 cells; past 4 photos the overflow
-        // on the last cell is (total − 3) — 3 photos sit uncovered, the 4th
-        // cell's photo is counted into the "+N". Exactly 4 has no overflow.
+        // on the last cell is (total − 4) — all 4 cells show a photo, so the
+        // "+N" counts only the photos not shown. Exactly 4 has no overflow.
         for (total in 5..40) {
             val layout = photoStripLayout(total)
             assertThat(layout).isInstanceOf(PhotoStripLayout.Grid::class.java)
-            assertThat((layout as PhotoStripLayout.Grid).overflow).isEqualTo(total - 3)
+            assertThat((layout as PhotoStripLayout.Grid).overflow).isEqualTo(total - 4)
             assertThat(layout.visibleCells).isEqualTo(4)
         }
     }
