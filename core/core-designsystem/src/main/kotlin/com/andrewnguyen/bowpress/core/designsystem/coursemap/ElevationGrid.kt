@@ -1,4 +1,4 @@
-package com.andrewnguyen.bowpress.feature.session.threed
+package com.andrewnguyen.bowpress.core.designsystem.coursemap
 
 import kotlin.math.acos
 

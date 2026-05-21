@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.session.threed
 
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.*
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager

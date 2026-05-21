@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.session.threed
 
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.*
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent

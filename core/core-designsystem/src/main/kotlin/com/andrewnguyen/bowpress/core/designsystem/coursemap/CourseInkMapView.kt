@@ -1,4 +1,4 @@
-package com.andrewnguyen.bowpress.feature.session.threed
+package com.andrewnguyen.bowpress.core.designsystem.coursemap
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
