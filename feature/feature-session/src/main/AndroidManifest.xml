@@ -1,1 +1,8 @@
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 3D Course traces the walked route on a GPS map. Fine accuracy gives a
+         usable trail in the woods; coarse is the graceful-degrade fallback. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+</manifest>

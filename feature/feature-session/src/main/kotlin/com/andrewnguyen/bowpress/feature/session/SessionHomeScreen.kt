@@ -66,8 +66,10 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.Bow
+import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.TextStyle as JavaTextStyle
@@ -93,17 +95,18 @@ private const val SESSION_NAME_MAX_LENGTH = 60
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionHomeScreen(
-    onSessionStarted: (sessionId: String) -> Unit,
+    onSessionStarted: (sessionId: String, type: SessionType) -> Unit,
     viewModel: SessionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    // If a session becomes active while this screen is visible, route to it. Keyed
-    // on the session id so we don't loop on recomposition.
+    // If a session becomes active while this screen is visible, route to it
+    // (range or 3D course). Keyed on the id so we don't loop on recomposition.
     val activeId = state.activeSession?.id
     LaunchedEffect(activeId) {
-        if (activeId != null) onSessionStarted(activeId)
+        val active = state.activeSession
+        if (active != null) onSessionStarted(active.id, active.sessionType)
     }
 
     // Seed a default bow + arrow selection the first time the catalog arrives so
@@ -142,6 +145,12 @@ fun SessionHomeScreen(
             )
             HairlineDivider()
 
+            SessionTypeField(
+                selected = state.selectedSessionType,
+                onSelected = { viewModel.selectSessionType(it) },
+            )
+            HairlineDivider()
+
             BowField(
                 bow = state.selectedBow,
                 arrow = state.selectedArrow,
@@ -149,17 +158,25 @@ fun SessionHomeScreen(
             )
             HairlineDivider()
 
-            DistanceField(
-                selected = state.selectedDistance,
-                onSelected = { viewModel.selectDistance(it) },
-            )
-            HairlineDivider()
+            if (state.selectedSessionType == SessionType.RANGE) {
+                DistanceField(
+                    selected = state.selectedDistance,
+                    onSelected = { viewModel.selectDistance(it) },
+                )
+                HairlineDivider()
 
-            TargetFaceField(
-                selected = state.selectedFaceType,
-                onSelected = { viewModel.selectFaceType(it) },
-            )
-            HairlineDivider()
+                TargetFaceField(
+                    selected = state.selectedFaceType,
+                    onSelected = { viewModel.selectFaceType(it) },
+                )
+                HairlineDivider()
+            } else {
+                ScoringSystemField(
+                    selected = state.selectedScoringSystem,
+                    onSelected = { viewModel.selectScoringSystem(it) },
+                )
+                HairlineDivider()
+            }
 
             IntentionField(
                 value = intentionNote,
@@ -168,8 +185,13 @@ fun SessionHomeScreen(
 
             Spacer(Modifier.height(8.dp))
 
+            val isThreeD = state.selectedSessionType == SessionType.THREE_D_COURSE
             BPPrimaryButton(
-                title = if (state.isLoading) "Starting…" else "Begin session",
+                title = when {
+                    state.isLoading -> "Starting…"
+                    isThreeD -> "Begin course"
+                    else -> "Begin session"
+                },
                 subtitle = ctaSubtitle(state),
                 enabled = state.selectedBow != null
                     && state.selectedArrow != null
@@ -178,12 +200,22 @@ fun SessionHomeScreen(
                     val bow = state.selectedBow ?: return@BPPrimaryButton
                     val arrow = state.selectedArrow ?: return@BPPrimaryButton
                     scope.launch {
-                        viewModel.startSession(
-                            bow = bow,
-                            arrow = arrow,
-                            title = sessionName,
-                            intention = intentionNote,
-                        )
+                        if (isThreeD) {
+                            viewModel.startThreeDCourse(
+                                bow = bow,
+                                arrow = arrow,
+                                system = state.selectedScoringSystem,
+                                title = sessionName,
+                                intention = intentionNote,
+                            )
+                        } else {
+                            viewModel.startSession(
+                                bow = bow,
+                                arrow = arrow,
+                                title = sessionName,
+                                intention = intentionNote,
+                            )
+                        }
                     }
                 },
             )
@@ -594,10 +626,101 @@ private fun HairlineDivider() {
 }
 
 private fun ctaSubtitle(state: SessionUiState): String {
-    val distance = state.selectedDistance?.label?.uppercase() ?: "DISTANCE"
     val bow = state.selectedBow?.name?.uppercase() ?: "BOW"
+    if (state.selectedSessionType == SessionType.THREE_D_COURSE) {
+        return "3D COURSE · $bow · ${state.selectedScoringSystem.label.uppercase()}"
+    }
+    val distance = state.selectedDistance?.label?.uppercase() ?: "DISTANCE"
     val face = if (state.selectedFaceType == TargetFaceType.TEN_RING) "10-RING" else "6-RING"
     return "$distance · $bow · $face"
+}
+
+// ---------------------------------------------------------------------------
+// Session type field — Range vs 3D Course
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun SessionTypeField(
+    selected: SessionType,
+    onSelected: (SessionType) -> Unit,
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        FieldLabel("DISCIPLINE", hint = "range or 3D")
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SessionType.entries.forEach { type ->
+                ChoiceTile(
+                    title = type.label,
+                    subtitle = type.subtitle,
+                    isSelected = selected == type,
+                    onClick = { onSelected(type) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scoring system field — ASA / IBO / WA 3D (shown for 3D courses)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ScoringSystemField(
+    selected: ThreeDScoringSystem,
+    onSelected: (ThreeDScoringSystem) -> Unit,
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        FieldLabel("SCORING SYSTEM", hint = "3D rings")
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ThreeDScoringSystem.entries.forEach { system ->
+                ChoiceTile(
+                    title = system.label,
+                    subtitle = system.ringSummary,
+                    isSelected = selected == system,
+                    onClick = { onSelected(system) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceTile(
+    title: String,
+    subtitle: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .background(if (isSelected) AppPaper2 else AppPaper)
+            .border(1.dp, if (isSelected) AppPondDk else AppLine)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = title,
+            style = frauncesDisplay(15.sp, italic = true, weight = FontWeight.Medium)
+                .copy(color = if (isSelected) AppPondDk else AppInk),
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = subtitle.uppercase(),
+            style = jetbrainsMono(8.sp).copy(letterSpacing = 0.04.em, color = AppInk3),
+            maxLines = 1,
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------

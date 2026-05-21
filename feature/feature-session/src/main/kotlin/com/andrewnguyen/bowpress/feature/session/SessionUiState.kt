@@ -4,9 +4,11 @@ import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 
 /**
  * Consolidated UI state for the entire session flow. `SessionHomeScreen` reads
@@ -34,6 +36,10 @@ data class SessionUiState(
     val userOverrodeFace: Boolean = false,
     /** Distance the user will shoot at; null = "not set" (won't appear under any specific-distance analytics filter). */
     val selectedDistance: ShootingDistance? = null,
+    /** Practice discipline picked on the setup screen — range vs 3D course. */
+    val selectedSessionType: SessionType = SessionType.RANGE,
+    /** Scoring system for a 3D course (ignored for range sessions). */
+    val selectedScoringSystem: ThreeDScoringSystem = ThreeDScoringSystem.ASA,
 
     // Active session
     val activeSession: ShootingSession? = null,

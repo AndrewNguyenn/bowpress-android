@@ -15,9 +15,11 @@ import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
 import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.SessionLocation
+import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.core.model.Zone
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -149,6 +151,58 @@ class SessionViewModel @Inject constructor(
     }
 
     // ---- Lifecycle ----
+
+    fun selectSessionType(type: SessionType) {
+        _uiState.update { it.copy(selectedSessionType = type) }
+    }
+
+    fun selectScoringSystem(system: ThreeDScoringSystem) {
+        _uiState.update { it.copy(selectedScoringSystem = system) }
+    }
+
+    /**
+     * Begin a 3D-course session. Mirrors [startSession] but stamps the
+     * session `sessionType = THREE_D_COURSE` + the chosen scoring system;
+     * [com.andrewnguyen.bowpress.feature.session.threed.ThreeDCourseViewModel]
+     * then takes over the live course.
+     */
+    suspend fun startThreeDCourse(
+        bow: Bow,
+        arrow: ArrowConfiguration,
+        system: ThreeDScoringSystem,
+        title: String = "",
+        intention: String = "",
+    ) {
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        val existingConfigs = bowConfigRepo.getByBow(bow.id)
+        val bowConfig = existingConfigs.maxByOrNull { it.createdAt }
+            ?: com.andrewnguyen.bowpress.core.data.config.makeDefaultConfig(bow).also {
+                bowConfigRepo.saveConfig(it)
+            }
+        val session = ShootingSession(
+            id = UUID.randomUUID().toString(),
+            bowId = bow.id,
+            bowConfigId = bowConfig.id,
+            arrowConfigId = arrow.id,
+            startedAt = Instant.now(),
+            sessionType = SessionType.THREE_D_COURSE,
+            scoringSystem = system,
+            title = title.trim().takeIf { it.isNotEmpty() },
+            notes = intention.trim(),
+        )
+        sessionRepo.saveSession(session)
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                activeSession = session,
+                activeBowConfig = bowConfig,
+                activeArrowConfig = arrow,
+                selectedBow = bow,
+                selectedArrow = arrow,
+                userOverrodeFace = false,
+            )
+        }
+    }
 
     suspend fun startSession(
         bow: Bow,
