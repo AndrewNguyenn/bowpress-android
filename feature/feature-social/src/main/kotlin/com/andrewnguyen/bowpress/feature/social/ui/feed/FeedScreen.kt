@@ -150,23 +150,35 @@ fun FeedScreen(
             }
 
             items(state.feed, key = { it.id }) { item ->
-                FeedItemRow(
-                    item = item,
-                    photoLoader = viewModel.photoLoader,
-                    // Routing precedence lives in feedItemDestination().
-                    onItemClick = { row ->
-                        when (val dest = feedItemDestination(row)) {
-                            is FeedItemDestination.Session ->
-                                onSessionClick(dest.sharedSessionId, dest.isOwn)
-                            is FeedItemDestination.League -> onLeagueClick(dest.leagueId)
-                            is FeedItemDestination.Club -> onClubClick(dest.clubId)
-                            is FeedItemDestination.Actor -> onActorClick(dest.actorUserId)
-                        }
-                    },
-                    // §18 — tapping the location tag opens the map popup.
-                    onLocationTap = { location -> mapLocation = location },
-                )
-                HorizontalDivider(color = AppLine2, thickness = 1.dp, modifier = Modifier.padding(horizontal = 0.dp))
+                // Routing precedence lives in feedItemDestination().
+                val openItem: (ActivityItem) -> Unit = { row ->
+                    when (val dest = feedItemDestination(row)) {
+                        is FeedItemDestination.Session ->
+                            onSessionClick(dest.sharedSessionId, dest.isOwn)
+                        is FeedItemDestination.League -> onLeagueClick(dest.leagueId)
+                        is FeedItemDestination.Club -> onClubClick(dest.clubId)
+                        is FeedItemDestination.Actor -> onActorClick(dest.actorUserId)
+                    }
+                }
+                if (activityPreview(item) is ActivityPreview.Target) {
+                    // Social Activity Card · 50/50 — the rich card for a
+                    // shared range session.
+                    ActivityCard(
+                        item = item,
+                        onClick = { openItem(item) },
+                        onLocationTap = { location -> mapLocation = location },
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                    )
+                } else {
+                    FeedItemRow(
+                        item = item,
+                        photoLoader = viewModel.photoLoader,
+                        onItemClick = openItem,
+                        // §18 — tapping the location tag opens the map popup.
+                        onLocationTap = { location -> mapLocation = location },
+                    )
+                    HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                }
             }
 
             // Pending requests section if any

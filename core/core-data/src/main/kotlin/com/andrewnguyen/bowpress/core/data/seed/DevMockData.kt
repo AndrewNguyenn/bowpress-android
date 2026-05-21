@@ -1292,8 +1292,11 @@ internal object DevMockData {
                 // so the friend session detail renders a real scorecard +
                 // plotted target in DEBUG.
                 sessionId = "dev_s1_8",
-                score = 196,
-                xCount = 9,
+                // Score / X derive from the dev_s1_8 arrows + the endRings
+                // below — 18 arrows of all 10s and Xs is a clean 180 / 11X,
+                // so the hero score and the scorecard agree.
+                score = 180,
+                xCount = 11,
                 arrowCount = 18,
                 distance = "50m",
                 face = "10-Ring",
@@ -1316,8 +1319,8 @@ internal object DevMockData {
             achievements = listOf(
                 AchievementBadge(
                     kind = AchievementKind.score_pr,
-                    label = "Score PR · 196",
-                    value = 196,
+                    label = "Score PR · 180",
+                    value = 180,
                     sublabel = "50m · 10-Ring",
                 ),
             ),
