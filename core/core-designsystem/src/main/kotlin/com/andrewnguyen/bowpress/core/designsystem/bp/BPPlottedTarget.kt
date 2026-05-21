@@ -17,6 +17,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppTgtRed
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtWhite
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtYellow
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
+import com.andrewnguyen.bowpress.core.model.MultiSpotGeometry
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 
@@ -36,11 +37,13 @@ import com.andrewnguyen.bowpress.core.model.TargetLayout
  *    3-spot Vegas triangle (two faces top, one below); [TargetLayout.VERTICAL]
  *    draws the 3-spot vertical strip (three faces stacked).
  *
- * For multi-spot layouts the arrows are distributed across the spots by their
- * order within each end (arrow 1 → spot 1, arrow 2 → spot 2, …) — the standard
- * 3-spot convention of one arrow per face per end. Each arrow's `plotX/plotY`
- * (∈ [-1, 1] from its face's centre, east/south-positive) is then drawn
- * relative to that spot's centre. Plots missing coordinates are skipped.
+ * For a multi-spot layout the arrows are placed by **position** — each arrow's
+ * stored `plotX/plotY` (∈ [-1, 1] of the whole *card*, east/south-positive)
+ * is bucketed to its nearest spot via [MultiSpotGeometry.assignArrows] and
+ * drawn at its recentered spot-local position. This matches how a live
+ * multi-spot session is scored (nearest-spot, not order-within-end) and
+ * mirrors iOS `AggregateMultiSpotFace` / `PerSpotBreakdown`. Plots missing
+ * coordinates are skipped.
  */
 @Composable
 fun BPPlottedTarget(
@@ -49,59 +52,52 @@ fun BPPlottedTarget(
     faceType: TargetFaceType = TargetFaceType.TEN_RING,
     layout: TargetLayout = TargetLayout.SINGLE,
 ) {
+    val multiSpot = MultiSpotGeometry.preset(layout)
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(if (layout == TargetLayout.VERTICAL) 1f / 3f else 1f),
+            // The Vegas card is square — both triangle and vertical spot
+            // presets are normalised to a 1:1 face square.
+            .aspectRatio(1f),
     ) {
-        val spots = spotCenters(layout, size.width, size.height)
-        // Each spot's face radius — sized so the spots don't overlap.
-        val faceRadius = when (layout) {
-            TargetLayout.SINGLE -> minOf(size.width, size.height) / 2f
-            TargetLayout.TRIANGLE -> size.width / 4f
-            TargetLayout.VERTICAL -> size.width / 2f
-        }
-
-        // Deal arrows to spots round-robin within each end (one arrow per
-        // face per end is the standard 3-spot convention).
-        val arrowsBySpot: Map<Int, List<ArrowPlot>> = arrows
-            .groupBy { it.endId }
-            .values
-            .flatMap { end -> end.mapIndexed { i, plot -> (i % spots.size) to plot } }
-            .groupBy({ it.first }, { it.second })
-
-        spots.forEachIndexed { index, center ->
+        if (multiSpot == null) {
+            // Single face — one bullseye, plotX/plotY relative to its centre.
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val faceRadius = minOf(size.width, size.height) / 2f
             drawFace(center, faceRadius, faceType)
-            arrowsBySpot[index].orEmpty().forEach { plot ->
+            arrows.forEach { plot ->
                 val px = plot.plotX ?: return@forEach
                 val py = plot.plotY ?: return@forEach
                 drawArrowDot(
-                    Offset(
-                        x = center.x + px.toFloat() * faceRadius,
-                        y = center.y + py.toFloat() * faceRadius,
-                    ),
+                    Offset(center.x + px.toFloat() * faceRadius, center.y + py.toFloat() * faceRadius),
                     faceRadius,
                 )
             }
+            return@Canvas
+        }
+
+        // Multi-spot Vegas card — three 6-ring spots. Spot centres + radius
+        // come from the shared geometry (normalised to the face square).
+        val minEdge = minOf(size.width, size.height)
+        val spotRadius = multiSpot.radiusNorm.toFloat() * minEdge
+        val spotCentres = multiSpot.centers.map { c ->
+            Offset(c.x.toFloat() * size.width, c.y.toFloat() * size.height)
+        }
+        spotCentres.forEach { drawFace(it, spotRadius, TargetFaceType.SIX_RING) }
+        // Position-based bucketing — each arrow on its actual spot, drawn at
+        // its recentered spot-local offset (localX/localY ∈ −1..1 of the
+        // spot radius). Mirrors the live-session scoring path.
+        multiSpot.assignArrows(arrows).forEach { perSpot ->
+            val centre = spotCentres[perSpot.spotIndex]
+            drawArrowDot(
+                Offset(
+                    centre.x + perSpot.localX.toFloat() * spotRadius,
+                    centre.y + perSpot.localY.toFloat() * spotRadius,
+                ),
+                spotRadius,
+            )
         }
     }
-}
-
-/** Spot centres for a layout, given the canvas size. */
-private fun spotCenters(layout: TargetLayout, w: Float, h: Float): List<Offset> = when (layout) {
-    TargetLayout.SINGLE -> listOf(Offset(w / 2f, h / 2f))
-    // Vegas triangle — two faces top, one centred below.
-    TargetLayout.TRIANGLE -> listOf(
-        Offset(w * 0.27f, h * 0.30f),
-        Offset(w * 0.73f, h * 0.30f),
-        Offset(w * 0.50f, h * 0.72f),
-    )
-    // Vertical 3-spot — three faces stacked (canvas is 1:3 tall).
-    TargetLayout.VERTICAL -> listOf(
-        Offset(w / 2f, h / 6f),
-        Offset(w / 2f, h / 2f),
-        Offset(w / 2f, h * 5f / 6f),
-    )
 }
 
 /**

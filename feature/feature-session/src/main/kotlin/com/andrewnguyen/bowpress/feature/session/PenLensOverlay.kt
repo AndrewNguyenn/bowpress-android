@@ -36,6 +36,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlack
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
+import com.andrewnguyen.bowpress.core.model.MultiSpotGeometry
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 

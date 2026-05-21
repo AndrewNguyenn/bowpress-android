@@ -117,6 +117,19 @@ class SessionViewModel @Inject constructor(
                     _uiState.update { it.copy(currentArrows = plots) }
                 }
         }
+        viewModelScope.launch {
+            // Observe the completed ends for the active session — drives the
+            // live ends-history scorecard. Combined with the plot stream
+            // above by `endsBreakdown`.
+            sessionRepo.observeActiveSession()
+                .flatMapLatest { active ->
+                    if (active == null) flowOf(emptyList())
+                    else sessionEndRepo.observeBySession(active.id)
+                }
+                .collect { ends ->
+                    _uiState.update { it.copy(completedEnds = ends) }
+                }
+        }
     }
 
     // ---- Selection (start screen) ----
@@ -323,6 +336,7 @@ class SessionViewModel @Inject constructor(
                 pendingBowConfig = null,
                 pendingArrowConfig = null,
                 currentArrows = emptyList(),
+                completedEnds = emptyList(),
                 // Clear the manual-override flag so the next setup gets a fresh smart default.
                 userOverrodeFace = false,
             )
@@ -405,11 +419,105 @@ class SessionViewModel @Inject constructor(
         plotRepo.savePlot(plot.copy(excluded = !plot.excluded))
     }
 
-    /** Undo — removes the last plotted arrow from Room and remote. */
+    /**
+     * Undo — removes the last arrow of the *in-progress* end. Cannot undo past
+     * a completed end: a completed end's arrows are edited via [deleteArrow] /
+     * the end-actions sheet, not the undo button. Mirrors iOS `removeLastArrow`.
+     */
     suspend fun removeLastArrow() {
-        val last = _uiState.value.currentArrows.maxByOrNull { it.shotAt } ?: return
+        val last = _uiState.value.currentEndArrows.maxByOrNull { it.shotAt } ?: return
         plotRepo.deletePlot(last)
     }
+
+    /**
+     * Complete the in-progress end: record a [SessionEnd] with the next end
+     * number and stamp every in-progress arrow with the new end's id, so the
+     * arrows move out of `currentEndArrows` and into the scorecard. The end
+     * starts empty again for the next round. Mirrors iOS `completeEnd`.
+     */
+    /**
+     * Synchronous re-entry guard for [completeEnd]. The `isLoading` flag can't
+     * serve this role — it is only flipped after the first suspend point, so a
+     * fast double-tap of "Finish End" (or `endSession` racing an in-flight
+     * tap) would both pass the `isEmpty()` guard against the *same*
+     * `currentEndArrows` and record two `SessionEnd`s. This boolean is
+     * checked-and-set on the calling thread before any suspension.
+     */
+    private var completingEnd = false
+
+    /**
+     * Complete the in-progress end. Records a [SessionEnd] and stamps the
+     * in-progress arrows with its id. Re-entrant calls are dropped by
+     * [completingEnd]. Returns true when an end was recorded.
+     */
+    suspend fun completeEnd(): Boolean {
+        if (completingEnd) return false
+        completingEnd = true
+        try {
+            val state = _uiState.value
+            val session = state.activeSession ?: return false
+            return completeEndWith(session, state.currentEndArrows, state.currentEndNumber)
+        } finally {
+            completingEnd = false
+        }
+    }
+
+    /**
+     * The actual end-completion work, against an already-captured arrow
+     * snapshot — so [endSession] can complete a trailing end without a second
+     * read of the reactive state (and without re-tripping the [completingEnd]
+     * guard it already holds). Returns true when an end was recorded.
+     */
+    private suspend fun completeEndWith(
+        session: ShootingSession,
+        arrowsInEnd: List<ArrowPlot>,
+        endNumber: Int,
+    ): Boolean {
+        if (arrowsInEnd.isEmpty()) return false
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        val end = SessionEnd(
+            id = UUID.randomUUID().toString(),
+            sessionId = session.id,
+            endNumber = endNumber,
+            completedAt = Instant.now(),
+        )
+        var recorded = false
+        runCatching {
+            sessionEndRepo.saveEnd(end)
+            // Stamp each in-progress arrow with the new end's id. The plot
+            // stream then re-emits and `endsBreakdown` slices them into the
+            // completed end. Mirrors the iOS endId-stamp loop.
+            arrowsInEnd.forEach { arrow ->
+                plotRepo.savePlot(arrow.copy(endId = end.id))
+            }
+            recorded = true
+        }.onFailure { e ->
+            _uiState.update { it.copy(error = e.message) }
+        }
+        _uiState.update { it.copy(isLoading = false) }
+        return recorded
+    }
+
+    /**
+     * Delete a specific arrow by id from Room and remote. Used by the
+     * recent-arrows / scorecard edit path to fix a mis-entered score. The
+     * arrow leaves whichever end it belonged to; `endsBreakdown` re-slices on
+     * the next plot emission. Mirrors iOS `deleteArrow`.
+     */
+    suspend fun deleteArrow(plotId: String) {
+        val plot = _uiState.value.currentArrows.firstOrNull { it.id == plotId } ?: return
+        plotRepo.deletePlot(plot)
+    }
+
+    // NOTE: iOS `addArrowToEnd` (slotting a recovery arrow into an
+    // already-completed end) is intentionally NOT ported yet. It needs a
+    // target-tap surface, and the only such edit sheet — ArrowEditSheet —
+    // lives in feature-analytics, which already depends on feature-session;
+    // importing it back would be a dependency cycle. Rather than leave an
+    // unreachable suspend function, the VM method was removed. The live
+    // scorecard already supports delete-a-shot-cell + re-plot into the live
+    // end as the Android recovery path. Restore addArrowToEnd when a shared
+    // edit sheet exists in core-designsystem.
 
     /**
      * Re-plot an existing arrow at a new (x, y) on the target. Mirrors iOS
@@ -463,25 +571,33 @@ class SessionViewModel @Inject constructor(
         feelTags: List<String>,
         location: SessionLocation? = null,
     ) {
-        val session = _uiState.value.activeSession ?: return
-        // Capture the arrow plots before the UI state is cleared below — the
-        // §15 share needs the score/X line off the just-finished session.
-        val arrows = _uiState.value.currentArrows
+        val state = _uiState.value
+        val session = state.activeSession ?: return
+        // Capture the arrow plots + the in-progress end up front, before any
+        // suspension. The §15 share's score/X line is computed off this
+        // `arrows` snapshot — every plotted arrow, regardless of endId — so
+        // it stays correct even though the reactive completedEnds stream
+        // hasn't re-emitted the just-auto-completed end yet.
+        val arrows = state.currentArrows
+        val trailingEnd = state.currentEndArrows
+        val trailingEndNumber = state.currentEndNumber
         _uiState.update { it.copy(isLoading = true, error = null) }
+        // Auto-complete any in-progress end so the finished session has clean,
+        // fully-stamped ends — no trailing batch of endId-less arrows in the
+        // log. Goes straight through completeEndWith with the captured
+        // snapshot: a no-op when the last end was already finished, and not
+        // subject to the `completingEnd` re-entry guard (no second state read).
+        completeEndWith(session, trailingEnd, trailingEndNumber)
         sessionRepo.endSession(
             sessionId = session.id,
             endedAt = Instant.now(),
             notes = notes,
         )
-        // Persist the closing end (feel tags live on the end in the Android schema).
-        val end = SessionEnd(
-            id = UUID.randomUUID().toString(),
-            sessionId = session.id,
-            endNumber = 1,
-            notes = if (feelTags.isEmpty()) null else feelTags.joinToString(","),
-            completedAt = Instant.now(),
-        )
-        runCatching { sessionEndRepo.saveEnd(end) }
+        // Persist feel tags onto the session itself — that is where the
+        // analytics engine reads them from (ShootingSession.feelTags). The
+        // session notes were just written by endSession() above; pass them
+        // through unchanged so updateSession doesn't blank them.
+        runCatching { sessionRepo.updateSession(session.id, notes, feelTags) }
         _uiState.update {
             it.copy(
                 isLoading = false,
@@ -491,6 +607,7 @@ class SessionViewModel @Inject constructor(
                 pendingBowConfig = null,
                 pendingArrowConfig = null,
                 currentArrows = emptyList(),
+                completedEnds = emptyList(),
                 userOverrodeFace = false,
             )
         }

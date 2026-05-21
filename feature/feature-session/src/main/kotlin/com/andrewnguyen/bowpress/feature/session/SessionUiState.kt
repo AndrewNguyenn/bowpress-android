@@ -4,6 +4,7 @@ import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
@@ -58,12 +59,33 @@ data class SessionUiState(
     val pendingBowConfig: BowConfiguration? = null,
     val pendingArrowConfig: ArrowConfiguration? = null,
 
-    // Plots for the active session
+    // Plots for the active session — every plot, in shotAt order. Sliced into
+    // ends by `endId` via [endsBreakdown].
     val currentArrows: List<ArrowPlot> = emptyList(),
+    // Completed ends for the active session, in endNumber order.
+    val completedEnds: List<SessionEnd> = emptyList(),
 ) {
     val isSessionActive: Boolean get() = activeSession != null
     val hasPendingConfigChange: Boolean
         get() = pendingBowConfig != null || pendingArrowConfig != null
+
+    /**
+     * The live end breakdown — completed ends with their arrows plus the
+     * in-progress end. The single source of truth the active-session
+     * scorecard renders. Mirrors iOS `completedEndsBreakdown` + `currentEndArrows`.
+     *
+     * Computed once per state instance (a `val` initializer, not a `get()`)
+     * so reading it — and `currentEndArrows` / `currentEndNumber` below —
+     * doesn't re-slice the whole plot list on every access / recomposition.
+     */
+    val endsBreakdown: SessionEndsBreakdown =
+        SessionEndsBreakdown.from(arrows = currentArrows, ends = completedEnds)
+
+    /** Arrows in the end currently being plotted (no `endId` yet). */
+    val currentEndArrows: List<ArrowPlot> get() = endsBreakdown.inProgressArrows
+
+    /** Display number of the end being plotted right now. */
+    val currentEndNumber: Int get() = endsBreakdown.currentEndNumber
 
     /**
      * Face type for the currently-active session (falls back to [selectedFaceType] during

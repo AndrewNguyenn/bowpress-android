@@ -1,7 +1,5 @@
-package com.andrewnguyen.bowpress.feature.session
+package com.andrewnguyen.bowpress.core.model
 
-import com.andrewnguyen.bowpress.core.model.ArrowPlot
-import com.andrewnguyen.bowpress.core.model.TargetLayout
 import kotlin.math.sqrt
 
 /**

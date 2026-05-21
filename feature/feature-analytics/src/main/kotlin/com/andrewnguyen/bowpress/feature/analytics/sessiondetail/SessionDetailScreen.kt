@@ -68,6 +68,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppRingTintRedLt
 import com.andrewnguyen.bowpress.core.designsystem.AppRingTintX
 import com.andrewnguyen.bowpress.core.designsystem.AppRingTintYellow
 import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
@@ -215,18 +216,29 @@ private fun SessionDetailContent(
             SectionDivider()
         }
 
-        // Shot distribution heatmap — scoped to the selected end when one is
-        // tapped in the scorecard above.
+        // Shot distribution — scoped to the selected end when one is tapped
+        // in the scorecard above. A multi-spot session draws the 3-spot Vegas
+        // card via BPPlottedTarget (each arrow on its actual spot, scored
+        // per-spot); a single-face session keeps the 10-ring ShotDistributionTarget.
         if (state.arrows.isNotEmpty()) {
             Section {
                 SectionEyebrow(
                     if (selectedLine == null) "SHOT DISTRIBUTION"
                     else "END ${selectedLine.end.endNumber}",
                 )
-                ShotDistributionTarget(
-                    arrows = displayedArrows,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
+                if (state.targetLayout.isMultiSpot) {
+                    BPPlottedTarget(
+                        arrows = displayedArrows,
+                        faceType = state.faceType,
+                        layout = state.targetLayout,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                } else {
+                    ShotDistributionTarget(
+                        arrows = displayedArrows,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
                 if (selectedLine != null) {
                     EndScopeCaption(line = selectedLine)
                 }

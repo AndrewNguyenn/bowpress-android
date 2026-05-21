@@ -24,8 +24,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,6 +95,9 @@ fun ActiveSessionScreen(
 
     var showConfigSheet by remember { mutableStateOf(false) }
     var showEndSheet by remember { mutableStateOf(false) }
+    // The completed end whose actions dialog is open (add a missed arrow /
+    // delete the end), keyed by end id. Mirrors iOS endActionsTarget.
+    var endActionsTarget by remember { mutableStateOf<String?>(null) }
 
     // Track whether we've ever seen the session as active so a transient null during
     // initial hydration doesn't bounce the user back to the home screen.
@@ -146,17 +151,50 @@ fun ActiveSessionScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
 
-            // iOS SessionView doesn't surface a Recent Arrows strip at all
-            // (no equivalent in SessionView.swift). Render it only once
-            // arrows have been plotted so the empty-state layout matches iOS;
-            // future iters can decide whether to drop the strip entirely.
-            if (state.currentArrows.isNotEmpty()) {
+            val breakdown = state.endsBreakdown
+
+            // Undo + Finish-End bar directly under the target — closes the
+            // in-progress end and starts the next. Mirrors iOS undoEndButton
+            // + finishEndBar (SessionView.swift).
+            EndControlsRow(
+                currentEndNumber = breakdown.currentEndNumber,
+                inProgressCount = breakdown.inProgressArrows.size,
+                isLoading = state.isLoading,
+                onUndo = { scope.launch { viewModel.removeLastArrow() } },
+                onFinishEnd = { scope.launch { viewModel.completeEnd() } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+
+            // In-progress end arrows — quick live feedback for the end being
+            // plotted right now (not the whole session).
+            if (breakdown.inProgressArrows.isNotEmpty()) {
                 RecentArrowsStrip(
-                    arrows = state.currentArrows,
+                    arrows = breakdown.inProgressArrows,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                 )
+            }
+
+            // Running ends-history scorecard — every completed end. Mirrors
+            // iOS endsHistory. Tapping an end opens its actions; tapping a
+            // shot cell deletes that arrow.
+            if (breakdown.hasCompletedEnds) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                ) {
+                    BPEyebrow("ENDS")
+                    Spacer(Modifier.height(10.dp))
+                    EndsScorecard(
+                        breakdown = breakdown,
+                        onTapEnd = { endId -> endActionsTarget = endId },
+                        onTapArrow = { arrow -> scope.launch { viewModel.deleteArrow(arrow.id) } },
+                    )
+                }
             }
 
             RunningTotals(
@@ -168,7 +206,7 @@ fun ActiveSessionScreen(
             )
 
             ActionsRow(
-                canUndo = state.currentArrows.isNotEmpty(),
+                canUndo = breakdown.inProgressArrows.isNotEmpty(),
                 arrowCount = state.currentArrows.size,
                 onUndo = { scope.launch { viewModel.removeLastArrow() } },
                 onAddNote = { showEndSheet = true },
@@ -218,6 +256,127 @@ fun ActiveSessionScreen(
                 }
             },
         )
+    }
+
+    // End-actions dialog — delete a completed end. Mirrors iOS's
+    // confirmationDialog for an end (SessionView.swift). "Add an arrow"
+    // requires a target-tap surface; on Android a mis-tapped arrow is fixed
+    // by tapping the shot cell to delete it and re-plotting into the live
+    // end — see the report for this deviation.
+    endActionsTarget?.let { endId ->
+        val end = state.completedEnds.firstOrNull { it.id == endId }
+        if (end == null) {
+            endActionsTarget = null
+        } else {
+            EndActionsDialog(
+                endNumber = end.endNumber,
+                onDelete = {
+                    viewModel.deleteEnd(endId)
+                    endActionsTarget = null
+                },
+                onDismiss = { endActionsTarget = null },
+            )
+        }
+    }
+}
+
+/**
+ * Confirmation dialog for a completed end — currently just "delete end".
+ * Mirrors the destructive branch of iOS's end confirmationDialog.
+ */
+@Composable
+private fun EndActionsDialog(
+    endNumber: Int,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("End $endNumber") },
+        text = { Text("Delete this end and its arrows? The arrows won't appear in the session log.") },
+        confirmButton = {
+            TextButton(onClick = onDelete) {
+                Text("Delete end", color = AppMaple)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+/**
+ * Undo + Finish-End controls under the target. The Finish-End button closes
+ * the in-progress end (variable length — the archer decides) and starts the
+ * next; disabled until the current end has at least one arrow. Mirrors iOS
+ * undoEndButton + finishEndBar.
+ */
+@Composable
+private fun EndControlsRow(
+    currentEndNumber: Int,
+    inProgressCount: Int,
+    isLoading: Boolean,
+    onUndo: () -> Unit,
+    onFinishEnd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val canAct = inProgressCount > 0 && !isLoading
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        // Undo — drops the last arrow of the in-progress end.
+        Column(
+            modifier = Modifier
+                .width(76.dp)
+                .background(AppPaper2)
+                .border(1.dp, AppLine)
+                .clickable(enabled = canAct, onClick = onUndo)
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "↶",
+                style = frauncesDisplay(21.sp, italic = true, weight = FontWeight.Medium)
+                    .copy(color = if (canAct) AppInk else AppInk3),
+            )
+            Text(
+                text = "UNDO",
+                style = interUI(10.sp, weight = FontWeight.SemiBold).copy(
+                    letterSpacing = 0.18.em,
+                    color = if (canAct) AppInk else AppInk3,
+                ),
+            )
+        }
+        // Finish End N — closes the end, clears the target for the next.
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .background(if (canAct) AppPondDk else AppPaper2)
+                .border(1.dp, if (canAct) AppPondDk else AppLine)
+                .clickable(enabled = canAct, onClick = onFinishEnd)
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "Finish End $currentEndNumber",
+                style = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
+                    .copy(color = if (canAct) AppPaper else AppInk3),
+            )
+            Text(
+                text = if (inProgressCount == 0) {
+                    "PLOT ARROWS TO CONTINUE"
+                } else {
+                    "$inProgressCount ARROW${if (inProgressCount == 1) "" else "S"} · NEXT END"
+                },
+                style = interUI(10.sp, weight = FontWeight.SemiBold).copy(
+                    letterSpacing = 0.18.em,
+                    color = if (canAct) AppPaper.copy(alpha = 0.72f) else AppInk3,
+                ),
+            )
+        }
     }
 }
 
