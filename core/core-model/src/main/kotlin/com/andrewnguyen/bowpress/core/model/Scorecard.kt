@@ -1,7 +1,4 @@
-package com.andrewnguyen.bowpress.feature.analytics.sessiondetail
-
-import com.andrewnguyen.bowpress.core.model.ArrowPlot
-import com.andrewnguyen.bowpress.core.model.SessionEnd
+package com.andrewnguyen.bowpress.core.model
 
 /**
  * Pure, view-agnostic per-end scoring model for a session. Mirrors iOS

@@ -537,14 +537,19 @@ private fun FeedItemRow(
                         color = AppInk3,
                     )
                 }
-                // §15 — shared-session stat line.
-                item.session?.let { s ->
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        text = sessionStatLine(s),
-                        style = jetbrainsMono(9.5.sp),
-                        color = AppMaple,
-                    )
+                // §15 — shared-session stat line. A range session's scorecard
+                // preview band below already carries the score + distance and
+                // the per-arrow breakdown, so the stat line would just repeat
+                // it — drop it for those rows.
+                if (preview !is ActivityPreview.Target) {
+                    item.session?.let { s ->
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            text = sessionStatLine(s),
+                            style = jetbrainsMono(9.5.sp),
+                            color = AppMaple,
+                        )
+                    }
                 }
                 // §15 — achievement badges on a highlighted row.
                 if (item.achievements.isNotEmpty()) {

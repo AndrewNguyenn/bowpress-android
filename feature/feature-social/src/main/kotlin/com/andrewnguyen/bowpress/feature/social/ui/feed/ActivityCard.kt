@@ -42,6 +42,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
@@ -297,6 +298,21 @@ private fun ringColor(ring: Int) = when {
 }
 
 /** Compact relative time — "2h", "3d", "2w". Mirrors iOS `relativeStamp`. */
+/**
+ * Picks a target-face shape from a shared session's free-text `face` label —
+ * a 6-ring / Vegas / 3-spot face reads as [BPTargetFaceType.SixRing],
+ * everything else [BPTargetFaceType.TenRing]. Mirrors iOS
+ * `ActivityPreviewBand.faceType(for:)`.
+ */
+internal fun faceTypeFor(face: String?): BPTargetFaceType {
+    val f = (face ?: "").lowercase()
+    return if (f.contains("6") || f.contains("spot") || f.contains("vegas")) {
+        BPTargetFaceType.SixRing
+    } else {
+        BPTargetFaceType.TenRing
+    }
+}
+
 private fun relativeStamp(from: Instant): String {
     val mins = ChronoUnit.MINUTES.between(from, Instant.now()).coerceAtLeast(0)
     return when {
