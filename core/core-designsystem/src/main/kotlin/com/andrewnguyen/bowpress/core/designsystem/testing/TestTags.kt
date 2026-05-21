@@ -165,6 +165,8 @@ object TestTags {
     const val MySessionEditAddPhoto: String = "my_session_edit_add_photo"
     const val FeedRowPhotoGallery: String = "feed_row_photo_gallery"
     const val SessionDetailPhotoGallery: String = "session_detail_photo_gallery"
+    // Section 4 — the count-flexed photo strip on the activity card.
+    const val FeedRowPhotoStrip: String = "feed_row_photo_strip"
     // Social Feed V2 Part 2 — likes & comments.
     const val FeedRowLikeButton: String = "feed_row_like_button"
     const val FeedRowCommentButton: String = "feed_row_comment_button"

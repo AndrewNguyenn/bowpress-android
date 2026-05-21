@@ -71,6 +71,14 @@ private sealed interface PhotoLoadState {
  * renders it. A `pending` photo (still transcoding server-side) shows a
  * spinner; a `failed`/missing one shows a muted placeholder. The decode runs
  * once per (sharedSessionId, photoId) pair.
+ *
+ * [contentScale] controls the fit — `Crop` (the default) for the cover-fit
+ * grid tiles, `Fit` for the full-screen viewer. [background] is the letterbox
+ * ground shown while loading and behind a `Fit`-scaled photo. [border] draws
+ * the 1dp `AppLine` hairline frame — `true` for the standalone Part-1 tiles,
+ * `false` for the photo strip, whose 1dp grid seams come from the strip's own
+ * `AppLine` background showing through the gutters (a per-cell border there
+ * would double the internal seams and add a 4-side outer frame).
  */
 @Composable
 fun RemoteSessionPhoto(
@@ -78,6 +86,9 @@ fun RemoteSessionPhoto(
     photo: ActivityPhoto,
     loader: SessionPhotoLoader,
     modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    background: androidx.compose.ui.graphics.Color = AppCream,
+    border: Boolean = true,
 ) {
     var state by remember(sharedSessionId, photo.id) {
         mutableStateOf<PhotoLoadState>(PhotoLoadState.Loading)
@@ -106,8 +117,8 @@ fun RemoteSessionPhoto(
 
     Box(
         modifier = modifier
-            .background(AppCream)
-            .border(1.dp, AppLine),
+            .background(background)
+            .then(if (border) Modifier.border(1.dp, AppLine) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         when (val s = state) {
@@ -119,7 +130,7 @@ fun RemoteSessionPhoto(
             is PhotoLoadState.Loaded -> Image(
                 bitmap = s.bitmap,
                 contentDescription = "Session photo",
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 modifier = Modifier.fillMaxSize(),
             )
             is PhotoLoadState.Unavailable -> Text(

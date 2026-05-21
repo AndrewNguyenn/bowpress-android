@@ -116,6 +116,13 @@ fun ActivityCard(
     onOpenComments: (String) -> Unit,
     modifier: Modifier = Modifier,
     photoLoader: SessionPhotoLoader? = null,
+    // Tapping a §4 photo-strip cell — the card emits which session's photos to
+    // open and at which index. The full-screen viewer is owned by the feed
+    // screen (a single screen-level instance), NOT by the card: a viewer kept
+    // in this `LazyColumn` item's composition would be torn down the moment
+    // the card scrolls off-screen, dismissing it mid-look. No-op default so
+    // previews / non-photo callers need not wire it.
+    onOpenPhotoViewer: (sharedSessionId: String, photos: List<com.andrewnguyen.bowpress.core.model.ActivityPhoto>, startIndex: Int) -> Unit = { _, _, _ -> },
     // The signed-in caller as an actor — used to put the caller's own avatar
     // into the kudos stack on an optimistic self-like (M4). Null when unknown
     // (e.g. previews); the kudos stack then just bumps the count.
@@ -134,6 +141,32 @@ fun ActivityCard(
         // Header bottom hairline.
         HorizontalDivider(color = AppLine2, thickness = 1.dp)
         ActivityCardBody(item, preview, photoLoader)
+        // Section 4 — the photo strip. When the shared session has attached
+        // photos it sits between the score body and the kudos / reactions row,
+        // hairline-separated by a top border. No photos → no strip, no extra
+        // hairline. The strip is additive: a photographed range session still
+        // shows its 50/50 score body above.
+        val session = item.session
+        // The `ready`-filtered, position-sorted photo list — computed once and
+        // shared with the strip and (via the open-viewer event) the screen's
+        // viewer, so cell-tap indices line up with the viewer's pages.
+        val readyPhotos = remember(session?.photos) {
+            session?.photos
+                ?.filter { it.status == com.andrewnguyen.bowpress.core.model.PhotoStatus.ready }
+                ?.sortedBy { it.position }
+                .orEmpty()
+        }
+        if (session != null && photoLoader != null && readyPhotos.isNotEmpty()) {
+            HorizontalDivider(color = AppLine, thickness = 1.dp)
+            PhotoStrip(
+                sharedSessionId = session.sharedSessionId,
+                readyPhotos = readyPhotos,
+                loader = photoLoader,
+                onOpenViewer = { index ->
+                    onOpenPhotoViewer(session.sharedSessionId, readyPhotos, index)
+                },
+            )
+        }
         // The reactions bar shows ONLY on a session card — actual shooting
         // activity (a range session or a 3D course; both carry `item.session`).
         // Club / league / config-change / milestone rows are not likeable or

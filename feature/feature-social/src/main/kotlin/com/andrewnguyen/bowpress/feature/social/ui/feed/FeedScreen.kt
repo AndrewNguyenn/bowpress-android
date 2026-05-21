@@ -74,6 +74,11 @@ fun FeedScreen(
     // feed row's location tag opens it.
     var mapLocation by remember { mutableStateOf<SessionLocation?>(null) }
 
+    // §4 — the open photo-strip viewer request, or null when closed. Owned at
+    // screen scope (not inside the `LazyColumn` card) so scrolling the source
+    // card off-screen does not tear down the viewer mid-look.
+    var photoViewer by remember { mutableStateOf<PhotoViewerRequest?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -182,6 +187,15 @@ fun FeedScreen(
                     onToggleLike = viewModel::toggleLike,
                     onOpenComments = openComments,
                     photoLoader = viewModel.photoLoader,
+                    // §4 — a photo-strip cell tap raises the screen-level
+                    // viewer; the card itself never hosts it.
+                    onOpenPhotoViewer = { sharedSessionId, photos, startIndex ->
+                        photoViewer = PhotoViewerRequest(
+                            sharedSessionId = sharedSessionId,
+                            photos = photos,
+                            startIndex = startIndex,
+                        )
+                    },
                     // The signed-in caller, so an optimistic self-like puts
                     // the caller's own avatar into the kudos stack (M4).
                     selfActor = state.myProfile?.let { p ->
@@ -263,7 +277,30 @@ fun FeedScreen(
             onDismiss = { mapLocation = null },
         )
     }
+
+    // §4 — the full-screen photo viewer. Owned here at screen scope so it
+    // survives the source card scrolling out of the `LazyColumn`.
+    photoViewer?.let { req ->
+        PhotoStripViewer(
+            sharedSessionId = req.sharedSessionId,
+            photos = req.photos,
+            startIndex = req.startIndex,
+            loader = viewModel.photoLoader,
+            onDismiss = { photoViewer = null },
+        )
+    }
 }
+
+/**
+ * §4 — an open photo-strip viewer: which shared session's photos to show and
+ * the page to open on. [photos] is the already `ready`-filtered, position-
+ * sorted list the source card passed up, so [startIndex] indexes it directly.
+ */
+private data class PhotoViewerRequest(
+    val sharedSessionId: String,
+    val photos: List<com.andrewnguyen.bowpress.core.model.ActivityPhoto>,
+    val startIndex: Int,
+)
 
 @Composable
 private fun FeedTopNav(
