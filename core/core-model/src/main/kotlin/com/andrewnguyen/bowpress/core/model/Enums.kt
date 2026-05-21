@@ -59,6 +59,20 @@ enum class TargetLayout {
         TRIANGLE -> "3-spot triangle"
         VERTICAL -> "3-spot vertical"
     }
+
+    /** True for the Vegas multi-spot layouts ([TRIANGLE] / [VERTICAL]). */
+    val isMultiSpot: Boolean get() = this != SINGLE
+
+    companion object {
+        /**
+         * Vegas spot face diameter in mm. Each of the three 6-ring spots on a
+         * 40cm Vegas 3-spot card prints at 180mm. Drives both the visible
+         * rendering scale and the WA edge-rule scoring math (arrow shaft /
+         * spot diameter, not / face diameter). Mirrors iOS
+         * `TargetLayout.spotDiameterMm`.
+         */
+        const val SPOT_DIAMETER_MM: Double = 180.0
+    }
 }
 
 /**

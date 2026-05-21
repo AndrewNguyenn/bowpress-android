@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 
 /**
@@ -36,6 +37,13 @@ data class SessionUiState(
     val userOverrodeFace: Boolean = false,
     /** Distance the user will shoot at; null = "not set" (won't appear under any specific-distance analytics filter). */
     val selectedDistance: ShootingDistance? = null,
+    /**
+     * Multi-spot Vegas layout the user picked on the setup screen. Only
+     * meaningful at 20yd + 6-ring; forced to [TargetLayout.SINGLE] off-combo
+     * by [SessionViewModel.syncLayoutToCurrentCombo]. Mirrors iOS
+     * `SessionView.selectedLayout`.
+     */
+    val selectedLayout: TargetLayout = TargetLayout.SINGLE,
     /** Practice discipline picked on the setup screen — range vs 3D course. */
     val selectedSessionType: SessionType = SessionType.RANGE,
     /** Scoring system for a 3D course (ignored for range sessions). */
@@ -64,6 +72,14 @@ data class SessionUiState(
      */
     val targetFaceType: TargetFaceType
         get() = activeSession?.targetFaceType ?: selectedFaceType
+
+    /**
+     * Multi-spot layout for the currently-active session (falls back to
+     * [selectedLayout] during setup). Screens rendering the live target
+     * should prefer this over reading [ShootingSession.targetLayout] directly.
+     */
+    val targetLayout: TargetLayout
+        get() = activeSession?.targetLayout ?: selectedLayout
 
     /** The latest bow config for a bow, or null if the bow has none. */
     fun latestConfigFor(bowId: String): BowConfiguration? =

@@ -36,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -52,6 +54,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
+import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPond
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
@@ -59,7 +62,9 @@ import com.andrewnguyen.bowpress.core.designsystem.bp.BPBowIcon
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPNavHeader
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPrimaryButton
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPSixRingStyle
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetStyle
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
@@ -69,6 +74,7 @@ import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -167,9 +173,23 @@ fun SessionHomeScreen(
 
                 TargetFaceField(
                     selected = state.selectedFaceType,
+                    distance = state.selectedDistance,
                     onSelected = { viewModel.selectFaceType(it) },
                 )
                 HairlineDivider()
+
+                // Multi-spot Vegas layout picker — only at 20yd + 6-ring,
+                // per the design (40cm indoor card). Hidden for any other
+                // distance/face combination. Mirrors iOS targetLayoutField.
+                if (state.selectedDistance == ShootingDistance.YARDS_20 &&
+                    state.selectedFaceType == TargetFaceType.SIX_RING
+                ) {
+                    TargetLayoutField(
+                        selected = state.selectedLayout,
+                        onSelected = { viewModel.selectLayout(it) },
+                    )
+                    HairlineDivider()
+                }
             } else {
                 ScoringSystemField(
                     selected = state.selectedScoringSystem,
@@ -486,6 +506,7 @@ private fun distanceHint(selected: ShootingDistance?): String =
 @Composable
 private fun TargetFaceField(
     selected: TargetFaceType,
+    distance: ShootingDistance?,
     onSelected: (TargetFaceType) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
@@ -499,12 +520,14 @@ private fun TargetFaceField(
         ) {
             FaceTile(
                 face = TargetFaceType.TEN_RING,
+                distance = distance,
                 isSelected = selected == TargetFaceType.TEN_RING,
                 onClick = { onSelected(TargetFaceType.TEN_RING) },
                 modifier = Modifier.weight(1f),
             )
             FaceTile(
                 face = TargetFaceType.SIX_RING,
+                distance = distance,
                 isSelected = selected == TargetFaceType.SIX_RING,
                 onClick = { onSelected(TargetFaceType.SIX_RING) },
                 modifier = Modifier.weight(1f),
@@ -513,9 +536,16 @@ private fun TargetFaceField(
     }
 }
 
+/**
+ * One target-face tile. The face icon, name, and physical-size sub-label are
+ * all distance-aware — at 20yd the 6-ring tile shows the 40cm Vegas face
+ * ("6-ring"); at 50/70m it shows the 80cm WA compound face ("7-ring").
+ * Mirrors iOS `faceTile` + `faceName` + `faceSize`.
+ */
 @Composable
 private fun FaceTile(
     face: TargetFaceType,
+    distance: ShootingDistance?,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -531,15 +561,193 @@ private fun FaceTile(
             .padding(horizontal = 8.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        BPTargetFace(size = 72.dp, style = BPTargetStyle.WA)
+        BPTargetFace(
+            size = 72.dp,
+            style = BPTargetStyle.WA,
+            face = when (face) {
+                TargetFaceType.TEN_RING -> BPTargetFaceType.TenRing
+                TargetFaceType.SIX_RING -> BPTargetFaceType.SixRing
+            },
+            sixRingStyle = sixRingStyleForDistance(distance),
+        )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = if (face == TargetFaceType.TEN_RING) "10-ring" else "6-ring",
+            text = faceName(face, distance),
+            style = frauncesDisplay(11.5.sp, italic = true, weight = FontWeight.Medium)
+                .copy(color = nameColor),
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = faceSizeLabel(face, distance),
+            style = jetbrainsMono(9.sp).copy(color = AppInk3),
+        )
+    }
+}
+
+/**
+ * Distance-aware face name. WA inner-face nomenclature depends on the round:
+ * at 20yd indoor the inner face is the 40cm Vegas 6-zone (rings 6–X); at
+ * 50/70m outdoor it's the 80cm compound 7-zone (rings 5–X). Same
+ * [TargetFaceType.SIX_RING] in the model. Mirrors iOS `faceName`.
+ */
+private fun faceName(face: TargetFaceType, distance: ShootingDistance?): String = when (face) {
+    TargetFaceType.TEN_RING -> "10-ring"
+    TargetFaceType.SIX_RING ->
+        if (distance == ShootingDistance.YARDS_20) "6-ring" else "7-ring"
+}
+
+/**
+ * Physical face size from the distance + face. Indoor 20yd uses a 40cm card;
+ * outdoor 50/70m uses the 122cm full face for 10-ring and the 80cm compound
+ * face for the inner option. Mirrors iOS `faceSize`.
+ */
+private fun faceSizeLabel(face: TargetFaceType, distance: ShootingDistance?): String =
+    when (face) {
+        TargetFaceType.TEN_RING ->
+            if (distance == ShootingDistance.YARDS_20) "40cm" else "122cm"
+        TargetFaceType.SIX_RING ->
+            if (distance == ShootingDistance.YARDS_20) "40cm" else "80cm"
+    }
+
+/**
+ * Picks the visual variant of the six-ring icon so it matches the real face
+ * at the picked distance — 40cm Vegas at 20yd (6 zones, single blue band);
+ * 80cm compound at 50/70m (7 zones, blue split). Mirrors iOS
+ * `sixRingStyleForCurrentDistance`.
+ */
+private fun sixRingStyleForDistance(distance: ShootingDistance?): BPSixRingStyle =
+    if (distance == ShootingDistance.YARDS_20) BPSixRingStyle.Vegas else BPSixRingStyle.Outdoor80
+
+// ---------------------------------------------------------------------------
+// Target layout field — Triangle / Vertical 3-spot Vegas tiles
+// ---------------------------------------------------------------------------
+
+/** Test tag for the multi-spot layout tile group on the setup screen. */
+const val TARGET_LAYOUT_PICKER_TEST_TAG = "target_layout_picker"
+
+/**
+ * Vegas-paper layout picker — only rendered at 20yd + 6-ring. No "Single"
+ * tile: collapsing the picker (by picking any other distance/face) is how
+ * you get a single bullseye. Mirrors iOS `targetLayoutField`.
+ */
+@Composable
+private fun TargetLayoutField(
+    selected: TargetLayout,
+    onSelected: (TargetLayout) -> Unit,
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        FieldLabel("LAYOUT", hint = "6-ring · 20yd · Vegas")
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier
+                .testTag(TARGET_LAYOUT_PICKER_TEST_TAG)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            LayoutTile(
+                layout = TargetLayout.TRIANGLE,
+                isSelected = selected == TargetLayout.TRIANGLE,
+                onClick = { onSelected(TargetLayout.TRIANGLE) },
+                modifier = Modifier.weight(1f),
+            )
+            LayoutTile(
+                layout = TargetLayout.VERTICAL,
+                isSelected = selected == TargetLayout.VERTICAL,
+                onClick = { onSelected(TargetLayout.VERTICAL) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LayoutTile(
+    layout: TargetLayout,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val borderColor = if (isSelected) AppPine else AppLine
+    val nameColor = if (isSelected) AppPine else AppInk
+    val bgColor = if (isSelected) AppPaper2 else AppPaper
+    Column(
+        modifier = modifier
+            .background(bgColor)
+            .border(1.dp, borderColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        LayoutThumb(layout = layout)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            // iOS uses "Triangle" / "Vertical" on the layout tiles.
+            text = if (layout == TargetLayout.TRIANGLE) "Triangle" else "Vertical",
             style = frauncesDisplay(11.5.sp, italic = true, weight = FontWeight.Medium)
                 .copy(color = nameColor),
         )
     }
 }
+
+/**
+ * Mini 3-spot schematic for a layout tile — three tiny concentric Vegas
+ * spots arranged triangle or vertical. Mirrors iOS `layoutThumb` /
+ * `drawMiniSpot`.
+ */
+@Composable
+private fun LayoutThumb(layout: TargetLayout) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(44.dp)) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val cy = h / 2f
+        val centers: List<Offset>
+        val spotR: Float
+        when (layout) {
+            TargetLayout.TRIANGLE -> {
+                spotR = w * 0.18f
+                val dx = w * 0.26f
+                val dy = h * 0.22f
+                centers = listOf(
+                    Offset(cx, cy - dy),         // top
+                    Offset(cx - dx, cy + dy),    // bottom-left
+                    Offset(cx + dx, cy + dy),    // bottom-right
+                )
+            }
+            TargetLayout.VERTICAL -> {
+                spotR = w * 0.16f
+                val dy = h * 0.30f
+                centers = listOf(
+                    Offset(cx, cy - dy),
+                    Offset(cx, cy),
+                    Offset(cx, cy + dy),
+                )
+            }
+            TargetLayout.SINGLE -> {
+                spotR = w * 0.4f
+                centers = listOf(Offset(cx, cy))
+            }
+        }
+        for (c in centers) {
+            // Outer blue → red → yellow, scaled to a tiny preview tile.
+            drawCircle(MINI_BLUE, spotR, c)
+            drawCircle(MINI_RED, spotR * 0.80f, c)
+            drawCircle(MINI_YELLOW, spotR * 0.50f, c)
+            // Hairline outline so spots read as distinct against paper.
+            drawCircle(
+                color = MINI_INK,
+                radius = spotR,
+                center = c,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 0.5.dp.toPx()),
+            )
+        }
+    }
+}
+
+private val MINI_BLUE = Color(0xFF4EA8C9)
+private val MINI_RED = Color(0xFFD94B3B)
+private val MINI_YELLOW = Color(0xFFF0D04A)
+private val MINI_INK = Color(0xFF1F2A26)
 
 // ---------------------------------------------------------------------------
 // Intention note

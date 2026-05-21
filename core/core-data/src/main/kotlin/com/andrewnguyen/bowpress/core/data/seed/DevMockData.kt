@@ -357,8 +357,23 @@ internal object DevMockData {
             title = "Pre-comp tune check",
             notes = "Pre-comp tune check at 50m. Groups holding well. Minor sight drift to correct.",
             feelTags = listOf("consistent", "clean_release"),
-            // §16 — this session backs the mocked friend session detail; a
-            // Vegas triangle layout makes the 3-spot render visible in DEBUG.
+            // §16 — this session backs the mocked friend session detail. It is
+            // a 50m single-face round; multi-spot only applies at 20yd, so the
+            // 3-spot fixture is the dedicated dev_s1_9 below.
+        ),
+        // Vegas 3-spot triangle practice — a 20yd + 6-ring session exercising
+        // the multi-spot live render + scoring. 6 ends × 3 arrows, one shaft
+        // per spot (BL → TOP → BR per end). Mirrors iOS DevMockData dev_s1_9.
+        session(
+            id = "dev_s1_9", bowId = "dev_bow1", bowConfigId = "dev_bc1c",
+            arrowConfigId = "dev_arrow1",
+            startedAt = daysAgo(0).plus(2, ChronoUnit.HOURS),
+            durationMin = 75, arrowCount = 18, distance = ShootingDistance.YARDS_20,
+            title = "Vegas 3-spot practice",
+            notes = "Vegas 3-spot indoor practice. Triangle layout, one shaft " +
+                "per spot per end. Bottom-left spot pulling slightly low.",
+            feelTags = listOf("consistent", "clean_release"),
+            targetFaceType = TargetFaceType.SIX_RING,
             targetLayout = TargetLayout.TRIANGLE,
         ),
         session(
@@ -491,6 +506,7 @@ internal object DevMockData {
         title: String,
         notes: String,
         feelTags: List<String>,
+        targetFaceType: TargetFaceType = TargetFaceType.TEN_RING,
         targetLayout: TargetLayout = TargetLayout.SINGLE,
     ): ShootingSession = ShootingSession(
         id = id,
@@ -502,7 +518,7 @@ internal object DevMockData {
         notes = notes,
         feelTags = feelTags,
         arrowCount = arrowCount,
-        targetFaceType = TargetFaceType.TEN_RING,
+        targetFaceType = targetFaceType,
         targetLayout = targetLayout,
         distance = distance,
         title = title,
@@ -521,6 +537,28 @@ internal object DevMockData {
             zones = listOf(Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.N,
                 Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER, Zone.CENTER, Zone.CENTER,
                 Zone.N, Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.N, Zone.CENTER),
+        ))
+        // dev_s1_9 — Vegas 3-spot triangle. 6 ends × one shaft per spot
+        // (BL → TOP → BR per end). plotX/plotY are face-square coords
+        // (-1..+1); the triangle spot centres land near (-0.45,+0.45),
+        // (0,-0.42), (+0.45,+0.45). BL drifts low on ends 4 and 6 — the
+        // stance pattern noted in the session's notes. Mirrors iOS dev_s1_9.
+        addAll(makeMultiSpotPlots("dev_s1_9", "dev_bc1c", "dev_arrow1",
+            daysAgo(0).plus(2, ChronoUnit.HOURS),
+            rings = listOf(10, 11, 10, 10, 10, 10, 10, 11, 11, 9, 10, 10, 10, 11, 10, 9, 10, 10),
+            zones = listOf(
+                Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.CENTER,
+                Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.SE, Zone.CENTER, Zone.CENTER,
+                Zone.CENTER, Zone.CENTER, Zone.CENTER, Zone.SE, Zone.CENTER, Zone.CENTER,
+            ),
+            plotX = listOf(
+                -0.41, 0.01, 0.42, -0.46, 0.04, 0.49, -0.41, 0.00, 0.46,
+                -0.50, -0.03, 0.42, -0.40, -0.01, 0.49, -0.51, 0.03, 0.41,
+            ),
+            plotY = listOf(
+                0.42, -0.41, 0.49, 0.41, -0.38, 0.43, 0.47, -0.40, 0.46,
+                0.55, -0.38, 0.42, 0.48, -0.43, 0.46, 0.54, -0.46, 0.42,
+            ),
         ))
         addAll(makePlots("dev_s1_7", "dev_bc1c", "dev_arrow1", daysAgo(1), 18,
             rings = listOf(11, 11, 10, 11, 11, 10, 11, 11, 11, 10, 11, 11, 10, 11, 11, 11, 10, 11),
@@ -631,6 +669,39 @@ internal object DevMockData {
     }
 
     /**
+     * Builds plots from explicit (plotX, plotY) face-square coords — used for
+     * the multi-spot Vegas fixture, where arrows must land on the three spot
+     * centres rather than near the single face centre. Mirrors how iOS
+     * DevMockData seeds dev_s1_9's triangle plots. `rings`/`zones`/`plotX`/
+     * `plotY` are parallel lists of the same length.
+     */
+    private fun makeMultiSpotPlots(
+        sessionId: String,
+        bowConfigId: String,
+        arrowConfigId: String,
+        startedAt: Instant,
+        rings: List<Int>,
+        zones: List<Zone>,
+        plotX: List<Double>,
+        plotY: List<Double>,
+    ): List<ArrowPlot> = rings.indices.map { i ->
+        val endIndex = i / 3
+        ArrowPlot(
+            id = "${sessionId}_p${i + 1}",
+            sessionId = sessionId,
+            bowConfigId = bowConfigId,
+            arrowConfigId = arrowConfigId,
+            ring = rings[i],
+            zone = zones[i],
+            plotX = plotX[i],
+            plotY = plotY[i],
+            shotAt = startedAt.plus((i * 4L), ChronoUnit.MINUTES),
+            endId = "${sessionId}_e${endIndex + 1}",
+            excluded = false,
+        )
+    }
+
+    /**
      * Synthesise a plausible (plotX, plotY) for a seeded plot given its
      * scored ring + zone. The real client writes coords directly when the
      * user taps; the dev seed only carries ring+zone, so SessionDetail's
@@ -687,6 +758,7 @@ internal object DevMockData {
     // to "1 end" and analytics that group by end can't render.
     val sessionEnds: List<SessionEnd> = buildList {
         addAll(makeEnds("dev_s1_8", daysAgo(0), arrowCount = 18))
+        addAll(makeEnds("dev_s1_9", daysAgo(0).plus(2, ChronoUnit.HOURS), arrowCount = 18))
         addAll(makeEnds("dev_s1_7", daysAgo(1), arrowCount = 18))
         addAll(makeEnds("dev_s1_6", daysAgo(2), arrowCount = 18))
         addAll(makeEnds("dev_s1_5", daysAgo(18), arrowCount = 12))

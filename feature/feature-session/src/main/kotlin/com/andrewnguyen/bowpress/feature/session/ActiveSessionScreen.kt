@@ -69,6 +69,7 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -103,6 +104,13 @@ fun ActiveSessionScreen(
     }
     val active = state.activeSession ?: return
 
+    // The Pen-magnifier lens snapshot is hoisted to the screen root so the
+    // lens overlay can extend up into the header space above the target —
+    // hosting it inside the target-sized box would force every above-the-
+    // finger lens to clip + flip below. Mirrors iOS, where the lens lives at
+    // the screen root in global coords.
+    var lensSnapshot by remember { mutableStateOf<PenLensSnapshot?>(null) }
+
     Box(modifier = Modifier.fillMaxSize().background(AppPaper)) {
         Column(
             modifier = Modifier
@@ -132,6 +140,7 @@ fun ActiveSessionScreen(
                 onPlot = { plotX, plotY, ring, zone ->
                     scope.launch { viewModel.plotArrow(plotX, plotY, ring, zone) }
                 },
+                onLensSnapshotChanged = { lensSnapshot = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -180,6 +189,11 @@ fun ActiveSessionScreen(
 
             Spacer(Modifier.height(24.dp))
         }
+
+        // Pen magnifier — hosted at the screen root so it can float up into
+        // the header space above the target. Renders nothing while not
+        // dragging. Snapshot coords are root-relative (see PenLensSnapshot).
+        PenLensOverlay(snapshot = lensSnapshot, modifier = Modifier.fillMaxSize())
     }
 
     if (showConfigSheet) {
@@ -389,9 +403,11 @@ private val TARGET_FACE_SIZE = 300.dp
 private fun TargetSection(
     state: SessionUiState,
     onPlot: (plotX: Double, plotY: Double, ring: Int, zone: Zone) -> Unit,
+    onLensSnapshotChanged: (PenLensSnapshot?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val faceType = state.targetFaceType
+    val targetLayout = state.targetLayout
     val arrowDiameterMm = state.activeArrowConfig?.shaftDiameter ?: 5.0
 
     Column(modifier = modifier) {
@@ -400,7 +416,7 @@ private fun TargetSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top,
         ) {
-            CrumbOverlay(faceType = faceType)
+            CrumbOverlay(faceType = faceType, layout = targetLayout)
         }
 
         Spacer(Modifier.height(4.dp))
@@ -416,16 +432,23 @@ private fun TargetSection(
 
         Spacer(Modifier.height(8.dp))
 
+        // The shared TargetPlot composable draws the WA face (single) or the
+        // 3-spot Vegas card (multi-spot), captures the drag-to-plot gesture,
+        // and emits the root-coord Pen-lens snapshot. The lens itself is
+        // hosted at the screen root by ActiveSessionScreen.
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            TargetInteractiveFace(
+            TargetPlot(
                 arrows = state.currentArrows,
-                faceType = faceType,
-                arrowDiameterMm = arrowDiameterMm,
-                isEnabled = !state.isLoading,
                 onArrowPlotted = onPlot,
+                modifier = Modifier.size(TARGET_FACE_SIZE),
+                isEnabled = !state.isLoading,
+                arrowDiameterMm = arrowDiameterMm,
+                faceType = faceType,
+                targetLayout = targetLayout,
+                onLensSnapshotChanged = onLensSnapshotChanged,
             )
         }
 
@@ -443,11 +466,16 @@ private fun TargetSection(
 }
 
 @Composable
-private fun CrumbOverlay(faceType: TargetFaceType) {
+private fun CrumbOverlay(faceType: TargetFaceType, layout: TargetLayout) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         BPEyebrow("FACE")
+        val crumb = if (layout.isMultiSpot) {
+            "${layout.label} · Vegas"
+        } else {
+            "${faceName(faceType)} · ${faceSize(faceType)}"
+        }
         Text(
-            text = "${faceName(faceType)} · ${faceSize(faceType)}",
+            text = crumb,
             style = frauncesDisplay(10.sp, italic = true, weight = FontWeight.Medium)
                 .copy(color = AppPondDk),
         )
@@ -462,121 +490,6 @@ private fun faceName(face: TargetFaceType): String = when (face) {
 private fun faceSize(face: TargetFaceType): String = when (face) {
     TargetFaceType.TEN_RING -> "122cm"
     TargetFaceType.SIX_RING -> "80cm"
-}
-
-/**
- * BPTargetFace (visual) + Canvas overlay (arrow dots) + drag-to-plot gesture
- * with the Pen-magnifier UX (iOS f2be7ea). The thumb-offset trick is gone:
- * the dot now commits AT the finger position, and a floating
- * [PenLensOverlay] provides 2.5× magnification + a live score stamp during
- * drag so the archer can see where the dot will land. Snapshot updates
- * fire on every drag tick.
- */
-@Composable
-private fun TargetInteractiveFace(
-    arrows: List<ArrowPlot>,
-    faceType: TargetFaceType,
-    arrowDiameterMm: Double,
-    isEnabled: Boolean,
-    onArrowPlotted: (plotX: Double, plotY: Double, ring: Int, zone: Zone) -> Unit,
-) {
-    val density = LocalDensity.current
-    val dotRadiusPx = with(density) { 11.dp.toPx() }
-    val dotStrokePx = with(density) { 1.2.dp.toPx() }
-    val geometry = TargetGeometry.forFace(faceType)
-    // dragPreview is the live touch position in the inner Canvas's local
-    // pixel space, used to drive the lens snapshot.
-    var dragPreview by remember { mutableStateOf<Offset?>(null) }
-    var lensSnapshot by remember { mutableStateOf<PenLensSnapshot?>(null) }
-
-    Box(modifier = Modifier.size(TARGET_FACE_SIZE)) {
-        BPTargetFace(size = TARGET_FACE_SIZE, style = BPTargetStyle.WA)
-
-        Canvas(
-            modifier = Modifier
-                .matchParentSize()
-                .pointerInput(isEnabled, faceType, arrowDiameterMm) {
-                    if (!isEnabled) return@pointerInput
-                    detectDragGestures(
-                        onDragStart = { start ->
-                            dragPreview = start
-                            lensSnapshot = buildPenLensSnapshot(
-                                start, size.width.toFloat(), arrows,
-                                arrowDiameterMm, geometry, faceType,
-                            )
-                        },
-                        onDrag = { change, _ ->
-                            change.consume()
-                            dragPreview = change.position
-                            lensSnapshot = buildPenLensSnapshot(
-                                change.position, size.width.toFloat(), arrows,
-                                arrowDiameterMm, geometry, faceType,
-                            )
-                        },
-                        onDragEnd = {
-                            val placement = dragPreview
-                            dragPreview = null
-                            lensSnapshot = null
-                            if (placement == null) return@detectDragGestures
-                            val radiusPx = (minOf(size.width, size.height) / 2f).toDouble()
-                            if (radiusPx <= 0.0) return@detectDragGestures
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-                            // Commit AT the finger position — iOS f2be7ea.
-                            val plotX = (placement.x - centerX).toDouble() / radiusPx
-                            val plotY = (placement.y - centerY).toDouble() / radiusPx
-                            val dotNormRadius =
-                                (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
-                            val result = geometry.classifyWithDotRadius(
-                                plotX = plotX,
-                                plotY = plotY,
-                                dotNormRadius = dotNormRadius,
-                            )
-                            val ring = result.ring ?: return@detectDragGestures
-                            onArrowPlotted(plotX, plotY, ring, result.zone)
-                        },
-                        onDragCancel = {
-                            dragPreview = null
-                            lensSnapshot = null
-                        },
-                    )
-                },
-        ) {
-            val canvasRadiusPx = minOf(size.width, size.height) / 2f
-            val center = Offset(size.width / 2f, size.height / 2f)
-
-            // Opacity fade over the last 6 arrows (newest → oldest).
-            val fadeScale = listOf(1.0f, 0.78f, 0.62f, 0.50f, 0.38f, 0.28f)
-            val total = arrows.size
-            arrows.forEachIndexed { idx, arrow ->
-                val px = arrow.plotX ?: return@forEachIndexed
-                val py = arrow.plotY ?: return@forEachIndexed
-                val fromEnd = total - 1 - idx
-                val alpha = when {
-                    fromEnd >= fadeScale.size -> fadeScale.last()
-                    else -> fadeScale[fromEnd]
-                }
-                val cx = (center.x + px * canvasRadiusPx).toFloat()
-                val cy = (center.y + py * canvasRadiusPx).toFloat()
-                drawCircle(
-                    color = AppInk.copy(alpha = alpha),
-                    radius = dotRadiusPx,
-                    center = Offset(cx, cy),
-                )
-                drawCircle(
-                    color = AppCream.copy(alpha = alpha),
-                    radius = dotRadiusPx,
-                    center = Offset(cx, cy),
-                    style = Stroke(width = dotStrokePx),
-                )
-            }
-            // No more drag-preview dot — the lens is the visual aid now.
-        }
-
-        // Pen magnifier — same z-level as the target so it can extend past
-        // the target's frame. Renders nothing while not dragging.
-        PenLensOverlay(snapshot = lensSnapshot, modifier = Modifier.matchParentSize())
-    }
 }
 
 // Snapshot building lives in PenLensOverlay.kt — shared with TargetPlot.

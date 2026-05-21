@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
+import com.andrewnguyen.bowpress.core.data.repository.SessionSetupPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.social.SocialSessionSharer
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
@@ -19,6 +20,7 @@ import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.core.model.Zone
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,12 +54,24 @@ class SessionViewModel @Inject constructor(
     private val plotRepo: PlotRepository,
     private val sessionEndRepo: SessionEndRepository,
     private val socialSessionSharer: SocialSessionSharer,
+    private val sessionSetupPrefs: SessionSetupPreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SessionUiState())
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
 
+    /**
+     * Sticky last multi-spot layout, mirrored from DataStore. The setup
+     * screen restores this when the 20yd + 6-ring combo is re-entered;
+     * [TargetLayout.SINGLE] means "no sticky pick". Mirrors iOS
+     * `@AppStorage("session.lastTargetLayout")`.
+     */
+    private var lastTargetLayout: TargetLayout = TargetLayout.SINGLE
+
     init {
+        viewModelScope.launch {
+            sessionSetupPrefs.lastTargetLayout.collect { lastTargetLayout = it }
+        }
         viewModelScope.launch {
             bowRepo.observeBows().collect { bows ->
                 _uiState.update { it.copy(bows = bows) }
@@ -126,7 +140,13 @@ class SessionViewModel @Inject constructor(
             } else {
                 TargetFaceType.defaultFor(bow.bowType)
             }
-            state.copy(selectedBow = bow, selectedFaceType = nextFace)
+            // Route the face change through syncLayoutToCurrentCombo — same as
+            // selectFaceType — so a bow-driven face flip (e.g. compound→recurve
+            // moving 6-ring→10-ring) collapses a now-off-combo multi-spot
+            // layout. iOS gets this for free via .onChange(of: selectedFaceType).
+            syncLayoutToCurrentCombo(
+                state.copy(selectedBow = bow, selectedFaceType = nextFace),
+            )
         }
     }
 
@@ -137,13 +157,52 @@ class SessionViewModel @Inject constructor(
     /** User manually picked a target face — lock out the smart default until next session start. */
     fun selectFaceType(faceType: TargetFaceType) {
         _uiState.update {
-            it.copy(selectedFaceType = faceType, userOverrodeFace = true)
+            syncLayoutToCurrentCombo(it.copy(selectedFaceType = faceType, userOverrodeFace = true))
         }
     }
 
     /** Pick (or clear with `null`) the shooting distance for the next session. */
     fun selectDistance(distance: ShootingDistance?) {
-        _uiState.update { it.copy(selectedDistance = distance) }
+        _uiState.update { syncLayoutToCurrentCombo(it.copy(selectedDistance = distance)) }
+    }
+
+    /**
+     * User picked a multi-spot Vegas layout from the setup screen's LAYOUT
+     * field. Only multi-spot picks are persisted as the sticky default —
+     * mirrors iOS `onChange(of: selectedLayout)`.
+     */
+    fun selectLayout(layout: TargetLayout) {
+        _uiState.update { it.copy(selectedLayout = layout) }
+        if (layout.isMultiSpot) {
+            lastTargetLayout = layout
+            viewModelScope.launch { sessionSetupPrefs.setLastTargetLayout(layout) }
+        }
+    }
+
+    /**
+     * Bidirectional sync between the current distance/face combo and the
+     * layout selection. Mirrors iOS `syncLayoutToCurrentCombo`:
+     *  - When the combo *doesn't* support multi-spot (anything other than
+     *    20yd + 6-ring), force [TargetLayout.SINGLE] so a stale Vegas pick
+     *    can't silently apply to an outdoor session.
+     *  - When the combo *does* support multi-spot and the layout is currently
+     *    [TargetLayout.SINGLE] (the implicit fallback), restore the sticky
+     *    pick from DataStore — falling back to [TargetLayout.TRIANGLE] as the
+     *    canonical Vegas default if nothing is stored.
+     */
+    private fun syncLayoutToCurrentCombo(state: SessionUiState): SessionUiState {
+        val supportsMultiSpot = state.selectedDistance == ShootingDistance.YARDS_20 &&
+            state.selectedFaceType == TargetFaceType.SIX_RING
+        if (!supportsMultiSpot) {
+            return if (state.selectedLayout != TargetLayout.SINGLE) {
+                state.copy(selectedLayout = TargetLayout.SINGLE)
+            } else {
+                state
+            }
+        }
+        if (state.selectedLayout != TargetLayout.SINGLE) return state
+        val restored = if (lastTargetLayout.isMultiSpot) lastTargetLayout else TargetLayout.TRIANGLE
+        return state.copy(selectedLayout = restored)
     }
 
     fun clearError() {
@@ -224,6 +283,16 @@ class SessionViewModel @Inject constructor(
         else existingConfigs + bowConfig
         val faceType = _uiState.value.selectedFaceType
         val distance = _uiState.value.selectedDistance
+        // Layout is only meaningful at 20yd + 6-ring; collapse defensively in
+        // case a stale multi-spot pick survived an earlier state. Mirrors iOS
+        // `startNewSession`.
+        val layout = if (distance == ShootingDistance.YARDS_20 &&
+            faceType == TargetFaceType.SIX_RING
+        ) {
+            _uiState.value.selectedLayout
+        } else {
+            TargetLayout.SINGLE
+        }
         // iOS 4fb5c16/9b104a2/39df3bd: persist title + seed notes from intention
         // so the Log row + session detail show what the user actually typed
         // (previously the fields were decorative — silent data loss).
@@ -236,6 +305,7 @@ class SessionViewModel @Inject constructor(
             arrowConfigId = arrow.id,
             startedAt = Instant.now(),
             targetFaceType = faceType,
+            targetLayout = layout,
             distance = distance,
             title = trimmedTitle,
             notes = trimmedIntention,

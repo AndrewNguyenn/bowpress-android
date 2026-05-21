@@ -38,6 +38,7 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 
@@ -135,7 +136,23 @@ private fun PhotoBand(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         // Oversized so it reads as a full-bleed close-up photo of the paper.
-        BPTargetFace(size = 168.dp)
+        // Uses the six-ring face to match iOS MockTargetPaperPhoto.
+        BPTargetFace(size = 168.dp, face = BPTargetFaceType.SixRing)
+    }
+}
+
+/**
+ * Picks a target-face shape from a shared session's free-text `face` label —
+ * a 6-ring / Vegas / 3-spot face reads as [BPTargetFaceType.SixRing],
+ * everything else [BPTargetFaceType.TenRing]. Mirrors iOS
+ * `ActivityPreviewBand.faceType(for:)`.
+ */
+internal fun faceTypeFor(face: String?): BPTargetFaceType {
+    val f = (face ?: "").lowercase()
+    return if (f.contains("6") || f.contains("spot") || f.contains("vegas")) {
+        BPTargetFaceType.SixRing
+    } else {
+        BPTargetFaceType.TenRing
     }
 }
 
@@ -152,7 +169,9 @@ private fun TargetBand(face: String?, score: Int, modifier: Modifier = Modifier)
             .testTag(TestTags.FeedRowPreview),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BPTargetFace(size = 78.dp)
+        // Face shape derived from the session's `face` label so a range row
+        // shows the actual face it was shot on (iOS faceType(for:)).
+        BPTargetFace(size = 78.dp, face = faceTypeFor(face))
         Spacer(Modifier.width(12.dp))
         Column {
             Text(

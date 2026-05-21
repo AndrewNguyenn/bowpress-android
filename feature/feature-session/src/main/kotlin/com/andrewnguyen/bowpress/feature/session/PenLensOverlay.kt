@@ -4,87 +4,120 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
+import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlack
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 
 /**
- * Build a [PenLensSnapshot] for a touch in the target Canvas's local
- * pixel space. Shared between [TargetPlot] and
- * [ActiveSessionScreen.TargetInteractiveFace] so the two plotting
- * surfaces stay in lockstep.
+ * Build a [PenLensSnapshot] for a touch on the target Canvas.
+ *
+ * [touch] is in the target Canvas's local pixel space; [faceOriginInWindow] is
+ * the Canvas's top-left in the screen-root coordinate space (obtained via
+ * `Modifier.onGloballyPositioned { positionInWindow() }`). Both the touch and
+ * the face origin are translated into root coords so the [PenLensOverlay] —
+ * hosted at the screen root — can place the lens up into the header space
+ * above the target. Mirrors iOS, where the lens lives at the screen root in
+ * global screen coords (TargetPlotView.swift:800-960).
+ *
+ * Shared between [TargetPlot] and [ActiveSessionScreen.TargetInteractiveFace]
+ * so the two plotting surfaces stay in lockstep.
  */
 internal fun buildPenLensSnapshot(
     touch: Offset,
+    faceOriginInWindow: Offset,
     faceSizePx: Float,
     arrows: List<ArrowPlot>,
     arrowDiameterMm: Double,
     geometry: TargetGeometry,
     faceType: TargetFaceType,
+    targetLayout: TargetLayout = TargetLayout.SINGLE,
 ): PenLensSnapshot {
     val radiusPx = faceSizePx / 2f
-    val plotX = (touch.x - radiusPx).toDouble() / radiusPx
-    val plotY = (touch.y - radiusPx).toDouble() / radiusPx
-    val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
-    val classification = geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius)
+    val multiSpot = MultiSpotGeometry.preset(targetLayout)
+    val previewRing: Int? = if (multiSpot != null) {
+        // Multi-spot: ring is local to the nearest spot.
+        val normX = (touch.x - radiusPx) / radiusPx
+        val normY = (touch.y - radiusPx) / radiusPx
+        val pointNorm = MultiSpotGeometry.NormPoint(
+            x = 0.5 + normX / 2.0,
+            y = 0.5 + normY / 2.0,
+        )
+        val near = multiSpot.nearestSpotLocalRadius(pointNorm)
+        val arrowFrac = arrowDiameterMm / multiSpot.spotDiameterMm
+        multiSpot.ring(near.local, arrowFrac)
+    } else {
+        val plotX = (touch.x - radiusPx).toDouble() / radiusPx
+        val plotY = (touch.y - radiusPx).toDouble() / radiusPx
+        val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
+        geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius).ring
+    }
     val arrowDotPx = ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
     return PenLensSnapshot(
-        touchPx = touch,
-        faceOriginPx = Offset.Zero,
+        touchPx = Offset(faceOriginInWindow.x + touch.x, faceOriginInWindow.y + touch.y),
+        faceOriginPx = faceOriginInWindow,
         faceSizePx = faceSizePx,
         arrowDotSizePx = arrowDotPx,
         faceType = faceType,
+        targetLayout = targetLayout,
         arrows = arrows,
-        previewRing = classification.ring,
+        previewRing = previewRing,
     )
 }
 
 /**
- * Snapshot of a live touch on the target, in pixel coordinates relative to
- * the [TargetPlot]'s top-left. Emitted by [TargetPlot] on every drag tick
- * and consumed by [PenLensOverlay] which renders the magnifier on a sibling
- * layer (so the lens can extend past the target's frame).
+ * Snapshot of a live touch on the target, in **screen-root pixel
+ * coordinates**. Emitted by the plotting surface on every drag tick and
+ * consumed by [PenLensOverlay], which is hosted at the screen root so the
+ * lens can extend up into the header space above the target.
  *
- * Mirrors iOS `PenLensSnapshot` (TargetPlotView.swift:780). The iOS
- * implementation stores screen-global coords; on Android we work in the
- * parent Box's local coord space, which has the same effect because the
- * lens overlay sits at the same z-level as the target.
+ * Mirrors iOS `PenLensSnapshot` (TargetPlotView.swift:780) — iOS stores
+ * global screen coords; Android stores root coords (positionInWindow), which
+ * is the equivalent: the lens overlay fills the same root and has real room
+ * above the target.
  */
 data class PenLensSnapshot(
-    /** Touch position in the parent Box's coord space, px. */
+    /** Touch position in the screen-root coord space, px. */
     val touchPx: Offset,
-    /** Target face top-left in the parent Box's coord space, px. */
+    /** Target face top-left in the screen-root coord space, px. */
     val faceOriginPx: Offset,
     /** Face square edge length, px (face is a circle inscribed in this). */
     val faceSizePx: Float,
     /** Arrow shaft footprint diameter at 1× scale, px. */
     val arrowDotSizePx: Float,
     val faceType: TargetFaceType,
+    /** Multi-spot layout — drives the magnified face render. */
+    val targetLayout: TargetLayout = TargetLayout.SINGLE,
     val arrows: List<ArrowPlot>,
     /** Ring at the live touch point (1–11 or null for miss). */
     val previewRing: Int?,
@@ -100,13 +133,40 @@ data class PenLensSnapshot(
  *   - Live ring stamp above the lens shows the current preview ring
  *   - Footprint ring at the lens centre marks where the arrow will commit
  *
- * Renders nothing when [snapshot] is null. Place this at the same z-level
- * as [TargetPlot] inside a Box so the lens can extend outside the target's
- * bounds.
+ * Renders nothing when [snapshot] is null. **Host this at the screen root**
+ * (a container that has space above the target) so the prefer-above
+ * placement has real room — hosting it inside the target-sized box would
+ * force every above-the-finger lens to clip + flip below.
  */
 @Composable
 fun PenLensOverlay(snapshot: PenLensSnapshot?, modifier: Modifier = Modifier) {
-    if (snapshot == null) return
+    // The plotting surface records touch/face coords in window space; the
+    // overlay positions its children relative to its own top-left. Capture
+    // this overlay's window origin so window-space coords can be rebased into
+    // overlay-local space — otherwise a status-bar / header inset offsets the
+    // lens from the finger.
+    var overlayOriginInWindow by remember { mutableStateOf(Offset.Zero) }
+    val positioned = modifier.then(
+        Modifier.onGloballyPositioned { overlayOriginInWindow = it.positionInWindow() },
+    )
+    if (snapshot == null) {
+        // Still occupy the slot so onGloballyPositioned keeps the origin
+        // fresh for the next drag.
+        androidx.compose.foundation.layout.Box(positioned.fillMaxSize())
+        return
+    }
+    val local = snapshot.rebased(overlayOriginInWindow)
+    PenLensOverlayContent(snapshot = local, modifier = positioned)
+}
+
+/** Snapshot rebased into the overlay's local coord space. */
+private fun PenLensSnapshot.rebased(overlayOrigin: Offset): PenLensSnapshot = copy(
+    touchPx = touchPx - overlayOrigin,
+    faceOriginPx = faceOriginPx - overlayOrigin,
+)
+
+@Composable
+private fun PenLensOverlayContent(snapshot: PenLensSnapshot, modifier: Modifier) {
     val density = LocalDensity.current
     val lensSizePx = maxOf(with(density) { 120.dp.toPx() }, snapshot.faceSizePx * LENS_SIZE_RATIO)
     val lensRadius = lensSizePx / 2f
@@ -116,15 +176,17 @@ fun PenLensOverlay(snapshot: PenLensSnapshot?, modifier: Modifier = Modifier) {
     val edgeBuffer = with(density) { EDGE_BUFFER_DP.toPx() }
     val stampOffset = with(density) { STAMP_OFFSET_DP.toPx() }
 
-    // Vertical placement — prefer above the finger; flip below if the top
-    // edge of the lens would clip the parent container's top.
+    // Vertical placement — prefer above the finger; flip below only if the
+    // top edge of the lens would clip the root container's top. Hosted at
+    // the screen root, "above" has real room (the header), so most plots
+    // keep the lens above the thumb — matching iOS.
     val touchClearance = thumbHalf + centerBuffer
     val preferredAboveY = snapshot.touchPx.y - touchClearance
     val lensTopIfAbove = preferredAboveY - lensRadius
     val placeBelow = lensTopIfAbove < edgeBuffer
     val lensCenterY = if (placeBelow) snapshot.touchPx.y + touchClearance else preferredAboveY
 
-    // Horizontal placement clamps inside the parent Box's bounds.
+    // Horizontal placement clamps inside the root container's bounds.
     androidx.compose.foundation.layout.BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val boxWidthPx = with(density) { maxWidth.toPx() }
         val clampedX = snapshot.touchPx.x.coerceIn(
@@ -134,23 +196,19 @@ fun PenLensOverlay(snapshot: PenLensSnapshot?, modifier: Modifier = Modifier) {
         val origin = Offset(clampedX - lensRadius, lensCenterY - lensRadius)
         val lensSizeDp = with(density) { lensSizePx.toDp() }
 
-        // Score stamp — floats above the lens center horizontally, with the
-        // stamp's own half-width subtracted so it's truly centered. Hidden
-        // when above-the-lens placement would clip the parent's top edge
-        // (matches iOS, where the screen-global overlay places the stamp on
-        // an unclipped surface). The 40dp stamp width is matched by
-        // [ScoreStamp]'s Modifier.size below — keep these in sync.
+        // Score stamp — floats above the lens centre. Always rendered: the Y
+        // is clamped (not the stamp hidden) so the live ring readout stays
+        // visible even when above-lens placement would clip the root top.
+        // Mirrors iOS TargetPlotView.swift:950-952.
         val stampWidthPx = with(density) { 40.dp.toPx() }
-        val stampTopY = origin.y - stampOffset
-        if (stampTopY >= 0f) {
-            ScoreStamp(
-                ring = snapshot.previewRing,
-                modifier = Modifier.offset(
-                    x = with(density) { (origin.x + lensRadius - stampWidthPx / 2f).toDp() },
-                    y = with(density) { stampTopY.toDp() },
-                ),
-            )
-        }
+        val stampTopY = (origin.y - stampOffset).coerceAtLeast(stampOffset / 2f)
+        ScoreStamp(
+            ring = snapshot.previewRing,
+            modifier = Modifier.offset(
+                x = with(density) { (origin.x + lensRadius - stampWidthPx / 2f).toDp() },
+                y = with(density) { stampTopY.toDp() },
+            ),
+        )
 
         // Lens body — circular clip wraps the magnified face + arrows.
         Box(
@@ -181,46 +239,37 @@ private fun LensContent(
     zoomedFaceSize: Float,
     density: Density,
 ) {
-    // Translate the zoomed face so the touch (in face-local coords) lands
-    // at the lens center. faceOriginPx is the parent-box-local origin of
-    // the target face square; the lens is also positioned in that space.
+    // Translate the zoomed face so the touch (in face-local coords) lands at
+    // the lens centre. Both touchPx and faceOriginPx are in root coords.
     val touchFaceX = snapshot.touchPx.x - snapshot.faceOriginPx.x
     val touchFaceY = snapshot.touchPx.y - snapshot.faceOriginPx.y
     val contentOffsetX = lensRadius - touchFaceX * LENS_ZOOM
     val contentOffsetY = lensRadius - touchFaceY * LENS_ZOOM
 
-    // Footprint dot size with display floor (matches iOS — scoring math
-    // still uses the unclamped value, but the rendered footprint floors
-    // at 8dp so thin shafts don't disappear in the lens).
     val footprintFloorPx = with(density) { 8.dp.toPx() }
     val footprintSize = maxOf(snapshot.arrowDotSizePx * LENS_ZOOM, footprintFloorPx)
 
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // Re-draw the target face at lensZoom×, offset to keep touch at center.
+        // Re-draw the target face at lensZoom×, offset to keep touch at centre.
         translate(left = contentOffsetX, top = contentOffsetY) {
-            drawSize { _ ->
-                drawTargetFaceAtSize(
-                    faceType = snapshot.faceType,
-                    sizePx = zoomedFaceSize,
-                )
-            }
+            drawLensFace(snapshot = snapshot, sizePx = zoomedFaceSize)
         }
 
         // Existing arrows — same coord system as the face, scaled by lensZoom.
         translate(left = contentOffsetX, top = contentOffsetY) {
             drawArrowsAtSize(
-                arrows = snapshot.arrows,
+                snapshot = snapshot,
                 facePx = zoomedFaceSize,
                 arrowDotPx = snapshot.arrowDotSizePx * LENS_ZOOM,
             )
         }
 
-        // Footprint ring at the lens center marks where the commit will land.
+        // Footprint ring at the lens centre marks where the commit will land.
         drawCircle(
             color = AppPondDk.copy(alpha = 0.7f),
             radius = footprintSize / 2f,
             center = Offset(lensRadius, lensRadius),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5f * density.density),
+            style = Stroke(width = 1.5f * density.density),
         )
     }
 }
@@ -230,7 +279,7 @@ private fun ScoreStamp(ring: Int?, modifier: Modifier = Modifier) {
     val (label, tint) = when (ring) {
         null -> "M" to AppLine
         11 -> "X" to AppPondDk
-        else -> ring.toString() to AppInk
+        else -> ring.toString() to AppTgtBlack
     }
     Box(
         modifier = modifier
@@ -255,30 +304,24 @@ private val EDGE_BUFFER_DP = 4.dp
 
 // --- Drawing helpers used by the lens ---
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSize(
-    block: androidx.compose.ui.graphics.drawscope.DrawScope.(Size) -> Unit,
-) {
-    block(size)
+/**
+ * Draw the magnified target face inside the lens — a single WA face, or the
+ * 3-spot Vegas card when the session uses a multi-spot layout.
+ */
+private fun DrawScope.drawLensFace(snapshot: PenLensSnapshot, sizePx: Float) {
+    val multiSpot = MultiSpotGeometry.preset(snapshot.targetLayout)
+    if (multiSpot != null) {
+        drawMultiSpotCard(multiSpot, Size(sizePx, sizePx))
+    } else {
+        drawSingleLensFace(snapshot.faceType, sizePx)
+    }
 }
 
-/**
- * Draw the target face at an explicit size, ignoring the canvas's natural
- * size. Used inside the lens where we paint a zoomed copy at faceSize × 2.5.
- */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTargetFaceAtSize(
-    faceType: TargetFaceType,
-    sizePx: Float,
-) {
-    // Delegate to TargetPlot's existing drawTargetFace by clipping a scaled
-    // sub-region. The simplest path is to inline the ring fills here; we
-    // share the geometry tables from TargetGeometry.
+/** Draw one WA face filling [sizePx], no dividers (the lens is already clear). */
+private fun DrawScope.drawSingleLensFace(faceType: TargetFaceType, sizePx: Float) {
     val center = Offset(sizePx / 2f, sizePx / 2f)
     val radius = sizePx / 2f
-    val geom = TargetGeometry.forFace(faceType)
-    drawCircle(color = androidx.compose.ui.graphics.Color(0xFFF6F8F3), radius = radius, center = center)
-    // Re-paint as concentric rings outermost → innermost. We don't bother
-    // with dividers + X tick inside the lens — magnified rings are already
-    // visually clear without the hairlines.
+    drawCircle(color = Color(0xFFF6F8F3), radius = radius, center = center)
     when (faceType) {
         TargetFaceType.SIX_RING -> {
             val g = TargetGeometry.SixRing
@@ -298,25 +341,36 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTargetFaceAtSiz
 }
 
 /**
- * Render previously-placed arrows inside the lens. Positions are normalized
- * (plotX/plotY in -1..1) and scaled to the lens's [facePx] coord space.
+ * Render previously-placed arrows inside the lens. Mirrors the on-target
+ * [drawArrowDot] look (shadow, ring-1–4 outline, index number) so the
+ * magnified arrows match the arrows under the finger.
  */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrowsAtSize(
-    arrows: List<ArrowPlot>,
+private fun DrawScope.drawArrowsAtSize(
+    snapshot: PenLensSnapshot,
     facePx: Float,
     arrowDotPx: Float,
 ) {
-    val center = Offset(facePx / 2f, facePx / 2f)
     val radius = facePx / 2f
-    for (a in arrows) {
-        val x = a.plotX ?: continue
-        val y = a.plotY ?: continue
-        val px = (center.x + x * radius).toFloat()
-        val py = (center.y + y * radius).toFloat()
-        drawCircle(
-            color = AppInk,
-            radius = (arrowDotPx / 2f).coerceAtLeast(2f),
-            center = Offset(px, py),
-        )
+    val dotRadius = (arrowDotPx / 2f).coerceAtLeast(4f)
+    val multiSpot = MultiSpotGeometry.preset(snapshot.targetLayout)
+    if (multiSpot != null) {
+        // Multi-spot: place each arrow on its bucketed spot.
+        multiSpot.assignArrows(snapshot.arrows).forEach { perSpot ->
+            val center = multiSpot.centers[perSpot.spotIndex]
+            val spotR = multiSpot.radiusNorm * facePx
+            val cx = (center.x * facePx + perSpot.localX * spotR).toFloat()
+            val cy = (center.y * facePx + perSpot.localY * spotR).toFloat()
+            val number = snapshot.arrows.indexOf(perSpot.arrow) + 1
+            drawArrowDot(Offset(cx, cy), dotRadius, perSpot.arrow.ring, number)
+        }
+    } else {
+        val center = Offset(facePx / 2f, facePx / 2f)
+        snapshot.arrows.forEachIndexed { idx, a ->
+            val x = a.plotX ?: return@forEachIndexed
+            val y = a.plotY ?: return@forEachIndexed
+            val cx = (center.x + x * radius).toFloat()
+            val cy = (center.y + y * radius).toFloat()
+            drawArrowDot(Offset(cx, cy), dotRadius, a.ring, idx + 1)
+        }
     }
 }
