@@ -267,23 +267,26 @@ object ElevationGridCache {
     /** Cap on cached grids — terrain doesn't change; oldest-first eviction. */
     private const val MAX_GRIDS = 50
 
-    /** Box-keyed grids; insertion order preserved for oldest-first eviction. */
-    private val grids = ConcurrentHashMap.newKeySet<ElevationGrid>()
-    private val order = java.util.concurrent.ConcurrentLinkedQueue<ElevationGrid>()
+    /**
+     * Box-keyed grids; access-order is irrelevant, insertion order drives
+     * oldest-first eviction via `removeEldestEntry`. All access is guarded by
+     * `@Synchronized` — `LinkedHashMap` is not thread-safe on its own.
+     */
+    private val grids = object : LinkedHashMap<ElevationGrid, ElevationGrid>() {
+        override fun removeEldestEntry(eldest: Map.Entry<ElevationGrid, ElevationGrid>): Boolean =
+            size > MAX_GRIDS
+    }
 
     /** Cache a grid. Two distinct course areas keep distinct boxes. */
     @Synchronized
     fun store(grid: ElevationGrid) {
-        if (!grids.add(grid)) return
-        order.add(grid)
-        while (order.size > MAX_GRIDS) {
-            order.poll()?.let { grids.remove(it) }
-        }
+        grids.putIfAbsent(grid, grid)
     }
 
     /** A cached grid whose box contains the point, or null. */
+    @Synchronized
     fun covering(latitude: Double, longitude: Double): ElevationGrid? =
-        grids.firstOrNull { it.contains(latitude, longitude) }
+        grids.keys.firstOrNull { it.contains(latitude, longitude) }
 
     /**
      * The cached grid covering a course — looked up by the centroid of its
@@ -306,6 +309,5 @@ object ElevationGridCache {
     @Synchronized
     fun clear() {
         grids.clear()
-        order.clear()
     }
 }
