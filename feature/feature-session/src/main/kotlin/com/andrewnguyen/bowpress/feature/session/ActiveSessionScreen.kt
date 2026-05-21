@@ -152,6 +152,17 @@ fun ActiveSessionScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
 
+            // Below the target, full width — records a shot that missed the
+            // scoring rings entirely (ring 0, no plot position). Mirrors iOS
+            // RangeMissButton; never overlaps the face.
+            MissButton(
+                enabled = !state.isLoading,
+                onClick = { scope.launch { viewModel.plotMiss() } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            )
+
             val breakdown = state.endsBreakdown
 
             // Undo + Finish-End bar directly under the target — closes the
@@ -304,6 +315,35 @@ private fun EndActionsDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+/**
+ * Full-width "MISS" button shown below the range target — records a shot
+ * that didn't land on the scoring rings (ring 0, no plot position). Sits
+ * under the face, never over it. Mirrors iOS `RangeMissButton`.
+ */
+@Composable
+private fun MissButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .background(AppPaper)
+            .border(1.dp, AppMaple)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "MISS",
+            style = interUI(11.sp, weight = FontWeight.SemiBold).copy(
+                letterSpacing = 0.2.em,
+                color = AppMaple,
+            ),
+        )
+    }
 }
 
 /**
