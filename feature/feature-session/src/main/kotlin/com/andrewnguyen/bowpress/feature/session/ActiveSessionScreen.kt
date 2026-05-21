@@ -600,7 +600,10 @@ private fun TargetSection(
             contentAlignment = Alignment.Center,
         ) {
             TargetPlot(
-                arrows = state.currentArrows,
+                // Only the in-progress end's arrows — the live target clears
+                // when an end finishes so it doesn't get busy over many ends.
+                // Mirrors iOS `TargetPlotView(arrows: currentEndArrows)`.
+                arrows = state.currentEndArrows,
                 onArrowPlotted = onPlot,
                 modifier = Modifier.size(TARGET_FACE_SIZE),
                 isEnabled = !state.isLoading,
@@ -654,7 +657,8 @@ private fun faceSize(face: TargetFaceType): String = when (face) {
 // Snapshot building lives in PenLensOverlay.kt — shared with TargetPlot.
 
 // ---------------------------------------------------------------------------
-// Recent arrows strip — 6-cell grid with avg of last N
+// Recent arrows strip — one cell per arrow plotted in the current end
+// (dynamic; no placeholder slots), with the avg of the last few
 // ---------------------------------------------------------------------------
 
 @Composable
@@ -692,18 +696,20 @@ private fun RecentArrowsStrip(
 
         Spacer(Modifier.height(10.dp))
 
+        // One fixed-width cell per arrow actually plotted in this end — no
+        // empty placeholder slots, so a 3-arrow end shows 3 cells. The last
+        // 6 are shown so a long end can't overflow the row.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val startIdx = maxOf(0, arrows.size - 6)
-            for (col in 0 until 6) {
-                val cellIdx = startIdx + col
-                val arrow = arrows.getOrNull(cellIdx)
+            val shown = arrows.takeLast(6)
+            val baseNumber = arrows.size - shown.size
+            shown.forEachIndexed { i, arrow ->
                 RecentCell(
                     arrow = arrow,
-                    arrowNumber = if (arrow != null) cellIdx + 1 else null,
-                    modifier = Modifier.weight(1f),
+                    arrowNumber = baseNumber + i + 1,
+                    modifier = Modifier.width(52.dp),
                 )
             }
         }
@@ -712,33 +718,28 @@ private fun RecentArrowsStrip(
 
 @Composable
 private fun RecentCell(
-    arrow: ArrowPlot?,
-    arrowNumber: Int?,
+    arrow: ArrowPlot,
+    arrowNumber: Int,
     modifier: Modifier = Modifier,
 ) {
-    val isX = arrow?.ring == 11
-    val bg = if (arrow == null) AppPaper2 else AppPaper
+    val isX = arrow.ring == 11
     val border = if (isX) AppPondDk else AppLine
-    val valueColor = when {
-        arrow == null -> AppInk3
-        isX -> AppPondDk
-        else -> AppInk
-    }
+    val valueColor = if (isX) AppPondDk else AppInk
     Column(
         modifier = modifier
-            .background(bg)
+            .background(AppPaper)
             .border(1.dp, border)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = arrow?.let { ringLabel(it.ring) } ?: "—",
+            text = ringLabel(arrow.ring),
             style = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
                 .copy(color = valueColor),
         )
         Spacer(Modifier.height(2.dp))
         Text(
-            text = arrowNumber?.let { "#$it" } ?: "—",
+            text = "#$arrowNumber",
             style = interUI(8.sp, weight = FontWeight.SemiBold).copy(
                 letterSpacing = 0.16.em,
                 color = AppInk3,
