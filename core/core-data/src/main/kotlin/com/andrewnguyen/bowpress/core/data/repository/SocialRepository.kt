@@ -800,6 +800,10 @@ class SocialRepository @Inject constructor(
             session = session,
             ends = ends,
             arrows = arrows,
+            // A 3D-course feed row carries its walked stations inline on the
+            // ActivitySession — forward them so the friend-session detail can
+            // draw the course map instead of a "session unavailable" notice.
+            stations = activitySession.stations.orEmpty(),
         )
     }
 

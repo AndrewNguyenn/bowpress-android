@@ -39,14 +39,20 @@ import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
+import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
 import com.andrewnguyen.bowpress.core.designsystem.bp.ScorecardTable
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseInkMapView
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseStationRow
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.ThreeDStationCard
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.Scorecard
+import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.SharedSession
+import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 
 /**
  * Shared-session detail — drilled into from a tapped feed session row.
@@ -72,6 +78,9 @@ fun FriendSessionDetailScreen(
 
     // Owner-only edit sheet visibility.
     var editing by remember { mutableStateOf(false) }
+    // Focused station on a friend's 3D-course map (mirrors ThreeDLogDetailScreen).
+    var focusedStation by remember { mutableStateOf<Int?>(null) }
+    val unitSystem = LocalUnitSystem.current
 
     Column(
         modifier = Modifier
@@ -188,7 +197,65 @@ fun FriendSessionDetailScreen(
                     }
 
                     val shotSession = detail.session
-                    if (shotSession == null) {
+                    val isCourse = detail.stations.isNotEmpty() ||
+                        shotSession?.sessionType == SessionType.THREE_D_COURSE
+                    if (isCourse) {
+                        // 3D course — the walked map + the station list, the
+                        // same content as the 3D Log detail. Mirrors iOS
+                        // FriendSessionDetailView's course path.
+                        if (detail.stations.isEmpty()) {
+                            item { DeletedSessionNotice() }
+                        } else {
+                            val system = shotSession?.scoringSystem
+                                ?: ThreeDScoringSystem.ASA
+                            item {
+                                Spacer(Modifier.height(18.dp))
+                                SectionEyebrow("COURSE · ${detail.stations.size} STATIONS")
+                                Spacer(Modifier.height(10.dp))
+                                CourseInkMapView(
+                                    stations = detail.stations,
+                                    elevationGrid = null,
+                                    selectedStation = focusedStation,
+                                    onTapStation = {
+                                        focusedStation = if (focusedStation == it) null else it
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            item {
+                                Spacer(Modifier.height(18.dp))
+                                SectionEyebrow("STATIONS")
+                                Spacer(Modifier.height(10.dp))
+                            }
+                            items(detail.stations, key = { it.id }) { station ->
+                                val idx = station.stationNumber - 1
+                                Column {
+                                    CourseStationRow(
+                                        station = station,
+                                        system = system,
+                                        unitSystem = unitSystem,
+                                        focused = focusedStation == idx,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, AppLine)
+                                            .clickable {
+                                                focusedStation =
+                                                    if (focusedStation == idx) null else idx
+                                            },
+                                    )
+                                    if (focusedStation == idx) {
+                                        ThreeDStationCard(
+                                            station = station,
+                                            stationCount = detail.stations.size,
+                                            system = system,
+                                            unitSystem = unitSystem,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else if (shotSession == null) {
                         // Owner deleted the underlying session — stat summary only.
                         item { DeletedSessionNotice() }
                     } else {
