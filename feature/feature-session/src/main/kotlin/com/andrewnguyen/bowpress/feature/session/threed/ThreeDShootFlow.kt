@@ -1,8 +1,11 @@
 package com.andrewnguyen.bowpress.feature.session.threed
 
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,9 +27,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -133,6 +138,7 @@ private fun ThreeDCaptureScreen(
     onCaptured: (angle: Double, bearing: Double?, distance: Double?, unit: String, sceneTaken: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val liveAngle by viewModel.motionReader.angleDegrees.collectAsStateWithLifecycle()
     val liveHeading by viewModel.locationTracker.heading.collectAsStateWithLifecycle()
 
@@ -142,6 +148,32 @@ private fun ThreeDCaptureScreen(
     var manualAngle by remember { mutableStateOf(0) }
     var distanceText by remember { mutableStateOf("") }
 
+    // Live in-app viewfinder (CameraX) when the camera permission is granted
+    // and the device has a camera; otherwise the system-camera intent.
+    val cameraController = remember { BowPressCameraController() }
+    var cameraGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val cameraPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> cameraGranted = granted }
+    LaunchedEffect(Unit) {
+        if (!cameraGranted) cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
+    }
+    val useLiveCamera = cameraGranted && BowPressCameraController.deviceHasCamera(context)
+
+    // Store the scene JPEG + freeze the shot telemetry at the shutter (iOS parity).
+    fun onSceneCaptured(bytes: ByteArray) {
+        CourseStationPhotoStore.save(context, bytes, stationId, CourseStationPhotoStore.Slot.SCENE)
+        frozenAngle = if (viewModel.motionReader.isAvailable) liveAngle else manualAngle.toDouble()
+        frozenBearing = liveHeading
+        photoTaken = true
+    }
+
+    // System-camera fallback — no in-app camera available.
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview(),
     ) { bitmap: Bitmap? ->
@@ -149,11 +181,7 @@ private fun ThreeDCaptureScreen(
             val bytes = ByteArrayOutputStream().also {
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it)
             }.toByteArray()
-            CourseStationPhotoStore.save(context, bytes, stationId, CourseStationPhotoStore.Slot.SCENE)
-            // Freeze the telemetry at the shutter, like iOS.
-            frozenAngle = if (viewModel.motionReader.isAvailable) liveAngle else manualAngle.toDouble()
-            frozenBearing = liveHeading
-            photoTaken = true
+            onSceneCaptured(bytes)
         }
     }
 
@@ -165,7 +193,8 @@ private fun ThreeDCaptureScreen(
     ) {
         ShootHeader("STEP 1 OF 2 — RANGE THE TARGET", onCancel)
 
-        // Viewfinder placeholder with the live angle HUD.
+        // The live camera feed (or a dark placeholder), with the crosshair +
+        // angle HUD overlaid — "just the camera with our circle and dot".
         Box(
             Modifier
                 .padding(16.dp)
@@ -175,6 +204,12 @@ private fun ThreeDCaptureScreen(
                 .border(1.dp, AppLine),
             contentAlignment = Alignment.Center,
         ) {
+            if (useLiveCamera) {
+                CameraViewfinder(
+                    controller = cameraController,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
             Box(
                 Modifier
                     .size(80.dp)
@@ -220,7 +255,15 @@ private fun ThreeDCaptureScreen(
                 BPPrimaryButton(
                     title = "Capture the shot",
                     subtitle = "FREEZES ANGLE + BEARING",
-                    onClick = { cameraLauncher.launch(null) },
+                    onClick = {
+                        if (useLiveCamera) {
+                            scope.launch {
+                                cameraController.capture(context)?.let { onSceneCaptured(it) }
+                            }
+                        } else {
+                            cameraLauncher.launch(null)
+                        }
+                    },
                 )
             } else {
                 BPEyebrow("RANGED DISTANCE")
