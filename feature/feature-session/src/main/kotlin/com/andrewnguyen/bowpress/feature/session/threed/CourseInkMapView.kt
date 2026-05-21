@@ -101,7 +101,36 @@ data class CourseMapLayout(
     val isGeoreferenced: Boolean,
     /** Real topographic contours — empty unless an elevation grid was given. */
     val contours: List<ProjectedContour>,
+    /**
+     * Width : height of the course content — 1 unless [resolve] was asked to
+     * fill the frame, in which case it carries the course's true aspect so
+     * the map view can shape itself to match.
+     */
+    val contentAspect: Float = 1f,
 ) {
+    /**
+     * Turn the whole layout 90° when the course runs taller than wide, so it
+     * always lays out horizontally into a landscape frame. Every point — pins,
+     * targets, trail, contours — turns together, so the dashed shot arrows and
+     * their upright yardage labels stay correct, just rotated. Mirrors iOS
+     * `CourseMapLayout.orientedHorizontally()`.
+     */
+    fun orientedHorizontally(): CourseMapLayout {
+        if (contentAspect >= 1f) return this
+        // 90° turn within the unit square: (x, y) → (1 - y, x).
+        fun turn(p: Offset) = Offset(1f - p.y, p.x)
+        return copy(
+            stations = stations.map(::turn),
+            targets = targets.map { it?.let(::turn) },
+            trail = trail.map(::turn),
+            current = current?.let(::turn),
+            contours = contours.map {
+                ProjectedContour(depth = it.depth, segments = it.segments.map(::turn))
+            },
+            contentAspect = if (contentAspect > 0f) 1f / contentAspect else 1f,
+        )
+    }
+
     companion object {
         /** Inset the projected content sits within, leaving room for chrome. */
         const val PAD: Double = 0.10
@@ -115,6 +144,10 @@ data class CourseMapLayout(
             breadcrumb: List<GeoPoint>,
             current: GeoPoint?,
             grid: ElevationGrid?,
+            /** When true the projection keeps the course's true aspect
+             *  (rather than squaring it) so the map view can shape itself to
+             *  match and the course fills the frame edge-to-edge. */
+            fillFrame: Boolean = false,
         ): CourseMapLayout {
             val stationGeo: List<GeoPoint?> = stations.map { s ->
                 val lat = s.latitude
@@ -127,7 +160,10 @@ data class CourseMapLayout(
             // Best case — a terrain grid: project everything against its
             // fixed geographic box and trace real contours.
             if (grid != null) {
-                val proj = Projector(grid.minLat, grid.maxLat, grid.minLon, grid.maxLon)
+                val proj = Projector(
+                    grid.minLat, grid.maxLat, grid.minLon, grid.maxLon,
+                    squared = !fillFrame,
+                )
                 val contours = ContourGenerator.contours(grid).map { line ->
                     ProjectedContour(
                         depth = line.depth,
@@ -141,6 +177,7 @@ data class CourseMapLayout(
                     current = current?.let(proj::project),
                     isGeoreferenced = true,
                     contours = contours,
+                    contentAspect = proj.aspect,
                 )
             }
 
@@ -153,7 +190,11 @@ data class CourseMapLayout(
                 addAll(breadcrumb)
                 if (current != null) add(current)
             }
-            val spreadProj = if (allGeo) Projector.fromPoints(sample) else null
+            val spreadProj = if (allGeo) {
+                Projector.fromPoints(sample, squared = !fillFrame)
+            } else {
+                null
+            }
             if (spreadProj != null) {
                 return CourseMapLayout(
                     stations = stationGeo.map { it?.let(spreadProj::project) ?: Offset(0.5f, 0.5f) },
@@ -162,6 +203,7 @@ data class CourseMapLayout(
                     current = current?.let(spreadProj::project),
                     isGeoreferenced = true,
                     contours = emptyList(),
+                    contentAspect = spreadProj.aspect,
                 )
             }
 
@@ -176,6 +218,8 @@ data class CourseMapLayout(
                 current = if (current != null) synthesizedCurrent(stations.size) else null,
                 isGeoreferenced = false,
                 contours = emptyList(),
+                // The synthesized meander spans ~0.6 wide × ~0.66 tall.
+                contentAspect = 0.9f,
             )
         }
 
@@ -239,8 +283,10 @@ data class CourseMapLayout(
 }
 
 /**
- * Equirectangular projector — longitude scaled by latitude, the box squared
- * to its larger span so aspect is preserved. Mirrors iOS `Projector`.
+ * Equirectangular projector — longitude scaled by latitude. By default the
+ * box is squared to its larger span (a centred, undistorted course);
+ * `squared = false` keeps the true span per axis so the course can fill a
+ * frame shaped to match it. Mirrors iOS `Projector`.
  */
 private class Projector private constructor(
     private val minX: Double,
@@ -249,6 +295,9 @@ private class Projector private constructor(
     private val spanY: Double,
     private val lonScale: Double,
 ) {
+    /** Width : height of the projected box — 1 when squared. */
+    val aspect: Float get() = (spanX / spanY).toFloat()
+
     fun project(p: GeoPoint): Offset {
         val usable = 1.0 - 2 * CourseMapLayout.PAD
         val nx = (p.longitude * lonScale - minX) / spanX
@@ -266,23 +315,33 @@ private class Projector private constructor(
             maxLat: Double,
             minLon: Double,
             maxLon: Double,
+            squared: Boolean = true,
         ): Projector {
             val scale = cos((minLat + maxLat) / 2 * Math.PI / 180.0)
-            val sx = (maxLon - minLon) * scale
-            val sy = maxLat - minLat
-            val span = maxOf(maxOf(sx, sy), 1e-9)
+            val sx = maxOf((maxLon - minLon) * scale, 1e-9)
+            val sy = maxOf(maxLat - minLat, 1e-9)
+            val spanX: Double
+            val spanY: Double
+            if (squared) {
+                val span = maxOf(sx, sy)
+                spanX = span
+                spanY = span
+            } else {
+                spanX = sx
+                spanY = sy
+            }
             return Projector(
                 minX = minLon * scale,
-                spanX = span,
+                spanX = spanX,
                 minY = minLat,
-                spanY = span,
+                spanY = spanY,
                 lonScale = scale,
             )
         }
 
         /** Build from a point cloud — null on fewer than 2 points or a
          *  degenerate box (everything within a few metres). */
-        fun fromPoints(points: List<GeoPoint>): Projector? {
+        fun fromPoints(points: List<GeoPoint>, squared: Boolean = true): Projector? {
             if (points.size < 2) return null
             val lats = points.map { it.latitude }
             val lons = points.map { it.longitude }
@@ -292,7 +351,7 @@ private class Projector private constructor(
             val maxLon = lons.max()
             val scale = cos((minLat + maxLat) / 2 * Math.PI / 180.0)
             if (maxOf((maxLon - minLon) * scale, maxLat - minLat) <= 0.00003) return null
-            return invoke(minLat, maxLat, minLon, maxLon)
+            return invoke(minLat, maxLat, minLon, maxLon, squared)
         }
     }
 }
@@ -364,6 +423,10 @@ private const val MAP_ASPECT = 366f / 420f
  * @param onTapStation null = pins are display-only (no focus interaction).
  * @param showChrome draw the compass + scale-bar chrome, the legend and the
  *   zoom controls (all off for compact thumbnails); also gates interaction.
+ * @param adaptiveAspect when true the map shapes itself to the course and
+ *   always lays it out horizontally — the course fills the frame edge-to-edge
+ *   instead of sitting centred in a fixed portrait box. Used by the social
+ *   feed preview. Non-adaptive callers (live / detail maps) are unchanged.
  */
 @Composable
 fun CourseInkMapView(
@@ -374,10 +437,24 @@ fun CourseInkMapView(
     selectedStation: Int? = null,
     onTapStation: ((Int) -> Unit)? = null,
     showChrome: Boolean = true,
+    adaptiveAspect: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val layout = remember(stations, breadcrumb, current, elevationGrid) {
-        CourseMapLayout.resolve(stations, breadcrumb, current, elevationGrid)
+    val layout = remember(stations, breadcrumb, current, elevationGrid, adaptiveAspect) {
+        val resolved = CourseMapLayout.resolve(
+            stations, breadcrumb, current, elevationGrid, fillFrame = adaptiveAspect,
+        )
+        // adaptiveAspect always lays the course out horizontally.
+        if (adaptiveAspect) resolved.orientedHorizontally() else resolved
+    }
+    // Aspect ratio for the map frame. With adaptiveAspect the course is always
+    // laid out horizontally, so the frame is always landscape — the course's
+    // own (turned) aspect, clamped so it never gets too extreme. Otherwise the
+    // fixed portrait box. Mirrors iOS `frameAspect`.
+    val frameAspect = if (adaptiveAspect) {
+        layout.contentAspect.coerceIn(1.0f, 2.2f)
+    } else {
+        MAP_ASPECT
     }
     val textMeasurer = rememberTextMeasurer()
     var viewport by remember { mutableStateOf(MapViewport()) }
@@ -400,7 +477,7 @@ fun CourseInkMapView(
 
     Box(
         modifier = modifier
-            .aspectRatio(MAP_ASPECT)
+            .aspectRatio(frameAspect)
             .background(AppCream)
             .border(1.dp, AppLine)
             .clipToBounds(),
