@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -696,59 +697,49 @@ private fun RecentArrowsStrip(
 
         Spacer(Modifier.height(10.dp))
 
-        // One fixed-width cell per arrow actually plotted in this end — no
-        // empty placeholder slots, so a 3-arrow end shows 3 cells. The last
-        // 6 are shown so a long end can't overflow the row.
+        // One cell per arrow plotted in this end — dynamic, no empty slots.
+        // Rendered as a single bordered strip of touching ring-tinted
+        // rectangles, exactly like a scorecard row. The last 6 are shown so
+        // a long end can't overflow.
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(RecentRowHeight)
+                .border(1.dp, AppLine),
         ) {
-            val shown = arrows.takeLast(6)
-            val baseNumber = arrows.size - shown.size
-            shown.forEachIndexed { i, arrow ->
+            arrows.takeLast(6).forEach { arrow ->
                 RecentCell(
                     arrow = arrow,
-                    arrowNumber = baseNumber + i + 1,
-                    modifier = Modifier.width(52.dp),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
             }
         }
     }
 }
 
+private val RecentRowHeight = 38.dp
+
 @Composable
 private fun RecentCell(
     arrow: ArrowPlot,
-    arrowNumber: Int,
     modifier: Modifier = Modifier,
 ) {
-    // Same ring-tint fill, hairline and value treatment as the scorecard's
-    // shot cells (EndsScorecard.ShotCell) so the in-progress end reads as the
-    // same surface as the completed-end rows below it.
+    // A touching ring-tinted rectangle — same fill + value treatment as the
+    // scorecard's shot cells (EndsScorecard.ShotCell). No per-cell border or
+    // gap: the strip's outer border frames the row, like the scorecard table.
     val (label, valueColor) = when {
         arrow.ring == 11 -> "X" to AppPondDk
         arrow.ring <= 0 -> "M" to AppMaple
         else -> "${arrow.ring}" to AppInk
     }
-    Column(
-        modifier = modifier
-            .background(ringTint(arrow.ring))
-            .border(1.dp, AppLine)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
+        modifier = modifier.background(ringTint(arrow.ring)),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
-            style = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
+            style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
                 .copy(color = valueColor),
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = "#$arrowNumber",
-            style = interUI(8.sp, weight = FontWeight.SemiBold).copy(
-                letterSpacing = 0.16.em,
-                color = AppInk3,
-            ),
         )
     }
 }
