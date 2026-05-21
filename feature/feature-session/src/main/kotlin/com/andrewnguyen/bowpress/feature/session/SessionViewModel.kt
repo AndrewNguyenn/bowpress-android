@@ -345,6 +345,20 @@ class SessionViewModel @Inject constructor(
 
     /** Plot an arrow computed from a [TargetGeometry.Classification]. */
     suspend fun plotArrow(plotX: Double, plotY: Double, ring: Int, zone: Zone) {
+        writePlot(plotX = plotX, plotY = plotY, ring = ring, zone = zone)
+    }
+
+    /**
+     * Plot a miss — a shot that didn't hit the scoring rings at all: ring 0,
+     * no plot position. Mirrors iOS `plotArrow(ring: 0, plotX: nil, plotY: nil)`
+     * behind the range Miss button.
+     */
+    suspend fun plotMiss() {
+        writePlot(plotX = null, plotY = null, ring = 0, zone = Zone.CENTER)
+    }
+
+    /** Build + persist one plot. A miss passes null coordinates. */
+    private suspend fun writePlot(plotX: Double?, plotY: Double?, ring: Int, zone: Zone) {
         val state = _uiState.value
         val session = state.activeSession ?: return
         // If a config change is pending, resolve it before writing the plot so the plot

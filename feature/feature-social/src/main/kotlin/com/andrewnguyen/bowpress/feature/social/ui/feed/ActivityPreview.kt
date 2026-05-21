@@ -3,7 +3,6 @@ package com.andrewnguyen.bowpress.feature.social.ui.feed
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,12 +36,14 @@ import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
-import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
+import com.andrewnguyen.bowpress.core.designsystem.bp.ringInk
+import com.andrewnguyen.bowpress.core.designsystem.bp.ringLabel
+import com.andrewnguyen.bowpress.core.designsystem.bp.ringTint
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseInkMapView
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.ElevationGridCache
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
@@ -78,11 +79,12 @@ sealed interface ActivityPreview {
     data object Photo : ActivityPreview
 
     /**
-     * A range session — a World Archery target face + the score, plus the
-     * first 10 ends as per-arrow ring values for the inline scorecard.
+     * A range session — the target face, the distance + score, and the
+     * per-end scorecard (first 10 ends as arrow ring values).
      */
     data class Target(
         val face: String?,
+        val distance: String?,
         val score: Int,
         val endRings: List<List<Int>>?,
     ) : ActivityPreview
@@ -122,6 +124,7 @@ fun activityPreview(item: ActivityItem): ActivityPreview {
     } else {
         ActivityPreview.Target(
             face = session.face,
+            distance = session.distance,
             score = session.score,
             endRings = session.endRings,
         )
@@ -139,6 +142,7 @@ fun ActivityPreviewBand(
         is ActivityPreview.Photo -> PhotoBand(modifier = modifier)
         is ActivityPreview.Target -> TargetBand(
             face = preview.face,
+            distance = preview.distance,
             score = preview.score,
             endRings = preview.endRings,
             modifier = modifier,
@@ -177,28 +181,13 @@ private fun PhotoBand(modifier: Modifier = Modifier) {
 }
 
 /**
- * Picks a target-face shape from a shared session's free-text `face` label —
- * a 6-ring / Vegas / 3-spot face reads as [BPTargetFaceType.SixRing],
- * everything else [BPTargetFaceType.TenRing]. Mirrors iOS
- * `ActivityPreviewBand.faceType(for:)`.
- */
-internal fun faceTypeFor(face: String?): BPTargetFaceType {
-    val f = (face ?: "").lowercase()
-    return if (f.contains("6") || f.contains("spot") || f.contains("vegas")) {
-        BPTargetFaceType.SixRing
-    } else {
-        BPTargetFaceType.TenRing
-    }
-}
-
-/**
- * Range session — a WA target face thumbnail beside the score, with the
- * per-end scorecard (first 10 ends) on the right when the feed payload
- * carries one.
+ * Range session — the WA target face on the left, with the distance + score
+ * and the per-end scorecard (first 10 ends) grouped together on the right.
  */
 @Composable
 private fun TargetBand(
     face: String?,
+    distance: String?,
     score: Int,
     endRings: List<List<Int>>?,
     modifier: Modifier = Modifier,
@@ -213,13 +202,18 @@ private fun TargetBand(
             .testTag(TestTags.FeedRowPreview),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Face shape derived from the session's `face` label so a range row
-        // shows the actual face it was shot on (iOS faceType(for:)).
+        // Target face — shape derived from the session's `face` label so a
+        // range row shows the actual face it was shot on.
         BPTargetFace(size = 78.dp, face = faceTypeFor(face))
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.weight(1f))
+        // Distance + score and the scorecard read as one group on the right.
         Column {
             Text(
-                text = "RANGE",
+                // The distance is "attached" to the RANGE label, e.g.
+                // "RANGE · 50M" — `distance` is null on legacy sessions.
+                text = "RANGE" + (
+                    distance?.takeIf { it.isNotBlank() }?.let { " · ${it.uppercase()}" } ?: ""
+                ),
                 style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
                 color = AppInk3,
             )
@@ -229,26 +223,32 @@ private fun TargetBand(
                 style = frauncesDisplay(26.sp),
                 color = AppInk,
             )
-            if (!face.isNullOrEmpty()) {
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = face,
-                    style = jetbrainsMono(9.sp),
-                    color = AppInk3,
-                )
-            }
         }
         if (!endRings.isNullOrEmpty()) {
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(14.dp))
             Box(
                 modifier = Modifier
                     .width(1.dp)
                     .height(BAND_HEIGHT - 12.dp)
                     .background(AppLine),
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(14.dp))
             FeedScorecardColumn(ends = endRings)
         }
+    }
+}
+
+/**
+ * Picks a target-face shape from a shared session's free-text `face` label —
+ * a 6-ring / Vegas / 3-spot face reads as [BPTargetFaceType.SixRing],
+ * everything else [BPTargetFaceType.TenRing].
+ */
+private fun faceTypeFor(face: String?): BPTargetFaceType {
+    val f = (face ?: "").lowercase()
+    return if (f.contains("6") || f.contains("spot") || f.contains("vegas")) {
+        BPTargetFaceType.SixRing
+    } else {
+        BPTargetFaceType.TenRing
     }
 }
 
@@ -260,15 +260,9 @@ private fun TargetBand(
  */
 @Composable
 private fun FeedScorecardColumn(ends: List<List<Int>>, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.testTag(TestTags.FeedRowScorecard),
-        verticalArrangement = Arrangement.spacedBy(1.dp),
-    ) {
+    Column(modifier = modifier.testTag(TestTags.FeedRowScorecard)) {
         ends.take(10).forEachIndexed { idx, rings ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(2.5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "${idx + 1}",
                     style = jetbrainsMono(6.5.sp),
@@ -276,33 +270,26 @@ private fun FeedScorecardColumn(ends: List<List<Int>>, modifier: Modifier = Modi
                     textAlign = TextAlign.End,
                     modifier = Modifier.width(11.dp),
                 )
+                Spacer(Modifier.width(3.dp))
+                // Each ring sits in its ring-tonal cell — the same band cue
+                // the session-detail ScorecardTable uses, compacted.
                 rings.forEach { ring ->
-                    Text(
-                        text = ringLabel(ring),
-                        style = frauncesDisplay(8.sp, italic = true, weight = FontWeight.Medium),
-                        color = ringColor(ring),
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(width = 15.dp, height = 11.dp)
+                            .background(ringTint(ring)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = ringLabel(ring),
+                            style = frauncesDisplay(8.sp, italic = true, weight = FontWeight.Medium),
+                            color = ringInk(ring),
+                        )
+                    }
                 }
             }
         }
     }
-}
-
-/** X for the inner ring (11), M for a miss (≤0), the ring number otherwise. */
-private fun ringLabel(ring: Int): String = when {
-    ring >= 11 -> "X"
-    ring <= 0 -> "M"
-    else -> ring.toString()
-}
-
-/**
- * X reads pond, a miss reads maple, everything else ink — matches the
- * session-detail scorecard's shot-cell colouring.
- */
-private fun ringColor(ring: Int) = when {
-    ring >= 11 -> AppPondDk
-    ring <= 0 -> AppMaple
-    else -> AppInk
 }
 
 /**

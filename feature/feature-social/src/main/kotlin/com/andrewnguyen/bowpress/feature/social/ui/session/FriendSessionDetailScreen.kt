@@ -32,18 +32,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
-import com.andrewnguyen.bowpress.core.designsystem.AppLine2
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
+import com.andrewnguyen.bowpress.core.designsystem.bp.ScorecardTable
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
-import com.andrewnguyen.bowpress.core.model.ArrowPlot
-import com.andrewnguyen.bowpress.core.model.SessionEnd
+import com.andrewnguyen.bowpress.core.model.Scorecard
 import com.andrewnguyen.bowpress.core.model.SharedSession
 
 /**
@@ -149,27 +148,23 @@ fun FriendSessionDetailScreen(
                             )
                         }
 
-                        // Scorecard — ends × arrows.
-                        val endRows = endRows(detail.arrows, detail.ends)
+                        // Scorecard — the canonical ruled table, identical to
+                        // the session-detail screen (read-only here).
                         item {
                             Spacer(Modifier.height(18.dp))
                             SectionEyebrow("SCORECARD")
-                            Spacer(Modifier.height(4.dp))
-                            HorizontalDivider(color = AppLine, thickness = 1.dp)
-                        }
-                        if (endRows.isEmpty()) {
-                            item {
-                                Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(10.dp))
+                            val scorecard = Scorecard.build(
+                                detail.arrows, detail.ends, shotSession.id,
+                            )
+                            if (scorecard.lines.isEmpty()) {
                                 Text(
                                     "No arrows recorded for this session.",
                                     style = frauncesDisplay(13.sp, italic = true),
                                     color = AppInk3,
                                 )
-                            }
-                        } else {
-                            items(endRows, key = { it.endLabel }) { row ->
-                                EndScoreRow(row = row)
-                                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                            } else {
+                                ScorecardTable(scorecard = scorecard)
                             }
                         }
                     }
@@ -244,77 +239,4 @@ private fun SectionEyebrow(label: String) {
         style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
         color = AppInk3,
     )
-}
-
-/** One scorecard end — label, arrow ring chips, end total. */
-@Composable
-private fun EndScoreRow(row: EndScoreData) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 11.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                row.endLabel,
-                style = interUI(10.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                color = AppInk3,
-            )
-            Text("${row.total}", style = frauncesDisplay(18.sp), color = AppInk)
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            row.rings.forEach { ring ->
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, AppLine)
-                        .background(AppPaper)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        ringLabel(ring),
-                        style = jetbrainsMono(11.sp),
-                        color = AppInk,
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Ring 11 prints as "X"; everything else as its number. */
-private fun ringLabel(ring: Int): String = if (ring == 11) "X" else "$ring"
-
-/** Score value of a ring — X (11) scores 10. */
-private fun ringScore(ring: Int): Int = if (ring == 11) 10 else ring
-
-private data class EndScoreData(
-    val endLabel: String,
-    val rings: List<Int>,
-    val total: Int,
-)
-
-/**
- * Group arrows into scorecard ends by `endId`, ordered by the end's number;
- * arrows with no end ref fall into a trailing "UNASSIGNED" group. Mirrors the
- * own-session scorecard grouping in feature-analytics `SessionDetailScreen`.
- */
-private fun endRows(arrows: List<ArrowPlot>, ends: List<SessionEnd>): List<EndScoreData> {
-    val endNumberById = ends.associate { it.id to it.endNumber }
-    return arrows
-        .groupBy { it.endId }
-        .entries
-        .sortedBy { (endId, _) -> endId?.let { endNumberById[it] } ?: Int.MAX_VALUE }
-        .map { (endId, plots) ->
-            val endNumber = endId?.let { endNumberById[it] }
-            EndScoreData(
-                endLabel = endNumber?.let { "END $it" } ?: "UNASSIGNED",
-                rings = plots.map { it.ring },
-                total = plots.sumOf { ringScore(it.ring) },
-            )
-        }
 }

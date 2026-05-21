@@ -452,6 +452,11 @@ private fun FeedItemRow(
     val contentInset = 18.dp
     val preview = activityPreview(item)
 
+    // A range session's preview band carries the target, distance, score and
+    // per-arrow breakdown, so both meta lines in the body would just repeat
+    // it — drop them for those rows.
+    val bandCarriesMeta = preview is ActivityPreview.Target
+
     // The preview drops below the avatar/timestamp row so it spans the full
     // row width — and a course map bleeds past the feed's own horizontal
     // inset to sit truly edge-to-edge. A highlighted card keeps the preview
@@ -502,22 +507,26 @@ private fun FeedItemRow(
                     style = frauncesDisplay(14.sp),
                     color = AppInk,
                 )
-                item.meta?.let { meta ->
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        text = meta,
-                        style = jetbrainsMono(9.5.sp),
-                        color = AppInk3,
-                    )
-                }
-                // §15 — shared-session stat line.
-                item.session?.let { s ->
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        text = sessionStatLine(s),
-                        style = jetbrainsMono(9.5.sp),
-                        color = AppMaple,
-                    )
+                // A range session's preview band carries the meta + per-arrow
+                // breakdown, so these two lines would just repeat it.
+                if (!bandCarriesMeta) {
+                    item.meta?.let { meta ->
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            text = meta,
+                            style = jetbrainsMono(9.5.sp),
+                            color = AppInk3,
+                        )
+                    }
+                    // §15 — shared-session stat line.
+                    item.session?.let { s ->
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            text = sessionStatLine(s),
+                            style = jetbrainsMono(9.5.sp),
+                            color = AppMaple,
+                        )
+                    }
                 }
                 // §15 — achievement badges on a highlighted row.
                 if (item.achievements.isNotEmpty()) {
