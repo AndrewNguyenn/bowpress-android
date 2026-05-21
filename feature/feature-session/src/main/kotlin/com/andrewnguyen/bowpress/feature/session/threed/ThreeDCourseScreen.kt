@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -90,6 +91,8 @@ fun ThreeDCourseScreen(
     var editing by remember { mutableStateOf<com.andrewnguyen.bowpress.core.model.CourseStation?>(null) }
     var finishing by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    // Index of the station whose detail sheet is open over the map.
+    var selected by remember { mutableStateOf<Int?>(null) }
 
     if (shooting) {
         ThreeDShootFlow(
@@ -120,6 +123,7 @@ fun ThreeDCourseScreen(
             onDelete = {
                 viewModel.deleteStation(station)
                 editing = null
+                selected = null
             },
             onDismiss = { editing = null },
         )
@@ -141,41 +145,74 @@ fun ThreeDCourseScreen(
             },
         )
 
-        LazyColumn(
-            Modifier.weight(1f),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                CourseInkMapView(
-                    stations = state.stations,
-                    breadcrumb = breadcrumb,
-                    current = current,
-                    elevationGrid = state.elevationGrid,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        // The map + station list area is a Box so the station bottom sheet
+        // can overlay the map. Tapping a pin or a row focuses the station;
+        // its sheet rises over the map, which stays independently pannable.
+        BoxWithConstraints(Modifier.weight(1f)) {
+            val areaHeight = maxHeight
+            val selectedStation = selected?.let { state.stations.getOrNull(it) }
+            val runningTotal = remember(state.stations, selectedStation) {
+                runningTotalThrough(state.stations, selectedStation)
             }
-            item { BPEyebrow("STATIONS") }
-            if (state.stations.isEmpty()) {
+
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 item {
-                    Text(
-                        "No stations yet — range your first target and shoot.",
-                        style = frauncesDisplay(13.sp, italic = true).copy(color = AppInk3),
+                    CourseInkMapView(
+                        stations = state.stations,
+                        breadcrumb = breadcrumb,
+                        current = current,
+                        elevationGrid = state.elevationGrid,
+                        selectedStation = selected,
+                        // A pin tap selects the station (no toggle-to-close)
+                        // — consistent with a row tap; CLOSE ✕ dismisses.
+                        onTapStation = { selected = it },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-            }
-            items(state.stations, key = { it.id }) { station ->
-                Box(Modifier.clickable { editing = station }) {
+                item { BPEyebrow("STATIONS") }
+                if (state.stations.isEmpty()) {
+                    item {
+                        Text(
+                            "No stations yet — range your first target and shoot.",
+                            style = frauncesDisplay(13.sp, italic = true).copy(color = AppInk3),
+                        )
+                    }
+                }
+                items(state.stations, key = { it.id }) { station ->
                     CourseStationRow(
                         station = station,
                         system = state.scoringSystem,
                         unitSystem = unitSystem,
+                        focused = selected == station.stationNumber - 1,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, AppLine),
+                            .border(1.dp, AppLine)
+                            .clickable { selected = station.stationNumber - 1 },
                     )
                 }
             }
+
+            // Station detail sheet — editable: Edit opens the station edit
+            // sheet, Discard removes the station via the view model.
+            CourseStationBottomSheet(
+                station = selectedStation,
+                containerHeight = areaHeight,
+                stationCount = state.stations.size,
+                system = state.scoringSystem,
+                unitSystem = unitSystem,
+                runningTotal = runningTotal,
+                onClose = { selected = null },
+                editable = true,
+                onEdit = { editing = it },
+                onDiscard = { station ->
+                    selected = null
+                    viewModel.deleteStation(station)
+                },
+            )
         }
 
         Column(

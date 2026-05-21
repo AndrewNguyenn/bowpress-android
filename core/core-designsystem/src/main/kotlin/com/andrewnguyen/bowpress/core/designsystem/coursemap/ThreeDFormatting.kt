@@ -1,8 +1,22 @@
 package com.andrewnguyen.bowpress.core.designsystem.coursemap
 
+import com.andrewnguyen.bowpress.core.model.CourseStation
 import com.andrewnguyen.bowpress.core.model.UnitSystem
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+/**
+ * Running point total up to and including [station] — every station on the
+ * course at or below [station]'s station number. Used by the course bottom
+ * sheet's Full-tier footer; shared so the three host screens don't each copy
+ * the same fold.
+ */
+fun runningTotalThrough(stations: List<CourseStation>, station: CourseStation?): Int {
+    if (station == null) return 0
+    return stations
+        .filter { it.stationNumber <= station.stationNumber }
+        .sumOf { it.ring }
+}
 
 /** Mirrors iOS `AngleFormatting`. */
 object AngleFormatting {

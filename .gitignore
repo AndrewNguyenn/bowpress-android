@@ -37,3 +37,6 @@ google-services.json
 !app/src/debug/google-services.json
 SOCIAL_API_CONTRACT.md
 SOCIAL_DESIGN.html
+
+# Claude Design handoff bundle — not part of the repo
+.design-3d-bottomsheet/

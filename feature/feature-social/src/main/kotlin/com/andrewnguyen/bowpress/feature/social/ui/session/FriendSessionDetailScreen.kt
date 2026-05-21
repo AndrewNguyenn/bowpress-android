@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,8 +44,9 @@ import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
 import com.andrewnguyen.bowpress.core.designsystem.bp.ScorecardTable
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseInkMapView
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseStationBottomSheet
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.CourseStationRow
-import com.andrewnguyen.bowpress.core.designsystem.coursemap.ThreeDStationCard
+import com.andrewnguyen.bowpress.core.designsystem.coursemap.runningTotalThrough
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
@@ -155,148 +157,156 @@ fun FriendSessionDetailScreen(
 
             state.detail != null -> {
                 val detail = state.detail!!
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
-                    // Header — stat summary always shown (survives a deleted session).
-                    item {
-                        Spacer(Modifier.height(14.dp))
-                        SessionStatHeader(shared = detail.sharedSession)
+                val courseSystem = detail.session?.scoringSystem ?: ThreeDScoringSystem.ASA
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val areaHeight = maxHeight
+                    val focusedCourseStation =
+                        focusedStation?.let { detail.stations.getOrNull(it) }
+                    val courseRunningTotal = remember(detail.stations, focusedCourseStation) {
+                        runningTotalThrough(detail.stations, focusedCourseStation)
                     }
-
-                    // Social Feed V2 §5 — the like + comment action bar. The
-                    // subject id falls back to the shared-session id for a
-                    // pre-§5 detail payload; the subject owner is the session
-                    // owner.
-                    item {
-                        val subjectId = detail.subjectId.ifBlank { detail.sharedSession.id }
-                        Spacer(Modifier.height(10.dp))
-                        com.andrewnguyen.bowpress.feature.social.ui.feed.LikeCommentBar(
-                            subjectId = subjectId,
-                            likeCount = detail.likeCount,
-                            likedByMe = detail.likedByMe,
-                            commentCount = detail.commentCount,
-                            seedKey = "$subjectId:${detail.likeCount}:${detail.likedByMe}:${detail.commentCount}",
-                            onToggleLike = viewModel::toggleLike,
-                            onOpenComments = {
-                                onCommentsClick(subjectId, detail.sharedSession.userId)
-                            },
-                        )
-                    }
-
-                    // Social Feed V2 §4 — the photo gallery, when present.
-                    if (detail.photos.isNotEmpty()) {
+                    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+                        // Header — stat summary always shown (survives a deleted session).
                         item {
-                            Spacer(Modifier.height(18.dp))
-                            SectionEyebrow("PHOTOS")
+                            Spacer(Modifier.height(14.dp))
+                            SessionStatHeader(shared = detail.sharedSession)
+                        }
+
+                        // Social Feed V2 §5 — the like + comment action bar. The
+                        // subject id falls back to the shared-session id for a
+                        // pre-§5 detail payload; the subject owner is the session
+                        // owner.
+                        item {
+                            val subjectId = detail.subjectId.ifBlank { detail.sharedSession.id }
                             Spacer(Modifier.height(10.dp))
-                            DetailPhotoGallery(
-                                sharedSessionId = detail.sharedSession.id,
-                                photos = detail.photos,
-                                loader = viewModel.photoLoader,
+                            com.andrewnguyen.bowpress.feature.social.ui.feed.LikeCommentBar(
+                                subjectId = subjectId,
+                                likeCount = detail.likeCount,
+                                likedByMe = detail.likedByMe,
+                                commentCount = detail.commentCount,
+                                seedKey = "$subjectId:${detail.likeCount}:${detail.likedByMe}:${detail.commentCount}",
+                                onToggleLike = viewModel::toggleLike,
+                                onOpenComments = {
+                                    onCommentsClick(subjectId, detail.sharedSession.userId)
+                                },
                             )
                         }
-                    }
 
-                    val shotSession = detail.session
-                    val isCourse = detail.stations.isNotEmpty() ||
-                        shotSession?.sessionType == SessionType.THREE_D_COURSE
-                    if (isCourse) {
-                        // 3D course — the walked map + the station list, the
-                        // same content as the 3D Log detail. Mirrors iOS
-                        // FriendSessionDetailView's course path.
-                        if (detail.stations.isEmpty()) {
-                            item { DeletedSessionNotice() }
-                        } else {
-                            val system = shotSession?.scoringSystem
-                                ?: ThreeDScoringSystem.ASA
+                        // Social Feed V2 §4 — the photo gallery, when present.
+                        if (detail.photos.isNotEmpty()) {
                             item {
                                 Spacer(Modifier.height(18.dp))
-                                SectionEyebrow("COURSE · ${detail.stations.size} STATIONS")
+                                SectionEyebrow("PHOTOS")
                                 Spacer(Modifier.height(10.dp))
-                                CourseInkMapView(
-                                    stations = detail.stations,
-                                    elevationGrid = null,
-                                    selectedStation = focusedStation,
-                                    onTapStation = {
-                                        focusedStation = if (focusedStation == it) null else it
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
+                                DetailPhotoGallery(
+                                    sharedSessionId = detail.sharedSession.id,
+                                    photos = detail.photos,
+                                    loader = viewModel.photoLoader,
                                 )
                             }
-                            item {
-                                Spacer(Modifier.height(18.dp))
-                                SectionEyebrow("STATIONS")
-                                Spacer(Modifier.height(10.dp))
-                            }
-                            items(detail.stations, key = { it.id }) { station ->
-                                val idx = station.stationNumber - 1
-                                Column {
+                        }
+
+                        val shotSession = detail.session
+                        val isCourse = detail.stations.isNotEmpty() ||
+                            shotSession?.sessionType == SessionType.THREE_D_COURSE
+                        if (isCourse) {
+                            // 3D course — the walked map + the station list, the
+                            // same content as the 3D Log detail. Mirrors iOS
+                            // FriendSessionDetailView's course path.
+                            if (detail.stations.isEmpty()) {
+                                item { DeletedSessionNotice() }
+                            } else {
+                                item {
+                                    Spacer(Modifier.height(18.dp))
+                                    SectionEyebrow("COURSE · ${detail.stations.size} STATIONS")
+                                    Spacer(Modifier.height(10.dp))
+                                    CourseInkMapView(
+                                        stations = detail.stations,
+                                        elevationGrid = null,
+                                        selectedStation = focusedStation,
+                                        // A pin tap selects the station (no
+                                        // toggle-to-close) — consistent with a
+                                        // row tap; CLOSE ✕ dismisses the sheet.
+                                        onTapStation = { focusedStation = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                                item {
+                                    Spacer(Modifier.height(18.dp))
+                                    SectionEyebrow("STATIONS")
+                                    Spacer(Modifier.height(10.dp))
+                                }
+                                items(detail.stations, key = { it.id }) { station ->
+                                    val idx = station.stationNumber - 1
+                                    // Tapping a row focuses the station; the
+                                    // bottom sheet rises over the map below.
                                     CourseStationRow(
                                         station = station,
-                                        system = system,
+                                        system = courseSystem,
                                         unitSystem = unitSystem,
                                         focused = focusedStation == idx,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .border(1.dp, AppLine)
-                                            .clickable {
-                                                focusedStation =
-                                                    if (focusedStation == idx) null else idx
-                                            },
+                                            .clickable { focusedStation = idx },
                                     )
-                                    if (focusedStation == idx) {
-                                        ThreeDStationCard(
-                                            station = station,
-                                            stationCount = detail.stations.size,
-                                            system = system,
-                                            unitSystem = unitSystem,
-                                            modifier = Modifier.fillMaxWidth(),
-                                        )
-                                    }
+                                }
+                            }
+                        } else if (shotSession == null) {
+                            // Owner deleted the underlying session — stat summary only.
+                            item { DeletedSessionNotice() }
+                        } else {
+                            // Target face with the friend's arrows plotted — renders
+                            // the real face type + 3-spot layout the friend shot.
+                            item {
+                                Spacer(Modifier.height(18.dp))
+                                SectionEyebrow("SHOT DISTRIBUTION · ${shotSession.targetLayout.label}")
+                                Spacer(Modifier.height(10.dp))
+                                BPPlottedTarget(
+                                    arrows = detail.arrows,
+                                    faceType = shotSession.targetFaceType,
+                                    layout = shotSession.targetLayout,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag(TestTags.SocialSessionTarget),
+                                )
+                            }
+
+                            // Scorecard — the canonical ruled table, identical to
+                            // the session-detail screen (read-only here).
+                            item {
+                                Spacer(Modifier.height(18.dp))
+                                SectionEyebrow("SCORECARD")
+                                Spacer(Modifier.height(10.dp))
+                                val scorecard = Scorecard.build(
+                                    detail.arrows, detail.ends, shotSession.id,
+                                )
+                                if (scorecard.lines.isEmpty()) {
+                                    Text(
+                                        "No arrows recorded for this session.",
+                                        style = frauncesDisplay(13.sp, italic = true),
+                                        color = AppInk3,
+                                    )
+                                } else {
+                                    ScorecardTable(scorecard = scorecard)
                                 }
                             }
                         }
-                    } else if (shotSession == null) {
-                        // Owner deleted the underlying session — stat summary only.
-                        item { DeletedSessionNotice() }
-                    } else {
-                        // Target face with the friend's arrows plotted — renders
-                        // the real face type + 3-spot layout the friend shot.
-                        item {
-                            Spacer(Modifier.height(18.dp))
-                            SectionEyebrow("SHOT DISTRIBUTION · ${shotSession.targetLayout.label}")
-                            Spacer(Modifier.height(10.dp))
-                            BPPlottedTarget(
-                                arrows = detail.arrows,
-                                faceType = shotSession.targetFaceType,
-                                layout = shotSession.targetLayout,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag(TestTags.SocialSessionTarget),
-                            )
-                        }
 
-                        // Scorecard — the canonical ruled table, identical to
-                        // the session-detail screen (read-only here).
-                        item {
-                            Spacer(Modifier.height(18.dp))
-                            SectionEyebrow("SCORECARD")
-                            Spacer(Modifier.height(10.dp))
-                            val scorecard = Scorecard.build(
-                                detail.arrows, detail.ends, shotSession.id,
-                            )
-                            if (scorecard.lines.isEmpty()) {
-                                Text(
-                                    "No arrows recorded for this session.",
-                                    style = frauncesDisplay(13.sp, italic = true),
-                                    color = AppInk3,
-                                )
-                            } else {
-                                ScorecardTable(scorecard = scorecard)
-                            }
-                        }
+                        item { Spacer(Modifier.height(24.dp)) }
                     }
 
-                    item { Spacer(Modifier.height(24.dp)) }
+                    // Read-only station detail sheet over the 3D-course map.
+                    CourseStationBottomSheet(
+                        station = focusedCourseStation,
+                        containerHeight = areaHeight,
+                        stationCount = detail.stations.size,
+                        system = courseSystem,
+                        unitSystem = unitSystem,
+                        runningTotal = courseRunningTotal,
+                        onClose = { focusedStation = null },
+                        editable = false,
+                    )
                 }
             }
         }

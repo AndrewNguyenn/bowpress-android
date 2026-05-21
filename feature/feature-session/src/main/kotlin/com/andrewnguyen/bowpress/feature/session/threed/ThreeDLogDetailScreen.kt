@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,56 +73,67 @@ fun ThreeDLogDetailScreen(
             },
         )
 
-        LazyColumn(
-            Modifier.weight(1f),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                CourseInkMapView(
-                    stations = state.stations,
-                    elevationGrid = state.elevationGrid,
-                    selectedStation = focused,
-                    onTapStation = { focused = if (focused == it) null else it },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        // The content area is a Box so the station bottom sheet can overlay
+        // the map. Tapping a pin or a station row focuses that station; the
+        // sheet rises over everything and the map below stays pannable.
+        BoxWithConstraints(Modifier.weight(1f)) {
+            val areaHeight = maxHeight
+            val focusedStation = focused?.let { state.stations.getOrNull(it) }
+            val runningTotal = remember(state.stations, focusedStation) {
+                runningTotalThrough(state.stations, focusedStation)
             }
-            item {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    StatCell("TOTAL", "${state.totalScore}", Modifier.weight(1f))
-                    StatCell("AVERAGE", "%.1f".format(state.averageScore), Modifier.weight(1f))
-                    StatCell("KILLS", "${state.killCount}", Modifier.weight(1f))
-                }
-            }
-            if (state.isCleanRound) {
+
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 item {
-                    Text(
-                        "● CLEAN ROUND — no fives, no misses",
-                        style = interUI(10.sp, FontWeight.SemiBold).copy(color = AppPondDk),
+                    CourseInkMapView(
+                        stations = state.stations,
+                        elevationGrid = state.elevationGrid,
+                        selectedStation = focused,
+                        // A pin tap selects the station (no toggle-to-close)
+                        // — consistent with a row tap; CLOSE ✕ dismisses.
+                        onTapStation = { focused = it },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-            }
-            item {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, AppPondDk)
-                        .clickable(onClick = onOpenAnalytics)
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "VIEW 3D ANALYTICS — ANGLE & DISTANCE",
-                        style = interUI(11.sp, FontWeight.SemiBold).copy(color = AppPondDk),
-                    )
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        StatCell("TOTAL", "${state.totalScore}", Modifier.weight(1f))
+                        StatCell("AVERAGE", "%.1f".format(state.averageScore), Modifier.weight(1f))
+                        StatCell("KILLS", "${state.killCount}", Modifier.weight(1f))
+                    }
                 }
-            }
-            item { BPEyebrow("STATIONS") }
-            items(state.stations, key = { it.id }) { station ->
-                Column {
+                if (state.isCleanRound) {
+                    item {
+                        Text(
+                            "● CLEAN ROUND — no fives, no misses",
+                            style = interUI(10.sp, FontWeight.SemiBold).copy(color = AppPondDk),
+                        )
+                    }
+                }
+                item {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, AppPondDk)
+                            .clickable(onClick = onOpenAnalytics)
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "VIEW 3D ANALYTICS — ANGLE & DISTANCE",
+                            style = interUI(11.sp, FontWeight.SemiBold).copy(color = AppPondDk),
+                        )
+                    }
+                }
+                item { BPEyebrow("STATIONS") }
+                items(state.stations, key = { it.id }) { station ->
                     CourseStationRow(
                         station = station,
                         system = state.scoringSystem,
@@ -130,30 +142,30 @@ fun ThreeDLogDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(1.dp, AppLine)
-                            .clickable {
-                                focused = if (focused == station.stationNumber - 1) null
-                                else station.stationNumber - 1
-                            },
+                            .clickable { focused = station.stationNumber - 1 },
                     )
-                    if (focused == station.stationNumber - 1) {
-                        ThreeDStationCard(
-                            station = station,
-                            stationCount = state.stations.size,
-                            system = state.scoringSystem,
-                            unitSystem = unitSystem,
-                            modifier = Modifier.fillMaxWidth(),
+                }
+                if (state.stations.isEmpty() && !state.isLoading) {
+                    item {
+                        Text(
+                            "No stations recorded for this course.",
+                            style = frauncesDisplay(13.sp, italic = true).copy(color = AppInk3),
                         )
                     }
                 }
             }
-            if (state.stations.isEmpty() && !state.isLoading) {
-                item {
-                    Text(
-                        "No stations recorded for this course.",
-                        style = frauncesDisplay(13.sp, italic = true).copy(color = AppInk3),
-                    )
-                }
-            }
+
+            // Station detail sheet — read-only (no Edit / Discard).
+            CourseStationBottomSheet(
+                station = focusedStation,
+                containerHeight = areaHeight,
+                stationCount = state.stations.size,
+                system = state.scoringSystem,
+                unitSystem = unitSystem,
+                runningTotal = runningTotal,
+                onClose = { focused = null },
+                editable = false,
+            )
         }
     }
 }
