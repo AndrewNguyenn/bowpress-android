@@ -1,5 +1,8 @@
 package com.andrewnguyen.bowpress
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +75,10 @@ import com.andrewnguyen.bowpress.feature.subscription.subscriptionNavGraph
  * rendered inline in the Analytics tab's `SuggestionsLedgerSection`, matching
  * iOS `AnalyticsView`'s layout.
  */
+// Page-transition duration for the main NavHost — ~80% faster than
+// navigation-compose's 700ms default fade so tab switches feel instant.
+private const val NAV_TRANSITION_MS = 140
+
 @Composable
 fun MainScaffold(
     uiState: AppUiState,
@@ -163,6 +170,13 @@ fun MainScaffold(
             navController = navController,
             startDestination = TopTab.Analytics.graphRoute,
             modifier = Modifier.padding(padding),
+            // navigation-compose's default page transition is a 700ms fade,
+            // which reads as sluggish when switching tabs. Drop it to 140ms
+            // (~80% faster) for a snappy cross-fade between pages.
+            enterTransition = { fadeIn(tween(NAV_TRANSITION_MS)) },
+            exitTransition = { fadeOut(tween(NAV_TRANSITION_MS)) },
+            popEnterTransition = { fadeIn(tween(NAV_TRANSITION_MS)) },
+            popExitTransition = { fadeOut(tween(NAV_TRANSITION_MS)) },
         ) {
             navigation(
                 route = TopTab.Analytics.graphRoute,
