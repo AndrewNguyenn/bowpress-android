@@ -21,6 +21,8 @@ fun SessionEntity.toDto(): ShootingSession = ShootingSession(
     targetLayout = targetLayout,
     distance = distance,
     title = title,
+    sessionType = sessionType,
+    scoringSystem = scoringSystem,
 )
 
 fun ShootingSession.toEntity(pendingSync: Boolean = false): SessionEntity = SessionEntity(
@@ -40,6 +42,8 @@ fun ShootingSession.toEntity(pendingSync: Boolean = false): SessionEntity = Sess
     targetLayout = targetLayout,
     distance = distance,
     title = title,
+    sessionType = sessionType,
+    scoringSystem = scoringSystem,
     pendingSync = pendingSync,
 )
 

@@ -16,6 +16,7 @@ import com.andrewnguyen.bowpress.core.model.ClubFeedItem
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.CompareView
 import com.andrewnguyen.bowpress.core.model.ConfigurationChange
+import com.andrewnguyen.bowpress.core.model.CourseStation
 import com.andrewnguyen.bowpress.core.model.CreateAnnouncementBody
 import com.andrewnguyen.bowpress.core.model.CreateAttachmentBody
 import com.andrewnguyen.bowpress.core.model.CreateBlockBody
@@ -237,6 +238,30 @@ interface BowPressApi {
 
     @DELETE("sessions/{sessionId}/ends/{id}")
     suspend fun deleteEnd(
+        @Path("sessionId") sessionId: String,
+        @Path("id") id: String,
+    )
+
+    // ---- Course stations (3D) -------------------------------------------------
+
+    @GET("sessions/{sessionId}/stations")
+    suspend fun fetchStations(@Path("sessionId") sessionId: String): List<CourseStation>
+
+    @POST("sessions/{sessionId}/stations")
+    suspend fun createStation(
+        @Path("sessionId") sessionId: String,
+        @Body body: CourseStation,
+    ): CourseStation
+
+    @PUT("sessions/{sessionId}/stations/{id}")
+    suspend fun updateStation(
+        @Path("sessionId") sessionId: String,
+        @Path("id") id: String,
+        @Body body: CourseStation,
+    ): CourseStation
+
+    @DELETE("sessions/{sessionId}/stations/{id}")
+    suspend fun deleteStation(
         @Path("sessionId") sessionId: String,
         @Path("id") id: String,
     )

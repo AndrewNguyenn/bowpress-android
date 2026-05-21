@@ -5,8 +5,10 @@ import com.andrewnguyen.bowpress.core.model.BowType
 import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.FletchingType
 import com.andrewnguyen.bowpress.core.model.RearStabSide
+import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
 import kotlinx.serialization.builtins.ListSerializer
@@ -86,6 +88,20 @@ class Converters {
     @TypeConverter
     fun stringToShootingDistance(value: String?): ShootingDistance? =
         value?.let { runCatching { ShootingDistance.valueOf(it) }.getOrNull() }
+
+    @TypeConverter
+    fun sessionTypeToString(value: SessionType?): String? = value?.name
+
+    @TypeConverter
+    fun stringToSessionType(value: String?): SessionType? =
+        value?.let { runCatching { SessionType.valueOf(it) }.getOrNull() }
+
+    @TypeConverter
+    fun scoringSystemToString(value: ThreeDScoringSystem?): String? = value?.name
+
+    @TypeConverter
+    fun stringToScoringSystem(value: String?): ThreeDScoringSystem? =
+        value?.let { runCatching { ThreeDScoringSystem.valueOf(it) }.getOrNull() }
 
     // ---- List<String> -------------------------------------------------------
 

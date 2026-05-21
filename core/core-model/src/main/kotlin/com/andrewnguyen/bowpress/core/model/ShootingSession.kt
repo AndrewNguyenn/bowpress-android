@@ -37,6 +37,10 @@ data class ShootingSession(
     val distance: ShootingDistance? = null,
     /** Optional human-supplied title (e.g. "Long-distance work"). Null for legacy rows. */
     val title: String? = null,
+    /** Which discipline this session records. Legacy rows decode as `RANGE`. */
+    val sessionType: SessionType = SessionType.RANGE,
+    /** 3D scoring system — set only for 3D-course sessions; null for range. */
+    val scoringSystem: ThreeDScoringSystem? = null,
     val ends: List<SessionEnd>? = null,
     val arrows: List<ArrowPlot>? = null,
 )

@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
+import com.andrewnguyen.bowpress.core.data.repository.CourseStationRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
@@ -41,6 +42,7 @@ class BowPressSyncWorker @AssistedInject constructor(
     private val sessionRepository: SessionRepository,
     private val plotRepository: PlotRepository,
     private val sessionEndRepository: SessionEndRepository,
+    private val courseStationRepository: CourseStationRepository,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = try {
@@ -50,6 +52,8 @@ class BowPressSyncWorker @AssistedInject constructor(
         sessionRepository.flushPendingSync()
         plotRepository.flushPendingSync()
         sessionEndRepository.flushPendingSync()
+        // 3D-course stations — post after the session itself, like plots.
+        courseStationRepository.flushPendingSync()
         Result.success()
     } catch (io: IOException) {
         Result.retry()

@@ -10,6 +10,7 @@ import com.andrewnguyen.bowpress.core.database.dao.ArrowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
 import com.andrewnguyen.bowpress.core.database.dao.BlockDao
 import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
+import com.andrewnguyen.bowpress.core.database.dao.CourseStationDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
@@ -28,6 +29,7 @@ import com.andrewnguyen.bowpress.core.database.entities.BlockEntity
 import com.andrewnguyen.bowpress.core.database.entities.BowConfigEntity
 import com.andrewnguyen.bowpress.core.database.entities.BowEntity
 import com.andrewnguyen.bowpress.core.database.entities.ClubEntity
+import com.andrewnguyen.bowpress.core.database.entities.CourseStationEntity
 import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
 import com.andrewnguyen.bowpress.core.database.entities.InvitationEntity
 import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
@@ -73,8 +75,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         BlockEntity::class,
         // Social achievements — added v11
         AchievementEntity::class,
+        // 3D Course stations — added v15
+        CourseStationEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -103,6 +107,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // the table; the achievements table is a server cache, so any rows
         // carried across are refreshed on the next fetch regardless.
         AutoMigration(from = 13, to = 14),
+        // 14→15: added the course_stations table and the sessionType /
+        // scoringSystem columns on sessions. Pure additive — the new column
+        // is NOT NULL with a SQL DEFAULT of 'RANGE', scoringSystem is nullable.
+        AutoMigration(from = 14, to = 15),
     ],
 )
 @TypeConverters(Converters::class)
@@ -113,6 +121,7 @@ abstract class BowPressDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun arrowPlotDao(): ArrowPlotDao
     abstract fun sessionEndDao(): SessionEndDao
+    abstract fun courseStationDao(): CourseStationDao
     abstract fun suggestionDao(): SuggestionDao
     abstract fun sightMarkDao(): SightMarkDao
 

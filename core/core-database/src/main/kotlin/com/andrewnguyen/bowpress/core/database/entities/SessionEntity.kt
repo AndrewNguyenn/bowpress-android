@@ -3,9 +3,11 @@ package com.andrewnguyen.bowpress.core.database.entities
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
+import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import java.time.Instant
 
 /**
@@ -44,5 +46,13 @@ data class SessionEntity(
     // Optional human-supplied session title. Added in schema v4 — nullable so legacy
     // rows stay null and the renderer falls back to "Range · {distance}"-style defaults.
     val title: String? = null,
+    // Practice discipline — range vs 3D course. Added in schema v15; the SQL
+    // DEFAULT keeps the additive AutoMigration NOT-NULL-safe and legacy rows
+    // decode as RANGE (the prior, only, behaviour).
+    @ColumnInfo(defaultValue = "RANGE")
+    val sessionType: SessionType = SessionType.RANGE,
+    // 3D scoring system — set only for 3D-course sessions. Added in schema v15;
+    // nullable so range rows stay null.
+    val scoringSystem: ThreeDScoringSystem? = null,
     val pendingSync: Boolean = false,
 )
