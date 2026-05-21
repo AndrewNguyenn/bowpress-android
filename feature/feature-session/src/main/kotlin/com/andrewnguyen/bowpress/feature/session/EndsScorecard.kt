@@ -195,8 +195,9 @@ private fun NumberCell(text: String, width: Dp, color: Color) {
  * Tonal cell tint for a ring score — the band hue at a low alpha so the cell
  * reads as a score cue. Mirrors iOS `ScorecardRow.ringBackground`
  * (SessionDetailComponents.swift). A padding (null) cell stays untinted.
+ * `internal` so the recent-arrows strip shares the exact same tint.
  */
-private fun ringTint(ring: Int?): Color = when (ring) {
+internal fun ringTint(ring: Int?): Color = when (ring) {
     null -> Color.Transparent
     11 -> AppRingTintX
     10 -> AppRingTintGold

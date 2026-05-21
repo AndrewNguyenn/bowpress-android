@@ -722,18 +722,23 @@ private fun RecentCell(
     arrowNumber: Int,
     modifier: Modifier = Modifier,
 ) {
-    val isX = arrow.ring == 11
-    val border = if (isX) AppPondDk else AppLine
-    val valueColor = if (isX) AppPondDk else AppInk
+    // Same ring-tint fill, hairline and value treatment as the scorecard's
+    // shot cells (EndsScorecard.ShotCell) so the in-progress end reads as the
+    // same surface as the completed-end rows below it.
+    val (label, valueColor) = when {
+        arrow.ring == 11 -> "X" to AppPondDk
+        arrow.ring <= 0 -> "M" to AppMaple
+        else -> "${arrow.ring}" to AppInk
+    }
     Column(
         modifier = modifier
-            .background(AppPaper)
-            .border(1.dp, border)
+            .background(ringTint(arrow.ring))
+            .border(1.dp, AppLine)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = ringLabel(arrow.ring),
+            text = label,
             style = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
                 .copy(color = valueColor),
         )
