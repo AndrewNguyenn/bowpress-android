@@ -18,6 +18,7 @@ import com.andrewnguyen.bowpress.core.database.dao.SuggestionDao
 import com.andrewnguyen.bowpress.core.model.Achievement
 import com.andrewnguyen.bowpress.core.model.AchievementBadge
 import com.andrewnguyen.bowpress.core.model.AchievementKind
+import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySession
@@ -1325,6 +1326,29 @@ internal object DevMockData {
                 ),
             ),
             highlighted = true,
+            // §6.4 — a well-liked PR: the kudos bar shows 3 avatars + a
+            // "+11" chip and "Marcus Okonkwo & 13 others". `likers` carries
+            // the 3 most-recent; `likeCount` is the true total.
+            likeCount = 14,
+            likedByMe = true,
+            commentCount = 4,
+            likers = listOf(
+                ActivityActor(
+                    userId = "u_002",
+                    handle = "m.okonkwo",
+                    displayName = "Marcus Okonkwo",
+                ),
+                ActivityActor(
+                    userId = "u_003",
+                    handle = "priya.v",
+                    displayName = "Priya Varma",
+                ),
+                ActivityActor(
+                    userId = "u_005",
+                    handle = "emi.f",
+                    displayName = "Emi Fujita",
+                ),
+            ),
         ),
         ActivityItem(
             id = "act_002",
@@ -1414,6 +1438,23 @@ internal object DevMockData {
                 ),
             ),
             highlighted = true,
+            // §6.4 — exactly 2 likers: the kudos bar reads "Sara Lin & Jake
+            // Torres" with no "+N" chip (likeCount == likers.size).
+            likeCount = 2,
+            likedByMe = true,
+            commentCount = 1,
+            likers = listOf(
+                ActivityActor(
+                    userId = "u_001",
+                    handle = "sara.l",
+                    displayName = "Sara Lin",
+                ),
+                ActivityActor(
+                    userId = "u_004",
+                    handle = "jake.t",
+                    displayName = "Jake Torres",
+                ),
+            ),
         ),
         // §15 — a non-PR shared session (plain stat line, not highlighted).
         // §18 — a range session with a location tag + target-face preview.
@@ -1440,6 +1481,18 @@ internal object DevMockData {
                     name = "Redlands Shooting Park",
                     latitude = 34.05560,
                     longitude = -117.18250,
+                ),
+            ),
+            // §6.4 — a single liker: the kudos bar shows one avatar and
+            // "Priya Varma" with no "+N" chip. Not yet liked by me.
+            likeCount = 1,
+            likedByMe = false,
+            commentCount = 2,
+            likers = listOf(
+                ActivityActor(
+                    userId = "u_003",
+                    handle = "priya.v",
+                    displayName = "Priya Varma",
                 ),
             ),
         ),
