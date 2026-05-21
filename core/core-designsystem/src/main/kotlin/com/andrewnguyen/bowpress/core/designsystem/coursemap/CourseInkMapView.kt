@@ -527,6 +527,7 @@ fun CourseInkMapView(
                 selectedStation = selectedStation,
                 stations = stations,
                 showChrome = showChrome,
+                adaptiveAspect = adaptiveAspect,
                 textMeasurer = textMeasurer,
             )
             layout.current?.let { cur ->
@@ -689,6 +690,7 @@ private fun DrawScope.drawMap(
     selectedStation: Int?,
     stations: List<CourseStation>,
     showChrome: Boolean,
+    adaptiveAspect: Boolean,
     textMeasurer: TextMeasurer,
 ) {
     val w = size.width
@@ -751,9 +753,9 @@ private fun DrawScope.drawMap(
         )
     }
 
-    drawShotArrows(layout, viewport, selectedStation, stations, textMeasurer)
+    drawShotArrows(layout, viewport, selectedStation, stations, adaptiveAspect, textMeasurer)
     drawTargets(layout, viewport, selectedStation)
-    drawPins(layout, viewport, selectedStation, textMeasurer)
+    drawPins(layout, viewport, selectedStation, adaptiveAspect, textMeasurer)
 
     if (showChrome) {
         drawCompass(Offset(24f, h - 30f), textMeasurer)
@@ -770,6 +772,7 @@ private fun DrawScope.drawShotArrows(
     viewport: MapViewport,
     selectedStation: Int?,
     stations: List<CourseStation>,
+    adaptiveAspect: Boolean,
     textMeasurer: TextMeasurer,
 ) {
     layout.stations.indices.forEach { idx ->
@@ -799,9 +802,12 @@ private fun DrawScope.drawShotArrows(
         drawArrowhead(tip, ux, uy, ink.copy(alpha = ink.alpha * alpha))
 
         // Distance label — for the focused shot, or for all when nothing is
-        // focused. Skipped on very short arrows.
+        // focused. Skipped on very short arrows, and on the compact feed map
+        // where a busy course would drown in labels.
         val distance = stations.getOrNull(idx)?.estimatedDistance
-        if ((focused || selectedStation == null) && length > 26f && distance != null) {
+        if (!adaptiveAspect && (focused || selectedStation == null) &&
+            length > 26f && distance != null
+        ) {
             val unit = stations[idx].distanceUnit ?: "yd"
             val mid = Offset((shooter.x + target.x) / 2f, (shooter.y + target.y) / 2f)
             val nudge = Offset(mid.x + uy * 8f, mid.y - ux * 8f)
@@ -883,8 +889,13 @@ private fun DrawScope.drawPins(
     layout: CourseMapLayout,
     viewport: MapViewport,
     selectedStation: Int?,
+    adaptiveAspect: Boolean,
     textMeasurer: TextMeasurer,
 ) {
+    if (adaptiveAspect) {
+        drawCompactPins(layout, viewport, textMeasurer)
+        return
+    }
     layout.stations.indices.forEach { idx ->
         val focused = selectedStation == idx
         val dimmed = selectedStation != null && !focused
@@ -916,6 +927,59 @@ private fun DrawScope.drawPins(
             ),
         )
     }
+}
+
+/**
+ * Compact station markers for the feed map — tiny dots, much smaller than the
+ * target glyphs, so a busy course (10–70 stations) stays legible. Per-station
+ * numbers are dropped; only the start (a hollow ring) and the end (a maple
+ * dot) are marked, since the feed preview is a glance, not a walk-through.
+ * Mirrors iOS `drawCompactPins`.
+ */
+private fun DrawScope.drawCompactPins(
+    layout: CourseMapLayout,
+    viewport: MapViewport,
+    textMeasurer: TextMeasurer,
+) {
+    val lastIdx = layout.stations.size - 1
+    layout.stations.indices.forEach { idx ->
+        val c = viewport.place(layout.stations[idx], size)
+        val isStart = idx == 0
+        val isEnd = idx == lastIdx && lastIdx > 0
+        val r = if (isStart || isEnd) 4.5f else 2.6f
+        when {
+            isStart -> {
+                drawCircle(AppCream, r, c)
+                drawCircle(AppPondDk, r, c, style = Stroke(width = 1.6f))
+                drawCompactLabel("START", c, AppPondDk, textMeasurer)
+            }
+            isEnd -> {
+                drawCircle(AppMaple, r, c)
+                drawCompactLabel("END", c, AppMaple, textMeasurer)
+            }
+            else -> drawCircle(AppInk, r, c)
+        }
+    }
+}
+
+/** A tiny mono "START" / "END" label centred just above a compact pin. */
+private fun DrawScope.drawCompactLabel(
+    text: String,
+    c: Offset,
+    color: Color,
+    textMeasurer: TextMeasurer,
+) {
+    val measured = textMeasurer.measure(
+        text = text,
+        style = jetbrainsMono(7.sp, FontWeight.SemiBold).copy(color = color),
+    )
+    drawText(
+        textLayoutResult = measured,
+        topLeft = Offset(
+            c.x - measured.size.width / 2f,
+            (c.y - 11f) - measured.size.height / 2f,
+        ),
+    )
 }
 
 /**
