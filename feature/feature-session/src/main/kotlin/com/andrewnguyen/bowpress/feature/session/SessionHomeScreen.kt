@@ -218,8 +218,12 @@ fun SessionHomeScreen(
                     else -> "Begin session"
                 },
                 subtitle = ctaSubtitle(state),
+                // A range session needs a distance picked; a 3D course
+                // doesn't. (The target face is always auto-defaulted from
+                // the bow, so it never needs gating.)
                 enabled = state.selectedBow != null
                     && state.selectedArrow != null
+                    && (isThreeD || state.selectedDistance != null)
                     && !state.isLoading,
                 onClick = {
                     val bow = state.selectedBow ?: return@BPPrimaryButton
