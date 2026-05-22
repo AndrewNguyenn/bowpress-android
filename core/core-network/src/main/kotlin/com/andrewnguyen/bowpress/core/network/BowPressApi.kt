@@ -37,6 +37,7 @@ import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
+import com.andrewnguyen.bowpress.core.model.NotificationList
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.PostCommentBody
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
@@ -523,6 +524,23 @@ interface BowPressApi {
 
     @GET("social/pending-count")
     suspend fun getPendingCount(): SocialPendingCount
+
+    // ---- Social — Notification center (§13) ------------------------------------
+
+    @GET("social/notifications")
+    suspend fun getNotifications(): NotificationList
+
+    @POST("social/notifications/read-all")
+    suspend fun markAllNotificationsRead()
+
+    @POST("social/notifications/{id}/read")
+    suspend fun markNotificationRead(@Path("id") id: String)
+
+    @DELETE("social/notifications/{id}")
+    suspend fun dismissNotification(@Path("id") id: String)
+
+    @DELETE("social/notifications")
+    suspend fun dismissAllNotifications()
 
     // ---- Social — Mute / block (§14) -------------------------------------------
 

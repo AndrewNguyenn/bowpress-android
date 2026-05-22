@@ -517,14 +517,64 @@ data class AcceptInvitationBody(val division: Division? = null)
 // ── §12 Pending count (Social tab badge) ─────────────────────────────────────
 
 /**
- * Mirrors API §12 `SocialPendingCount`. Drives the Social tab badge — the
- * badge shows when [total] > 0.
+ * Mirrors API §12 `SocialPendingCount`. Drives the Social tab + bell badge —
+ * the badge shows when [total] > 0. [total] now folds in unread
+ * notifications, so likes and comments count toward it; [notifications] is
+ * the unread-informational sub-count.
  */
 @Serializable
 data class SocialPendingCount(
     val friendRequests: Int = 0,
     val invitations: Int = 0,
+    val notifications: Int = 0,
     val total: Int = 0,
+)
+
+// ── §13 Notification center ──────────────────────────────────────────────────
+
+/**
+ * One row in the notification center — the persistent in-app record behind
+ * the bell. [type] is the event kind (like | comment | comment_reply |
+ * mention_post | mention_comment | friend_request | friend_accepted |
+ * club_invite | league_invite | club_announcement | friend_pr | …).
+ */
+@Serializable
+data class SocialNotification(
+    val id: String,
+    val type: String = "",
+    val actorUserId: String? = null,
+    val actorHandle: String? = null,
+    val actorDisplayName: String? = null,
+    val subjectId: String? = null,
+    val title: String,
+    val body: String? = null,
+    val read: Boolean = false,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+) {
+    /** Coarse category for the notification-center filter pills. */
+    val category: NotificationCategory
+        get() = when (type) {
+            "like" -> NotificationCategory.Kudos
+            "comment", "comment_reply" -> NotificationCategory.Comments
+            "mention_post", "mention_comment" -> NotificationCategory.Mentions
+            "club_invite", "league_invite", "club_announcement",
+            "league_deadline", "league_event" -> NotificationCategory.League
+            else -> NotificationCategory.Other
+        }
+
+    /** True for the maple-tinted alert rows (a friend's PR). */
+    val isAlert: Boolean get() = type == "friend_pr"
+}
+
+/** Filter-pill buckets for the notification center. */
+enum class NotificationCategory { All, Kudos, Comments, Mentions, League, Other }
+
+/** `GET /social/notifications` envelope — the list + the header unread count. */
+@Serializable
+data class NotificationList(
+    val items: List<SocialNotification> = emptyList(),
+    val unread: Int = 0,
 )
 
 // ── §14 Mute / block ─────────────────────────────────────────────────────────

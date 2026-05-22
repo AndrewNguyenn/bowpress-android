@@ -47,6 +47,8 @@ import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
+import com.andrewnguyen.bowpress.core.model.NotificationList
+import com.andrewnguyen.bowpress.core.model.SocialNotification
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
 import com.andrewnguyen.bowpress.core.model.SendInvitationBody
 import com.andrewnguyen.bowpress.core.model.SessionLocation
@@ -418,12 +420,93 @@ class SocialRepository @Inject constructor(
             .getOrElse {
                 val friendRequests = friendshipDao.incomingPendingCount()
                 val invitations = invitationDao.pendingCount()
+                // Offline: fold the seeded unread notifications into the
+                // badge total in a DEBUG build, so the tab badge agrees with
+                // the notification screen's "N new".
+                val notifications = if (isDebugBuild) debugNotifications().unread else 0
                 SocialPendingCount(
                     friendRequests = friendRequests,
                     invitations = invitations,
-                    total = friendRequests + invitations,
+                    notifications = notifications,
+                    total = friendRequests + invitations + notifications,
                 )
             }
+    }
+
+    // ── Notification center (§13) ───────────────────────────────────────────────
+    //
+    // Live list — no Room cache; the notification screen always fetches fresh.
+    // A DEBUG build falls back to a seeded list when the API is unreachable,
+    // so the screen is populated offline like the rest of the social feature.
+
+    /** The caller's notifications (newest first) + the unread header count. */
+    suspend fun getNotifications(): NotificationList =
+        runCatching { api.getNotifications() }
+            .getOrElse { e -> if (isDebugBuild) debugNotifications() else throw e }
+
+    /** Mark every notification read — clears the bell. */
+    suspend fun markAllNotificationsRead() = api.markAllNotificationsRead()
+
+    /** Mark one notification read (on tap-through). */
+    suspend fun markNotificationRead(id: String) = api.markNotificationRead(id)
+
+    /** Dismiss one notification — swipe-to-dismiss. */
+    suspend fun dismissNotification(id: String) = api.dismissNotification(id)
+
+    /** Dismiss every notification — the "clear all" action. */
+    suspend fun dismissAllNotifications() = api.dismissAllNotifications()
+
+    /** Seeded notifications for an offline DEBUG build — a mix of unread +
+     *  read rows across the filter categories. */
+    private fun debugNotifications(): NotificationList {
+        val now = java.time.Instant.now()
+        fun ago(hours: Long) = now.minus(java.time.Duration.ofHours(hours))
+        val items = listOf(
+            SocialNotification(
+                id = "ntf_1", type = "like", actorUserId = "u_sarah",
+                actorHandle = "sarah.n", actorDisplayName = "Sara Lin",
+                subjectId = "ss_own", title = "Sara Lin liked your activity",
+                read = false, createdAt = ago(1),
+            ),
+            SocialNotification(
+                id = "ntf_2", type = "comment", actorUserId = "u_lina",
+                actorHandle = "lina.h", actorDisplayName = "Lina Hart",
+                subjectId = "ss_own", title = "Lina Hart commented",
+                body = "Clean ends — what sight mark were you on?",
+                read = false, createdAt = ago(3),
+            ),
+            SocialNotification(
+                id = "ntf_3", type = "mention_comment", actorUserId = "u_marcus",
+                actorHandle = "marcus.t", actorDisplayName = "Marcus Okonkwo",
+                subjectId = "ss1", title = "Marcus Okonkwo mentioned you on Sara's 50m PR",
+                body = "…that's the unlock. @reece.k stealing it for Saturday.",
+                read = false, createdAt = ago(6),
+            ),
+            SocialNotification(
+                id = "ntf_4", type = "friend_pr", actorUserId = "u_marcus",
+                actorHandle = "marcus.t", actorDisplayName = "Marcus Okonkwo",
+                subjectId = "ss3", title = "Marcus Okonkwo shot a new PR — 651",
+                read = false, createdAt = ago(28),
+            ),
+            SocialNotification(
+                id = "ntf_5", type = "friend_request", actorUserId = "u_tomas",
+                actorHandle = "tomas.v", actorDisplayName = "Tomás Vega",
+                title = "Tomás Vega wants to connect",
+                read = false, createdAt = ago(30),
+            ),
+            SocialNotification(
+                id = "ntf_6", type = "league_event", subjectId = "league_weekly_600",
+                title = "Peninsula Vegas — you moved to #4",
+                read = true, createdAt = ago(50),
+            ),
+            SocialNotification(
+                id = "ntf_7", type = "like", actorUserId = "u_ellie",
+                actorHandle = "ellie.w", actorDisplayName = "Ellie West",
+                subjectId = "ss_own", title = "Ellie West liked your 70m session",
+                read = true, createdAt = ago(96),
+            ),
+        )
+        return NotificationList(items = items, unread = items.count { !it.read })
     }
 
     // ── Mute / block (§14) ──────────────────────────────────────────────────────

@@ -16,7 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,6 +36,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppLine2
@@ -66,6 +70,7 @@ fun FeedScreen(
     onSessionClick: (sharedSessionId: String, isOwn: Boolean) -> Unit,
     onActorClick: (String) -> Unit,
     onCommentsClick: (subjectId: String, ownerUserId: String) -> Unit,
+    onBellClick: () -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
     mentionResolver: com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel = hiltViewModel(),
 ) {
@@ -99,6 +104,7 @@ fun FeedScreen(
             leagueCount = state.leagues.size,
             myInitials = state.myProfile?.let { avatarInitials(it.displayName) } ?: "?",
             onAvatarClick = onAvatarClick,
+            onBellClick = onBellClick,
         )
         HorizontalDivider(color = AppLine, thickness = 1.dp)
 
@@ -317,6 +323,7 @@ private fun FeedTopNav(
     leagueCount: Int,
     myInitials: String,
     onAvatarClick: () -> Unit,
+    onBellClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -343,20 +350,38 @@ private fun FeedTopNav(
                 color = AppInk3,
             )
         }
-        // Avatar button → You screen
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .border(1.dp, AppPondDk)
-                .background(AppPaper2)
-                .clickable(onClick = onAvatarClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = myInitials,
-                style = frauncesDisplay(13.sp),
-                color = AppPondDk,
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Bell → notification center
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .border(1.dp, AppInk3)
+                    .background(AppPaper2)
+                    .clickable(onClick = onBellClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Notifications",
+                    tint = AppInk2,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            // Avatar button → You screen
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .border(1.dp, AppPondDk)
+                    .background(AppPaper2)
+                    .clickable(onClick = onAvatarClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = myInitials,
+                    style = frauncesDisplay(13.sp),
+                    color = AppPondDk,
+                )
+            }
         }
     }
 }

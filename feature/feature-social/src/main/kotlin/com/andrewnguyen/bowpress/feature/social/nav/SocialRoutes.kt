@@ -8,6 +8,9 @@ object SocialRoutes {
     // Landing
     const val FEED = "social/feed"
 
+    // Notification center — opened from the bell in the feed top-nav.
+    const val NOTIFICATION_CENTER = "social/notifications"
+
     // You (settings/profile)
     const val YOU = "social/you"
     const val YOU_PRIVACY = "social/you/privacy"

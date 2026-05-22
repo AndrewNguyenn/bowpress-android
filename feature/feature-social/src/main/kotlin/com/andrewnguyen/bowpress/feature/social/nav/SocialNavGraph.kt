@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.andrewnguyen.bowpress.core.model.SocialNotification
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlocksScreen
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubHomeScreen
 import com.andrewnguyen.bowpress.feature.social.ui.clubs.ClubsScreen
@@ -18,6 +19,7 @@ import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueAdminScreen
 import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueComposerScreen
 import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeagueHomeScreen
 import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeaguesScreen
+import com.andrewnguyen.bowpress.feature.social.ui.notifications.NotificationCenterScreen
 import com.andrewnguyen.bowpress.feature.social.ui.privacy.PrivacyScreen
 import com.andrewnguyen.bowpress.feature.social.ui.session.FriendSessionDetailScreen
 import com.andrewnguyen.bowpress.feature.social.ui.you.YouScreen
@@ -63,6 +65,19 @@ fun NavGraphBuilder.socialNavGraph(
             },
             onCommentsClick = { subjectId, ownerUserId ->
                 navController.navigate(SocialRoutes.comments(subjectId, ownerUserId))
+            },
+            onBellClick = { navController.navigate(SocialRoutes.NOTIFICATION_CENTER) },
+        )
+    }
+
+    // ── Notification center (§13) ──────────────────────────────────────────────
+
+    composable(SocialRoutes.NOTIFICATION_CENTER) {
+        NotificationCenterScreen(
+            onBack = { navController.popBackStack() },
+            onItemClick = { notification ->
+                val route = notificationRoute(notification)
+                if (route != null) navController.navigate(route)
             },
         )
     }
@@ -257,4 +272,19 @@ fun NavGraphBuilder.socialNavGraph(
             onBack = { navController.popBackStack() },
         )
     }
+}
+
+/**
+ * The destination a tapped notification drills into, or null when it carries
+ * no usable target (e.g. a friend_request, whose row is its own affordance).
+ */
+private fun notificationRoute(n: SocialNotification): String? = when (n.type) {
+    "like", "comment", "comment_reply", "mention_post", "mention_comment", "friend_pr" ->
+        n.subjectId?.let { SocialRoutes.sessionDetail(it) }
+    "friend_request", "friend_accepted" -> SocialRoutes.FRIENDS
+    "club_invite", "club_announcement" ->
+        n.subjectId?.let { SocialRoutes.clubHome(it) } ?: SocialRoutes.CLUBS
+    "league_invite", "league_deadline", "league_event" ->
+        n.subjectId?.let { SocialRoutes.leagueHome(it) } ?: SocialRoutes.LEAGUES
+    else -> null
 }
