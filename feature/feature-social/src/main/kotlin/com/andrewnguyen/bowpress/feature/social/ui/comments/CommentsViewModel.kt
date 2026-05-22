@@ -391,6 +391,15 @@ class CommentsViewModel @Inject constructor(
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
     }
+
+    /**
+     * Handle search backing the comment / reply composer's `@`-autocomplete
+     * (mentions contract §3.1). [prefix] is the in-progress `@token` text;
+     * returns up to 8 friends-first suggestions, empty on a blank prefix or a
+     * failed request.
+     */
+    suspend fun searchHandles(prefix: String): List<com.andrewnguyen.bowpress.core.model.HandleSuggestion> =
+        runCatching { socialRepository.searchHandles(prefix) }.getOrDefault(emptyList())
 }
 
 // ── Composer mention helpers ─────────────────────────────────────────────────

@@ -141,6 +141,11 @@ fun NavGraphBuilder.socialNavGraph(
                 defaultValue = false
             },
         ),
+        // Mentions contract §3.3 — a `mention_post` / `mention_comment` /
+        // `comment_reply` push deep-links to the shared session here.
+        deepLinks = listOf(
+            navDeepLink { uriPattern = "bowpress://social/sessions/{sharedSessionId}" },
+        ),
     ) { entry ->
         val sharedSessionId = entry.arguments?.getString("sharedSessionId").orEmpty()
         val isOwn = entry.arguments?.getBoolean("isOwn") ?: false
@@ -172,6 +177,12 @@ fun NavGraphBuilder.socialNavGraph(
             subjectId = subjectId,
             subjectOwnerUserId = ownerUserId.takeIf { it.isNotBlank() },
             onBack = { navController.popBackStack() },
+            // Mentions §3.2 — a tapped `@handle` resolves to an archer profile.
+            onOpenArcher = { userId ->
+                if (userId.isNotBlank()) {
+                    navController.navigate(SocialRoutes.friendProfile(userId))
+                }
+            },
         )
     }
 

@@ -461,6 +461,21 @@ data class ActivityActor(
     val displayName: String,
 )
 
+// ── Mentions — handle search (mentions contract §2.1 / §3.1) ─────────────────
+
+/**
+ * Mirrors API `GET /social/handles?q=<prefix>` — one row of the @-mention
+ * autocomplete. The endpoint returns up to 8 of these whose [handle] starts
+ * with the typed prefix, the caller's accepted friends ranked first, the
+ * caller and anyone block-related excluded.
+ */
+@Serializable
+data class HandleSuggestion(
+    val userId: String,
+    val handle: String,
+    val displayName: String,
+)
+
 // ── §11 Invitations (club + league) ──────────────────────────────────────────
 
 /** Whether an invitation targets a club or a league. */

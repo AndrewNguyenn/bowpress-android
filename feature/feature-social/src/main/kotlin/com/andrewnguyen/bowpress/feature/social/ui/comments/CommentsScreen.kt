@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbUp
@@ -34,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -62,6 +60,10 @@ import com.andrewnguyen.bowpress.core.model.CommentSort
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.feed.KudosRow
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionListPlacement
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionTextField
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -79,12 +81,22 @@ fun CommentsScreen(
     subjectId: String,
     subjectOwnerUserId: String?,
     onBack: () -> Unit,
+    // Mentions contract §3.2 — tapping an `@handle` in a comment body opens
+    // that archer's profile. Defaulted to a no-op so existing callers / tests
+    // that don't wire mention navigation still compile.
+    onOpenArcher: (userId: String) -> Unit = {},
     viewModel: CommentsViewModel = hiltViewModel(),
+    mentionResolver: MentionResolverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
 
     LaunchedEffect(subjectId, subjectOwnerUserId) {
         viewModel.load(subjectId, subjectOwnerUserId)
+    }
+
+    // A tapped mention resolves its handle → archer profile (§3.2).
+    val onMentionTap: (String) -> Unit = { handle ->
+        mentionResolver.openMention(handle, onOpenArcher)
     }
 
     // The composer draft is ViewModel-owned (M2): a failed post keeps the
@@ -163,6 +175,7 @@ fun CommentsScreen(
                             onReply = viewModel::startReply,
                             onDelete = viewModel::delete,
                             onExpandReplies = viewModel::expandThread,
+                            onMentionTap = onMentionTap,
                         )
                     }
                 }
@@ -190,6 +203,7 @@ fun CommentsScreen(
             onCancelReply = viewModel::cancelReply,
             canSend = state.draft.trim().isNotEmpty() && !state.isPosting && !state.isLoading,
             onSend = viewModel::post,
+            onSearchHandles = viewModel::searchHandles,
         )
     }
 }
@@ -374,6 +388,7 @@ private fun CommentThread(
     onReply: (ActivityComment) -> Unit,
     onDelete: (ActivityComment) -> Unit,
     onExpandReplies: (String) -> Unit,
+    onMentionTap: (String) -> Unit,
 ) {
     // A long reply chain collapses to the first reply behind a "view N more
     // replies" expander (§6.7). The expanded set lives in the ViewModel so a
@@ -392,6 +407,7 @@ private fun CommentThread(
             onLike = { onLike(comment) },
             onReply = { onReply(comment) },
             onDelete = { onDelete(comment) },
+            onMentionTap = onMentionTap,
         )
         // Reply chain — indented 36dp with a leading hairline gutter. The
         // gutter is painted with drawBehind so it spans exactly the measured
@@ -420,6 +436,7 @@ private fun CommentThread(
                         onLike = { onLike(reply) },
                         onReply = { onReply(reply) },
                         onDelete = { onDelete(reply) },
+                        onMentionTap = onMentionTap,
                     )
                 }
             }
@@ -472,6 +489,7 @@ private fun CommentRow(
     onLike: () -> Unit,
     onReply: () -> Unit,
     onDelete: () -> Unit,
+    onMentionTap: (String) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -524,11 +542,13 @@ private fun CommentRow(
                     color = AppInk3,
                 )
             }
-            // Body.
-            Text(
+            // Body — `@handle` mentions render as pond-toned, tappable spans
+            // (mentions contract §3.2).
+            MentionBodyText(
                 text = comment.body,
-                style = frauncesDisplay(if (isReply) 13.sp else 14.sp, italic = true, weight = FontWeight.Normal),
-                color = AppInk,
+                style = frauncesDisplay(if (isReply) 13.sp else 14.sp, italic = true, weight = FontWeight.Normal)
+                    .copy(color = AppInk),
+                onMentionTap = onMentionTap,
                 modifier = Modifier.padding(top = 5.dp),
             )
             // Actions — LIKE (count) · REPLY · (Delete).
@@ -683,6 +703,7 @@ private fun Composer(
     onCancelReply: () -> Unit,
     canSend: Boolean,
     onSend: () -> Unit,
+    onSearchHandles: suspend (String) -> List<com.andrewnguyen.bowpress.core.model.HandleSuggestion>,
 ) {
     Column {
         HorizontalDivider(color = AppLine, thickness = 1.dp)
@@ -736,32 +757,39 @@ private fun Composer(
             }
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Box(
-                    modifier = Modifier
+                // The input + `@`-autocomplete (mentions contract §3.1). The
+                // suggestion list anchors *above* the bordered input box —
+                // the composer sits at the bottom of the screen.
+                MentionTextField(
+                    value = draft,
+                    onValueChange = onDraftChange,
+                    onSearch = onSearchHandles,
+                    textStyle = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Normal)
+                        .copy(color = AppInk),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    listPlacement = MentionListPlacement.Above,
+                    fieldModifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, AppLine)
-                        .background(AppPaper)
-                        .padding(horizontal = 12.dp, vertical = 11.dp),
-                ) {
-                    if (draft.isEmpty()) {
-                        Text(
-                            if (replyAddressee != null) "Write a reply…" else "Say something kind…",
-                            style = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Normal),
-                            color = AppInk3,
-                        )
-                    }
-                    BasicTextField(
-                        value = draft,
-                        onValueChange = onDraftChange,
-                        textStyle = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Normal)
-                            .copy(color = AppInk),
-                        cursorBrush = SolidColor(AppPondDk),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag(TestTags.CommentsComposeField),
-                    )
-                }
+                        .testTag(TestTags.CommentsComposeField),
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, AppLine)
+                                .background(AppPaper)
+                                .padding(horizontal = 12.dp, vertical = 11.dp),
+                        ) {
+                            if (draft.isEmpty()) {
+                                Text(
+                                    if (replyAddressee != null) "Write a reply…" else "Say something kind…",
+                                    style = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Normal),
+                                    color = AppInk3,
+                                )
+                            }
+                            innerTextField()
+                        }
+                    },
+                )
                 // M3 — a visible character counter so the MAX_COMMENT_LEN cap
                 // is not a silent truncation; it tints maple as the draft
                 // nears (≥90%) or hits the cap.

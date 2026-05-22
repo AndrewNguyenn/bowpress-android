@@ -29,6 +29,7 @@ import com.andrewnguyen.bowpress.core.model.DriftResponse
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.FriendProfile
 import com.andrewnguyen.bowpress.core.model.Friendship
+import com.andrewnguyen.bowpress.core.model.HandleSuggestion
 import com.andrewnguyen.bowpress.core.model.JoinClubBody
 import com.andrewnguyen.bowpress.core.model.JoinLeagueBody
 import com.andrewnguyen.bowpress.core.model.League
@@ -371,6 +372,15 @@ interface BowPressApi {
 
     @GET("social/archers/{handle}")
     suspend fun getArcherByHandle(@Path("handle") handle: String): SocialProfile
+
+    /**
+     * Handle search backing the `@`-mention autocomplete (mentions contract
+     * §2.1). [q] is the typed prefix (a leading `@` is trimmed server-side);
+     * returns up to 8 [HandleSuggestion]s whose handle starts with [q],
+     * accepted friends ranked first, the caller and blocked users excluded.
+     */
+    @GET("social/handles")
+    suspend fun searchHandles(@Query("q") q: String): List<HandleSuggestion>
 
     // ---- Social — Friendships --------------------------------------------------
 

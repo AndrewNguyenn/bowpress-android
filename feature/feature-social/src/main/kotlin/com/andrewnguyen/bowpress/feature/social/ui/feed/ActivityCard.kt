@@ -75,6 +75,7 @@ import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
 import com.andrewnguyen.bowpress.feature.social.ui.session.FeedPhotoGallery
 import com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader
 import java.time.Instant
@@ -127,6 +128,10 @@ fun ActivityCard(
     // into the kudos stack on an optimistic self-like (M4). Null when unknown
     // (e.g. previews); the kudos stack then just bumps the count.
     selfActor: ActivityActor? = null,
+    // Mentions contract §3.2 — tapping an `@handle` in the post title opens
+    // that archer's profile. No-op default so previews / non-mention callers
+    // need not wire it.
+    onMentionTap: (handle: String) -> Unit = {},
 ) {
     val preview = activityPreview(item)
     Column(
@@ -137,7 +142,7 @@ fun ActivityCard(
             .clickable(onClick = onClick)
             .testTag(TestTags.FeedRowPreview),
     ) {
-        ActivityCardHeader(item, onLocationTap)
+        ActivityCardHeader(item, onLocationTap, onMentionTap)
         // Header bottom hairline.
         HorizontalDivider(color = AppLine2, thickness = 1.dp)
         ActivityCardBody(item, preview, photoLoader)
@@ -192,6 +197,7 @@ fun ActivityCard(
 private fun ActivityCardHeader(
     item: ActivityItem,
     onLocationTap: (SessionLocation) -> Unit,
+    onMentionTap: (handle: String) -> Unit,
 ) {
     // The PR/milestone/social stamp shows only on a row that carries one; the
     // relative time always pins to the right.
@@ -248,13 +254,28 @@ private fun ActivityCardHeader(
                 color = AppInk,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            // Italic Fraunces verb.
-            Text(
-                text = item.title,
-                style = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Normal),
-                color = AppInk2,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+            // Italic Fraunces verb / session-name headline. Only an
+            // archer-authored custom title can carry `@handle` mentions
+            // (mentions contract §3.2) — it renders through MentionBodyText so
+            // the spans are pond-toned + tappable. A generic server verb
+            // phrase ("shot a new PR") can never contain a mention, so it gets
+            // a plain Text — no needless ClickableText wrapper / parse.
+            val titleStyle = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Normal)
+                .copy(color = AppInk2)
+            if (item.titleIsCustom) {
+                MentionBodyText(
+                    text = item.title,
+                    style = titleStyle,
+                    onMentionTap = onMentionTap,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            } else {
+                Text(
+                    text = item.title,
+                    style = titleStyle,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
         }
         Spacer(Modifier.width(6.dp))
 

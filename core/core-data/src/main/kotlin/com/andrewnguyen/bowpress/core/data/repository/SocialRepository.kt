@@ -38,6 +38,7 @@ import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
 import com.andrewnguyen.bowpress.core.model.FriendProfile
 import com.andrewnguyen.bowpress.core.model.Friendship
 import com.andrewnguyen.bowpress.core.model.FriendshipSource
+import com.andrewnguyen.bowpress.core.model.HandleSuggestion
 import com.andrewnguyen.bowpress.core.model.JoinClubBody
 import com.andrewnguyen.bowpress.core.model.JoinLeagueBody
 import com.andrewnguyen.bowpress.core.model.League
@@ -161,6 +162,30 @@ class SocialRepository @Inject constructor(
 
     suspend fun searchArcher(handle: String): SocialProfile =
         api.getArcherByHandle(handle)
+
+    /**
+     * Handle search for the `@`-mention autocomplete (mentions contract §3.1).
+     * [query] is the in-progress `@token` prefix (a leading `@` is tolerated —
+     * the server trims it). The query is lowercased — handles are lowercase
+     * per the contract — so the method is self-consistent whatever the caller
+     * passes. Returns up to 8 suggestions, friends-first; an empty/blank query
+     * short-circuits to an empty list rather than hitting the API (the
+     * contract requires `q` length ≥ 1).
+     */
+    suspend fun searchHandles(query: String): List<HandleSuggestion> {
+        val q = query.removePrefix("@").trim().lowercase()
+        if (q.isEmpty()) return emptyList()
+        return api.searchHandles(q)
+    }
+
+    /**
+     * Resolve a bare handle to its archer profile (mentions contract §3.2) —
+     * used to turn a tapped `@handle` mention span into a profile screen
+     * navigation. Returns null when the handle resolves to no real archer
+     * (an unresolved mention is a no-op tap).
+     */
+    suspend fun resolveHandle(handle: String): SocialProfile? =
+        runCatching { api.getArcherByHandle(handle.removePrefix("@").trim()) }.getOrNull()
 
     // ── Friendships ───────────────────────────────────────────────────────────
 

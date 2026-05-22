@@ -157,4 +157,55 @@ class NotificationIntentBuilderTest {
         assertThat(NotificationIntentBuilder.BADGE_AFFECTING_PUSH_TYPES)
             .doesNotContain("friend_accepted")
     }
+
+    // ── Mention / reply push types (mentions contract §3.3) ──────────────────
+
+    @Test
+    fun `mention_post honours an explicit deepLink`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf(
+                "type" to "mention_post",
+                "deepLink" to "bowpress://social/sessions/ss_7",
+            ),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/sessions/ss_7")
+    }
+
+    @Test
+    fun `mention_comment falls back to the subject session when no deepLink`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "mention_comment", "subjectId" to "ss_42"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/sessions/ss_42")
+    }
+
+    @Test
+    fun `comment_reply with neither deepLink nor subjectId routes to the feed`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "comment_reply"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social")
+    }
+
+    @Test
+    fun `a blank deepLink is ignored in favour of the subjectId fallback`() {
+        val uri = NotificationIntentBuilder.buildDeepLinkUriString(
+            mapOf("type" to "mention_post", "deepLink" to "", "subjectId" to "ss_9"),
+        )
+        assertThat(uri).isEqualTo("bowpress://social/sessions/ss_9")
+    }
+
+    @Test
+    fun `mention push types are routed to the social channel`() {
+        assertThat(NotificationIntentBuilder.SOCIAL_PUSH_TYPES)
+            .containsAtLeast("mention_post", "mention_comment", "comment_reply")
+    }
+
+    @Test
+    fun `mention pushes do not affect the badge count`() {
+        // Mentions fire push notifications only; there is no in-app inbox
+        // badge in this scope (mentions contract §3.3).
+        assertThat(NotificationIntentBuilder.BADGE_AFFECTING_PUSH_TYPES)
+            .containsNoneOf("mention_post", "mention_comment", "comment_reply")
+    }
 }

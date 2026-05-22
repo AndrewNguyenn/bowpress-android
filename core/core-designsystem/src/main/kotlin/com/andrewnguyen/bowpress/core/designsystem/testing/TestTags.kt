@@ -179,4 +179,9 @@ object TestTags {
     const val CommentsSortTop: String = "comments_sort_top"
     const val CommentRowLikeButton: String = "comment_row_like_button"
     const val CommentRowReplyButton: String = "comment_row_reply_button"
+
+    // Mentions — the @-autocomplete suggestion list (mentions contract §3.1).
+    const val MentionSuggestionList: String = "mention_suggestion_list"
+    /** Concat with the suggested handle: `${MentionSuggestionRowPrefix}sara.lin` */
+    const val MentionSuggestionRowPrefix: String = "mention_suggestion_row_"
 }

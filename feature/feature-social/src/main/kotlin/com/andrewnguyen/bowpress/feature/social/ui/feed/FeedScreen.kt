@@ -67,8 +67,15 @@ fun FeedScreen(
     onActorClick: (String) -> Unit,
     onCommentsClick: (subjectId: String, ownerUserId: String) -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
+    mentionResolver: com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    // Mentions contract §3.2 — a tapped `@handle` in a post title resolves to
+    // an archer profile, reusing the actor-profile navigation.
+    val onMentionTap: (String) -> Unit = { handle ->
+        mentionResolver.openMention(handle, onActorClick)
+    }
 
     // §18 — the location whose map popup is open, or null when none. Tapping a
     // feed row's location tag opens it.
@@ -205,6 +212,7 @@ fun FeedScreen(
                             displayName = p.displayName,
                         )
                     },
+                    onMentionTap = onMentionTap,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 )
             }

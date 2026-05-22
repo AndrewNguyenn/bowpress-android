@@ -58,6 +58,8 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPond
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionListPlacement
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionTextField
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPBowIcon
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPNavHeader
@@ -103,6 +105,8 @@ private const val SESSION_NAME_MAX_LENGTH = 60
 fun SessionHomeScreen(
     onSessionStarted: (sessionId: String, type: SessionType) -> Unit,
     viewModel: SessionViewModel = hiltViewModel(),
+    // Mentions contract §3.1 — backs the session-name field's @-autocomplete.
+    mentionResolver: com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -148,6 +152,7 @@ fun SessionHomeScreen(
             NameField(
                 value = sessionName,
                 onValueChange = { sessionName = it.take(SESSION_NAME_MAX_LENGTH) },
+                onSearchHandles = mentionResolver::searchHandles,
             )
             HairlineDivider()
 
@@ -317,7 +322,11 @@ private fun timeLine(d: LocalDateTime): String {
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun NameField(value: String, onValueChange: (String) -> Unit) {
+private fun NameField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSearchHandles: suspend (String) -> List<com.andrewnguyen.bowpress.core.model.HandleSuggestion>,
+) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
         FieldLabel("NAME", hint = "optional")
         Spacer(Modifier.height(10.dp))
@@ -325,13 +334,18 @@ private fun NameField(value: String, onValueChange: (String) -> Unit) {
             .copy(color = AppInk)
         val placeholderStyle = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Normal)
             .copy(color = AppInk3)
-        BasicTextField(
+        // The session name supports `@handle` mentions (mentions contract §3) —
+        // MentionTextField adds the debounced @-autocomplete; the suggestion
+        // list anchors below the field (the setup screen has room beneath it).
+        MentionTextField(
             value = value,
             onValueChange = onValueChange,
+            onSearch = onSearchHandles,
             textStyle = inputStyle,
             singleLine = true,
-            cursorBrush = SolidColor(AppPondDk),
-            modifier = Modifier
+            cursorColor = AppPondDk,
+            listPlacement = MentionListPlacement.Below,
+            fieldModifier = Modifier
                 .fillMaxWidth()
                 .testTag(SESSION_NAME_FIELD_TEST_TAG),
             // decorationBox places the placeholder *inside* the text field's own

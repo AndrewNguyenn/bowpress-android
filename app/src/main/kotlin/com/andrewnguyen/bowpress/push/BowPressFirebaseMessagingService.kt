@@ -183,7 +183,24 @@ object NotificationIntentBuilder {
      */
     fun buildDeepLinkUriString(data: Map<String, String>): String? {
         val type = data["type"] ?: return null
+        // Mentions contract §3.3 — the mention / reply pushes carry an explicit
+        // `deepLink` (the API's `extra.deepLink`) pointing at the feed or the
+        // shared session. Honour it directly when present so the routing
+        // target is server-driven; the per-type fallbacks below cover a push
+        // that omits it.
+        data["deepLink"]?.takeIf { it.isNotBlank() }?.let { explicit ->
+            if (type in MENTION_PUSH_TYPES) return explicit
+        }
         return when (type) {
+            // Mentions contract §3.3 — a mention in a post / comment, or a
+            // reply on a thread the user is in. Without an explicit `deepLink`
+            // these route at the shared session when a `subjectId` is carried,
+            // else the feed.
+            "mention_post", "mention_comment", "comment_reply" -> {
+                val subjectId = data["subjectId"]
+                if (!subjectId.isNullOrEmpty()) "bowpress://social/sessions/$subjectId"
+                else "bowpress://social"
+            }
             "suggestion" -> {
                 val id = data["id"] ?: return null
                 val bowId = data["bowId"]
@@ -218,11 +235,19 @@ object NotificationIntentBuilder {
         }
     }
 
+    /**
+     * Mention / reply push `type` values (mentions contract §3.3) — a mention
+     * in a post or comment, or a reply on a thread the user was pulled into.
+     */
+    val MENTION_PUSH_TYPES: Set<String> = setOf(
+        "mention_post", "mention_comment", "comment_reply",
+    )
+
     /** Push `type` values routed to the Social notification channel. */
     val SOCIAL_PUSH_TYPES: Set<String> = setOf(
         "friend_request", "friend_pr", "league_deadline", "club_activity",
         "friend_accepted", "club_invite", "league_invite", "club_announcement",
-    )
+    ) + MENTION_PUSH_TYPES
 
     /**
      * Push `type` values that change the Social-tab badge count — receipt
