@@ -514,8 +514,10 @@ private fun splitDistance(d: ShootingDistance): Pair<String, String> = when (d) 
     ShootingDistance.METERS_70 -> "70" to "m"
 }
 
+// The distance field only shows for a range session, where a distance is
+// required to begin — so an unset distance reads "required", not "optional".
 private fun distanceHint(selected: ShootingDistance?): String =
-    if (selected == null) "optional" else "usual · ${selected.label}"
+    if (selected == null) "required" else "usual · ${selected.label}"
 
 // ---------------------------------------------------------------------------
 // Target face field — two tiles (10-ring / 6-ring) without subtitles
