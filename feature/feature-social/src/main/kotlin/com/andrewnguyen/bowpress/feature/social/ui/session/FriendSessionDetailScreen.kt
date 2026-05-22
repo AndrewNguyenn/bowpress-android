@@ -56,6 +56,8 @@ import com.andrewnguyen.bowpress.core.model.Scorecard
 import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.SharedSession
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel
 
 /**
  * Shared-session detail — drilled into from a tapped feed session row.
@@ -78,7 +80,7 @@ fun FriendSessionDetailScreen(
     // compiles (the tap is then a no-op).
     onOpenArcher: (userId: String) -> Unit = {},
     viewModel: FriendSessionDetailViewModel = hiltViewModel(),
-    mentionResolver: com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel = hiltViewModel(),
+    mentionResolver: MentionResolverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -190,7 +192,7 @@ fun FriendSessionDetailScreen(
                             ?.let { description ->
                                 item {
                                     Spacer(Modifier.height(12.dp))
-                                    com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText(
+                                    MentionBodyText(
                                         text = description,
                                         style = frauncesDisplay(14.sp).copy(color = AppInk2),
                                         onMentionTap = onMentionTap,
@@ -350,7 +352,7 @@ fun FriendSessionDetailScreen(
             photos = detail.photos,
             photoLoader = viewModel.photoLoader,
             isSaving = state.isSaving,
-            onSearchHandles = viewModel::searchHandles,
+            onSearchHandles = mentionResolver::searchHandles,
             onSave = { title, description, location ->
                 viewModel.saveEdit(title, description, location)
                 editing = false

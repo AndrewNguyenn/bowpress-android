@@ -105,14 +105,6 @@ class FriendSessionDetailViewModel @Inject constructor(
     }
 
     /**
-     * Backs the `@`-autocomplete in the edit sheet's description field
-     * (mentions contract §3.1). A failed lookup yields no suggestions rather
-     * than surfacing an error in the composer.
-     */
-    suspend fun searchHandles(prefix: String): List<com.andrewnguyen.bowpress.core.model.HandleSuggestion> =
-        runCatching { socialRepository.searchHandles(prefix) }.getOrDefault(emptyList())
-
-    /**
      * Owner photo add (§4) — downscale each picked [uris] entry and upload it.
      *
      * The §4 cap is 8 photos per shared session. The picker only bounds a

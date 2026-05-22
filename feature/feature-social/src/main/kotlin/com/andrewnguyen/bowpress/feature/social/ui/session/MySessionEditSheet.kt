@@ -50,6 +50,7 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityPhoto
+import com.andrewnguyen.bowpress.core.model.HandleSuggestion
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.location.LocationTagPicker
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionListPlacement
@@ -80,7 +81,7 @@ fun MySessionEditSheet(
     photos: List<ActivityPhoto>,
     photoLoader: SessionPhotoLoader,
     isSaving: Boolean,
-    onSearchHandles: suspend (String) -> List<com.andrewnguyen.bowpress.core.model.HandleSuggestion>,
+    onSearchHandles: suspend (String) -> List<HandleSuggestion>,
     onSave: (title: String, description: String, location: SessionLocation?) -> Unit,
     onAddPhotos: (List<android.net.Uri>) -> Unit,
     onRemovePhoto: (ActivityPhoto) -> Unit,
