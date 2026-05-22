@@ -725,6 +725,9 @@ data class SharedSession(
     val distance: String? = null,
     val face: String? = null,
     val title: String? = null,
+    // Migration 0039 — a free-text caption, distinct from the short `title`.
+    // May contain @handle mentions; null when the post has no description.
+    val description: String? = null,
     @Serializable(with = InstantSerializer::class)
     val shotAt: Instant,
     @Serializable(with = InstantSerializer::class)
@@ -854,6 +857,9 @@ data class ActivitySession(
     // Social Feed V2 (contract §4) — the multi-photo gallery, ordered by
     // position. Empty on a session with no photos or a pre-V2 feed payload.
     val photos: List<ActivityPhoto> = emptyList(),
+    // Migration 0039 — the post's free-text caption (may contain @mentions),
+    // or null. Drives the truncated description line on the feed card.
+    val description: String? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
@@ -72,11 +73,21 @@ fun FriendSessionDetailScreen(
     isOwn: Boolean,
     onBack: () -> Unit,
     onCommentsClick: (subjectId: String, ownerUserId: String) -> Unit,
+    // Mentions §3.2 — a tapped `@handle` in the description resolves to an
+    // archer profile. Defaulted so a caller that doesn't wire it still
+    // compiles (the tap is then a no-op).
+    onOpenArcher: (userId: String) -> Unit = {},
     viewModel: FriendSessionDetailViewModel = hiltViewModel(),
+    mentionResolver: com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
 
     LaunchedEffect(sharedSessionId, isOwn) { viewModel.load(sharedSessionId, isOwn) }
+
+    // A tapped mention in the description resolves its handle → archer (§3.2).
+    val onMentionTap: (String) -> Unit = { handle ->
+        mentionResolver.openMention(handle, onOpenArcher)
+    }
 
     // Owner-only edit sheet visibility.
     var editing by remember { mutableStateOf(false) }
@@ -171,6 +182,22 @@ fun FriendSessionDetailScreen(
                             Spacer(Modifier.height(14.dp))
                             SessionStatHeader(shared = detail.sharedSession)
                         }
+
+                        // Migration 0039 — the archer's caption, with tappable
+                        // `@mention` spans. Omitted when the post has none.
+                        detail.sharedSession.description
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { description ->
+                                item {
+                                    Spacer(Modifier.height(12.dp))
+                                    com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText(
+                                        text = description,
+                                        style = frauncesDisplay(14.sp).copy(color = AppInk2),
+                                        onMentionTap = onMentionTap,
+                                        modifier = Modifier.testTag(TestTags.SessionDetailDescription),
+                                    )
+                                }
+                            }
 
                         // Social Feed V2 §5 — the like + comment action bar. The
                         // subject id falls back to the shared-session id for a
@@ -318,12 +345,14 @@ fun FriendSessionDetailScreen(
         MySessionEditSheet(
             sharedSessionId = detail.sharedSession.id,
             initialTitle = detail.sharedSession.title.orEmpty(),
+            initialDescription = detail.sharedSession.description.orEmpty(),
             initialLocation = detail.sharedSession.location,
             photos = detail.photos,
             photoLoader = viewModel.photoLoader,
             isSaving = state.isSaving,
-            onSave = { title, location ->
-                viewModel.saveEdit(title, location)
+            onSearchHandles = viewModel::searchHandles,
+            onSave = { title, description, location ->
+                viewModel.saveEdit(title, description, location)
                 editing = false
             },
             onAddPhotos = { uris -> viewModel.addPhotos(uris) },

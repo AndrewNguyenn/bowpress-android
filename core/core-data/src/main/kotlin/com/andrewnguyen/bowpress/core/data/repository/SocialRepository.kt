@@ -715,17 +715,23 @@ class SocialRepository @Inject constructor(
     suspend fun editSharedSession(
         sharedSessionId: String,
         newTitle: String?,
+        newDescription: String?,
         newLocation: SessionLocation?,
         originalTitle: String?,
+        originalDescription: String?,
         originalLocation: SessionLocation?,
     ): SharedSession {
         // Normalise: a blank title is a clear (null); trim a real one.
         val normalizedNewTitle = newTitle?.trim()?.takeIf { it.isNotEmpty() }
         val normalizedOriginalTitle = originalTitle?.trim()?.takeIf { it.isNotEmpty() }
         val titleChanged = normalizedNewTitle != normalizedOriginalTitle
+        // Description (migration 0039) — same blank-is-a-clear normalisation.
+        val normalizedNewDescription = newDescription?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedOriginalDescription = originalDescription?.trim()?.takeIf { it.isNotEmpty() }
+        val descriptionChanged = normalizedNewDescription != normalizedOriginalDescription
         val locationChanged = newLocation != originalLocation
 
-        if (!titleChanged && !locationChanged) {
+        if (!titleChanged && !descriptionChanged && !locationChanged) {
             // Nothing to send — return the current summary unchanged.
             return api.getSharedSessionDetail(sharedSessionId).sharedSession
         }
@@ -737,6 +743,13 @@ class SocialRepository @Inject constructor(
                     put("title", JsonNull)
                 } else {
                     put("title", normalizedNewTitle)
+                }
+            }
+            if (descriptionChanged) {
+                if (normalizedNewDescription == null) {
+                    put("description", JsonNull)
+                } else {
+                    put("description", normalizedNewDescription)
                 }
             }
             if (locationChanged) {

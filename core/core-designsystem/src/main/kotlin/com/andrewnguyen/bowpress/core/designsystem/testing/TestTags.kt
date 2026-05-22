@@ -146,6 +146,7 @@ object TestTags {
     const val SocialMuteBlockAction: String = "social_mute_block_action"
     const val SocialBlocksRoot: String = "social_blocks_root"
     const val SocialSessionDetailRoot: String = "social_session_detail_root"
+    const val SessionDetailDescription: String = "session_detail_description"
     const val SocialSessionTarget: String = "social_session_target"
     // §18 — activity-feed previews + location tagging.
     const val FeedRowLocationTag: String = "feed_row_location_tag"
@@ -161,6 +162,7 @@ object TestTags {
     // Social Feed V2 — own-post edit + multi-photo gallery.
     const val MySessionEditButton: String = "my_session_edit_button"
     const val MySessionEditTitleField: String = "my_session_edit_title_field"
+    const val MySessionEditDescriptionField: String = "my_session_edit_description_field"
     const val MySessionEditSave: String = "my_session_edit_save"
     const val MySessionEditAddPhoto: String = "my_session_edit_add_photo"
     const val FeedRowPhotoGallery: String = "feed_row_photo_gallery"

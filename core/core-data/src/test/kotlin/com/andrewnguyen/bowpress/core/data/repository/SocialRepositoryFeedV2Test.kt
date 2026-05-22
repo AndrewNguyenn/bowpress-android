@@ -110,8 +110,10 @@ class SocialRepositoryFeedV2Test {
         val result = repo.editSharedSession(
             sharedSessionId = "ss-1",
             newTitle = "New name",
+            newDescription = null,
             newLocation = place,
             originalTitle = "Comp prep",
+            originalDescription = null,
             originalLocation = null,
         )
 
@@ -137,8 +139,10 @@ class SocialRepositoryFeedV2Test {
         repo.editSharedSession(
             sharedSessionId = "ss-1",
             newTitle = "Comp prep",
+            newDescription = null,
             newLocation = null, // cleared
             originalTitle = "Comp prep",
+            originalDescription = null,
             originalLocation = original,
         )
 
@@ -159,13 +163,52 @@ class SocialRepositoryFeedV2Test {
         repo.editSharedSession(
             sharedSessionId = "ss-1",
             newTitle = "   ", // blank → clear
+            newDescription = null,
             newLocation = null,
             originalTitle = "Comp prep",
+            originalDescription = null,
             originalLocation = null,
         )
 
         val body = bodySlot.captured.asString()
         assertThat(body).contains("\"title\":null")
+    }
+
+    @Test
+    fun `editSharedSession sends a changed description and clears it with JSON null`() = runTest {
+        // Migration 0039 — a changed description reaches the body; a cleared
+        // one is an explicit "description":null, never a silent drop.
+        val bodySlot = slot<RequestBody>()
+        coEvery {
+            api.patchSharedSession("ss-1", capture(bodySlot))
+        } returns PatchSharedSessionResponse(sharedSession())
+        coEvery { api.getActivityFeed() } returns emptyList()
+
+        repo.editSharedSession(
+            sharedSessionId = "ss-1",
+            newTitle = "Comp prep",
+            newDescription = "Best group of the month @sarah.n",
+            newLocation = null,
+            originalTitle = "Comp prep",
+            originalDescription = null,
+            originalLocation = null,
+        )
+        var body = bodySlot.captured.asString()
+        assertThat(body).contains("\"description\":\"Best group of the month @sarah.n\"")
+        // Title unchanged → its key is omitted.
+        assertThat(body).doesNotContain("\"title\"")
+
+        repo.editSharedSession(
+            sharedSessionId = "ss-1",
+            newTitle = "Comp prep",
+            newDescription = "  ", // blank → clear
+            newLocation = null,
+            originalTitle = "Comp prep",
+            originalDescription = "Best group of the month",
+            originalLocation = null,
+        )
+        body = bodySlot.captured.asString()
+        assertThat(body).contains("\"description\":null")
     }
 
     @Test
@@ -182,8 +225,10 @@ class SocialRepositoryFeedV2Test {
         repo.editSharedSession(
             sharedSessionId = "ss-1",
             newTitle = "Comp prep", // unchanged
+            newDescription = null,
             newLocation = place,
             originalTitle = "Comp prep",
+            originalDescription = null,
             originalLocation = null,
         )
 
@@ -202,8 +247,10 @@ class SocialRepositoryFeedV2Test {
         val result = repo.editSharedSession(
             sharedSessionId = "ss-1",
             newTitle = "Comp prep",
+            newDescription = null,
             newLocation = null,
             originalTitle = "Comp prep",
+            originalDescription = null,
             originalLocation = null,
         )
 
@@ -222,8 +269,10 @@ class SocialRepositoryFeedV2Test {
         val result = repo.editSharedSession(
             sharedSessionId = "ss-1",
             newTitle = "Renamed",
+            newDescription = null,
             newLocation = null,
             originalTitle = "Comp prep",
+            originalDescription = null,
             originalLocation = null,
         )
         assertThat(result.id).isEqualTo("ss-1")

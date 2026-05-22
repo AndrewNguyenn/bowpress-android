@@ -171,6 +171,13 @@ fun NavGraphBuilder.socialNavGraph(
             onCommentsClick = { subjectId, ownerUserId ->
                 navController.navigate(SocialRoutes.comments(subjectId, ownerUserId))
             },
+            // Mentions §3.2 — a tapped `@handle` in the description resolves
+            // to that archer's profile.
+            onOpenArcher = { userId ->
+                if (userId.isNotBlank()) {
+                    navController.navigate(SocialRoutes.friendProfile(userId))
+                }
+            },
         )
     }
 

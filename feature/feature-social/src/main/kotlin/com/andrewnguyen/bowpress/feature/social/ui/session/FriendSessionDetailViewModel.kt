@@ -79,7 +79,7 @@ class FriendSessionDetailViewModel @Inject constructor(
      * edit does not trigger a spurious session rename. On success the detail is
      * reloaded so the header reflects the change.
      */
-    fun saveEdit(title: String, location: SessionLocation?) {
+    fun saveEdit(title: String, description: String, location: SessionLocation?) {
         val ssId = sharedSessionId.ifBlank { return }
         val loaded = _uiState.value.detail?.sharedSession
         viewModelScope.launch {
@@ -88,10 +88,12 @@ class FriendSessionDetailViewModel @Inject constructor(
                 socialRepository.editSharedSession(
                     sharedSessionId = ssId,
                     newTitle = title,
+                    newDescription = description,
                     newLocation = location,
                     // The values the screen loaded — the repository diffs
                     // against these to send a true partial update.
                     originalTitle = loaded?.title,
+                    originalDescription = loaded?.description,
                     originalLocation = loaded?.location,
                 )
             }.onSuccess {
@@ -101,6 +103,14 @@ class FriendSessionDetailViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Backs the `@`-autocomplete in the edit sheet's description field
+     * (mentions contract §3.1). A failed lookup yields no suggestions rather
+     * than surfacing an error in the composer.
+     */
+    suspend fun searchHandles(prefix: String): List<com.andrewnguyen.bowpress.core.model.HandleSuggestion> =
+        runCatching { socialRepository.searchHandles(prefix) }.getOrDefault(emptyList())
 
     /**
      * Owner photo add (§4) — downscale each picked [uris] entry and upload it.

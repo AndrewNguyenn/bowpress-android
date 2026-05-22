@@ -8,6 +8,7 @@ import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.ClubRole
 import com.andrewnguyen.bowpress.core.model.Division
+import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.Friendship
 import com.andrewnguyen.bowpress.core.model.FriendshipSource
 import com.andrewnguyen.bowpress.core.model.FriendshipStatus
@@ -130,14 +131,14 @@ class FeedViewModelTest {
 
     @Test
     fun `initial state has isLoading true`() = runTest {
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
         // Initial emission before any collection
         assertThat(vm.uiState.value.isLoading).isTrue()
     }
 
     @Test
     fun `uiState emits combined data from all repository flows`() = runTest {
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
         vm.uiState.test {
             // Skip initial loading state
@@ -176,7 +177,7 @@ class FeedViewModelTest {
         )
         every { repository.observePendingRequests() } returns flowOf(listOf(pendingFriendship))
 
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
         vm.uiState.test {
             skipItems(1) // initial
@@ -223,7 +224,7 @@ class FeedViewModelTest {
         )
         every { repository.observeFeed() } returns flowOf(listOf(highlighted, stubActivityItem))
 
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
         vm.uiState.test {
             skipItems(1) // initial
@@ -254,7 +255,7 @@ class FeedViewModelTest {
             every { repository.observeClubs() } returns flowOf(emptyList())
             every { repository.observeLeagues() } returns flowOf(emptyList())
 
-            val vm = FeedViewModel(repository)
+            val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
             vm.uiState.test {
                 skipItems(1) // initial loading state
@@ -279,7 +280,7 @@ class FeedViewModelTest {
             every { repository.observeClubs() } returns flowOf(emptyList())
             every { repository.observeLeagues() } returns flowOf(emptyList())
 
-            val vm = FeedViewModel(repository)
+            val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
             vm.uiState.test {
                 skipItems(1)
@@ -301,7 +302,7 @@ class FeedViewModelTest {
         every { repository.observeClubs() } returns flowOf(listOf(stubClub))
         every { repository.observeLeagues() } returns flowOf(emptyList())
 
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
         vm.uiState.test {
             skipItems(1)
@@ -323,7 +324,7 @@ class FeedViewModelTest {
         every { repository.observeClubs() } returns flowOf(emptyList())
         every { repository.observeLeagues() } returns flowOf(listOf(stubLeague))
 
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
         vm.uiState.test {
             skipItems(1)
@@ -341,7 +342,7 @@ class FeedViewModelTest {
     @Test
     fun `emptyVariant is null when feed has items`() = runTest {
         // Default setup has a feed item — sanity-check that the variant is null.
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
         vm.uiState.test {
             skipItems(1)
@@ -362,7 +363,7 @@ class FeedViewModelTest {
         every { repository.observeClubs() } returns flowOf(emptyList())
         every { repository.observeLeagues() } returns flowOf(emptyList())
 
-        val vm = FeedViewModel(repository)
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
 
         // The very first emission has isLoading = true — emptyVariant must be null
         // regardless of the list contents.

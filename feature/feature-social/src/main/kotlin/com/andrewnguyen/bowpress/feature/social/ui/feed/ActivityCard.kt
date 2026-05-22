@@ -277,6 +277,19 @@ private fun ActivityCardHeader(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
+            // Migration 0039 — the post caption, a 2-line truncated line under
+            // the headline; `@mentions` render as tappable pond-toned spans.
+            val description = item.session?.description
+            if (!description.isNullOrBlank()) {
+                MentionBodyText(
+                    text = description,
+                    style = frauncesDisplay(12.5.sp, italic = true, weight = FontWeight.Normal)
+                        .copy(color = AppInk3),
+                    onMentionTap = onMentionTap,
+                    maxLines = 2,
+                    modifier = Modifier.padding(top = 3.dp),
+                )
+            }
         }
         Spacer(Modifier.width(6.dp))
 

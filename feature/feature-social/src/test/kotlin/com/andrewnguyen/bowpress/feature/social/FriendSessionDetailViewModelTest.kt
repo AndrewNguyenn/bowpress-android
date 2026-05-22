@@ -192,7 +192,7 @@ class FriendSessionDetailViewModelTest {
         // populatedDetail("ss-e") loads a session titled "Pre-comp check".
         coEvery { repository.getSharedSessionDetail("ss-e") } returns populatedDetail("ss-e")
         coEvery {
-            repository.editSharedSession(any(), any(), any(), any(), any())
+            repository.editSharedSession(any(), any(), any(), any(), any(), any(), any())
         } returns sharedSession("ss-e")
 
         val vm = viewModel()
@@ -202,7 +202,7 @@ class FriendSessionDetailViewModelTest {
         val place = com.andrewnguyen.bowpress.core.model.SessionLocation(
             name = "Riverside Range", latitude = 1.0, longitude = 2.0,
         )
-        vm.saveEdit(title = "  Comp prep  ", location = place)
+        vm.saveEdit(title = "  Comp prep  ", description = "Felt sharp @sarah.n", location = place)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // The ViewModel passes the new values plus the values it loaded; the
@@ -211,8 +211,10 @@ class FriendSessionDetailViewModelTest {
             repository.editSharedSession(
                 sharedSessionId = "ss-e",
                 newTitle = "  Comp prep  ",
+                newDescription = "Felt sharp @sarah.n",
                 newLocation = place,
                 originalTitle = "Pre-comp check",
+                originalDescription = null,
                 originalLocation = null,
             )
         }

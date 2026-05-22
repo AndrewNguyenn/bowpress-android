@@ -52,9 +52,14 @@ import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityPhoto
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.location.LocationTagPicker
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionListPlacement
+import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionTextField
 
 /** Max photos per shared session — the API contract §4 cap. */
 private const val MAX_PHOTOS = FriendSessionDetailViewModel.MAX_PHOTOS
+
+/** Max description length — the server (migration 0039) slices to this. */
+private const val MAX_DESCRIPTION = 1000
 
 /**
  * Owner edit sheet for a shared session (Social Feed V2 §3 / §4).
@@ -70,16 +75,19 @@ private const val MAX_PHOTOS = FriendSessionDetailViewModel.MAX_PHOTOS
 fun MySessionEditSheet(
     sharedSessionId: String,
     initialTitle: String,
+    initialDescription: String,
     initialLocation: SessionLocation?,
     photos: List<ActivityPhoto>,
     photoLoader: SessionPhotoLoader,
     isSaving: Boolean,
-    onSave: (title: String, location: SessionLocation?) -> Unit,
+    onSearchHandles: suspend (String) -> List<com.andrewnguyen.bowpress.core.model.HandleSuggestion>,
+    onSave: (title: String, description: String, location: SessionLocation?) -> Unit,
     onAddPhotos: (List<android.net.Uri>) -> Unit,
     onRemovePhoto: (ActivityPhoto) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var title by remember { mutableStateOf(initialTitle) }
+    var description by remember { mutableStateOf(initialDescription) }
     var location by remember { mutableStateOf(initialLocation) }
     var showLocationPicker by remember { mutableStateOf(false) }
 
@@ -133,7 +141,7 @@ fun MySessionEditSheet(
                     style = interUI(13.sp, FontWeight.SemiBold),
                     color = if (isSaving) AppInk3 else AppPondDk,
                     modifier = Modifier
-                        .clickable(enabled = !isSaving) { onSave(title, location) }
+                        .clickable(enabled = !isSaving) { onSave(title, description, location) }
                         .testTag(TestTags.MySessionEditSave),
                 )
             }
@@ -176,6 +184,51 @@ fun MySessionEditSheet(
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = "Clearing the name falls back to a generic headline.",
+                    style = frauncesDisplay(11.5.sp),
+                    color = AppInk3,
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                // ── Description (migration 0039) ────────────────────────────
+                FieldLabel("DESCRIPTION")
+                Spacer(Modifier.height(8.dp))
+                MentionTextField(
+                    value = description,
+                    onValueChange = {
+                        // Live cap so the archer never silently loses text to
+                        // the server's 1000-char slice.
+                        description = if (it.length > MAX_DESCRIPTION) it.take(MAX_DESCRIPTION) else it
+                    },
+                    onSearch = onSearchHandles,
+                    textStyle = frauncesDisplay(14.sp).copy(color = AppInk),
+                    cursorColor = AppPondDk,
+                    listPlacement = MentionListPlacement.Below,
+                    fieldModifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(TestTags.MySessionEditDescriptionField),
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, AppLine)
+                                .background(AppPaper)
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                        ) {
+                            if (description.isEmpty()) {
+                                Text(
+                                    text = "Add a description… @mention a friend",
+                                    style = frauncesDisplay(14.sp),
+                                    color = AppInk3,
+                                )
+                            }
+                            innerTextField()
+                        }
+                    },
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "Your caption on the feed. Type @ to mention a friend.",
                     style = frauncesDisplay(11.5.sp),
                     color = AppInk3,
                 )
