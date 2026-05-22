@@ -1329,6 +1329,17 @@ internal object DevMockData {
                     listOf(10, 11, 11), listOf(10, 11, 10), listOf(11, 11, 10),
                     listOf(11, 10, 11), listOf(11, 10, 11), listOf(10, 11, 11),
                 ),
+                // Real plotted positions — a tight central cluster (all 10s
+                // and Xs) so the feed card's target shows the genuine
+                // scatter rather than the synthesised fallback.
+                plotPoints = listOf(
+                    listOf(0.00, -0.02), listOf(0.03, 0.01), listOf(-0.04, 0.03),
+                    listOf(0.05, -0.04), listOf(-0.02, -0.05), listOf(0.06, 0.04),
+                    listOf(-0.06, -0.01), listOf(0.02, 0.06), listOf(-0.03, -0.06),
+                    listOf(0.07, 0.00), listOf(-0.05, 0.05), listOf(0.04, -0.07),
+                    listOf(-0.07, 0.03), listOf(0.01, 0.04), listOf(0.08, -0.02),
+                    listOf(-0.01, 0.08), listOf(0.03, -0.03), listOf(-0.04, -0.03),
+                ),
             ),
             achievements = listOf(
                 AchievementBadge(

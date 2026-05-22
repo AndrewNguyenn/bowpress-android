@@ -91,3 +91,25 @@ fun scatterArrows(endRings: List<List<Int>>): List<ScatteredArrow> = buildList {
         }
     }
 }
+
+/**
+ * Real plotted arrows from the feed payload's `plotPoints` — each `[x, y]`
+ * is already a normalised −1…1 offset from the face centre, so it maps
+ * straight to a [ScatteredArrow]. Each is paired with its ring from the
+ * flattened [endRings] (both are in shot order) so an X / miss still
+ * colours. Preferred over [scatterArrows] whenever the payload carries
+ * real coordinates.
+ */
+fun plottedArrows(
+    plotPoints: List<List<Double>>,
+    endRings: List<List<Int>>,
+): List<ScatteredArrow> {
+    val flatRings = endRings.flatten()
+    return plotPoints.mapIndexed { i, p ->
+        ScatteredArrow(
+            ring = flatRings.getOrElse(i) { 10 },
+            x = p.getOrElse(0) { 0.0 }.toFloat(),
+            y = p.getOrElse(1) { 0.0 }.toFloat(),
+        )
+    }
+}

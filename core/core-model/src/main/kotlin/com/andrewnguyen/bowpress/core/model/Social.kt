@@ -843,6 +843,10 @@ data class ActivitySession(
     // preview beside the target face. null for a 3D course, a session with
     // no recorded arrows, or a pre-scorecard feed payload.
     val endRings: List<List<Int>>? = null,
+    // Plotted arrow positions for the feed-row target face — each [x, y]
+    // normalised to −1…1 (east-positive, south-positive) in shot order.
+    // null for a 3D course or arrows with no recorded coordinates.
+    val plotPoints: List<List<Double>>? = null,
     // For a 3D course — the ordered stations, so the feed preview can draw
     // the real course map. The bowpress-api `/social/feed` returns them for
     // `3d_course` items; null for a range session or a pre-v1.7 payload.

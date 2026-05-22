@@ -63,6 +63,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
+import com.andrewnguyen.bowpress.core.designsystem.bp.ringTint
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
@@ -343,6 +344,7 @@ private fun ActivityCardBody(
             // ledger may carry only the first 10 ends. Mirrors iOS.
             maxScore = (item.session?.arrowCount ?: 0) * 10,
             endRings = preview.endRings,
+            plotPoints = item.session?.plotPoints.orEmpty(),
             face = item.session?.face,
         )
         is ActivityPreview.Course -> CourseCardBody(
@@ -380,6 +382,7 @@ private fun RangeSessionBody(
     score: Int,
     maxScore: Int,
     endRings: List<List<Int>>?,
+    plotPoints: List<List<Double>>,
     face: String?,
 ) {
     val ends = endRings.orEmpty()
@@ -390,9 +393,12 @@ private fun RangeSessionBody(
             .height(IntrinsicSize.Min),
     ) {
         // Left — the WA target face with arrows plotted as ink dots.
+        // fillMaxHeight makes the cell fill the (taller) scorecard column's
+        // height so the target sits vertically centred, not toward the top.
         Box(
             modifier = Modifier
                 .weight(1f)
+                .fillMaxHeight()
                 .heightIn(min = 230.dp)
                 .padding(vertical = 18.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center,
@@ -405,10 +411,10 @@ private fun RangeSessionBody(
                 size = TARGET_FACE_SIZE,
                 face = faceTypeFor(face),
             ) {
-                // The friend's arrows, deterministically scattered within each
-                // scoring ring's radius band — the feed payload gives ring
-                // values only, no x/y.
-                ArrowPlotOverlay(ends)
+                // The friend's arrows — the real plotted positions from the
+                // feed payload when present, else a deterministic scatter
+                // within each scoring ring's band.
+                ArrowPlotOverlay(ends, plotPoints)
             }
         }
         Box(
@@ -564,11 +570,13 @@ private fun rangeEyebrow(distance: String?) = buildAnnotatedString {
  * `ActivityCard.ArrowScatter`.
  */
 @Composable
-private fun ArrowPlotOverlay(ends: List<List<Int>>) {
-    if (ends.isEmpty()) return
-    // The scatter is deterministic in `ends`, so it is stable across
-    // recompositions — the dots never dance.
-    val arrows = remember(ends) { scatterArrows(ends) }
+private fun ArrowPlotOverlay(ends: List<List<Int>>, plotPoints: List<List<Double>>) {
+    // Prefer the real plotted positions from the feed; fall back to the
+    // deterministic synthesised scatter when the payload carries no x/y.
+    val arrows = remember(ends, plotPoints) {
+        if (plotPoints.isNotEmpty()) plottedArrows(plotPoints, ends) else scatterArrows(ends)
+    }
+    if (arrows.isEmpty()) return
     // Pin the Canvas to exactly the face square so the dot coordinate space
     // matches the WA face — never assume `BPTargetFace`'s content slot is
     // itself face-sized.
@@ -620,39 +628,41 @@ private fun EndsTable(ends: List<List<Int>>, modifier: Modifier = Modifier) {
         HorizontalDivider(color = AppLine, thickness = 1.dp)
         rows.forEachIndexed { idx, rings ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 5.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    // Widened to 14dp so a 10-end round's "10" never clips.
                     text = "${idx + 1}",
                     style = jetbrainsMono(9.sp),
                     color = AppInk3,
                     textAlign = TextAlign.End,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = Modifier.width(14.dp),
+                    modifier = Modifier.width(18.dp),
                 )
-                Spacer(Modifier.width(6.dp))
+                // Each ring sits in its ring-tonal cell — the same band cue
+                // the session-detail scorecard uses.
                 rings.forEach { ring ->
-                    Text(
-                        text = ringGlyph(ring),
-                        style = frauncesDisplay(glyphSize, italic = true, weight = FontWeight.Medium)
-                            .copy(
-                                textDecoration = if (ring <= 0) TextDecoration.LineThrough else null,
-                            ),
-                        color = endRingColor(ring),
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        softWrap = false,
-                        // A sane floor so a wide end's cells never crush below
-                        // a legible glyph width; equal-weight otherwise.
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .widthIn(min = 16.dp),
-                    )
+                            .widthIn(min = 16.dp)
+                            .heightIn(min = 24.dp)
+                            .background(ringTint(ring)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = ringGlyph(ring),
+                            style = frauncesDisplay(glyphSize, italic = true, weight = FontWeight.Medium)
+                                .copy(
+                                    textDecoration = if (ring <= 0) TextDecoration.LineThrough else null,
+                                ),
+                            color = endRingColor(ring),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
             }
             if (idx < rows.lastIndex) {
