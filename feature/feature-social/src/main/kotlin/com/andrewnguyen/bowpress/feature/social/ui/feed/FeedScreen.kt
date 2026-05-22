@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -75,6 +77,7 @@ fun FeedScreen(
     mentionResolver: com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val pendingCount by viewModel.pendingCount.collectAsState()
 
     // Mentions contract §3.2 — a tapped `@handle` in a post title resolves to
     // an archer profile, reusing the actor-profile navigation.
@@ -103,6 +106,7 @@ fun FeedScreen(
             clubCount = state.clubs.size,
             leagueCount = state.leagues.size,
             myInitials = state.myProfile?.let { avatarInitials(it.displayName) } ?: "?",
+            notificationCount = pendingCount,
             onAvatarClick = onAvatarClick,
             onBellClick = onBellClick,
         )
@@ -322,6 +326,7 @@ private fun FeedTopNav(
     clubCount: Int,
     leagueCount: Int,
     myInitials: String,
+    notificationCount: Int,
     onAvatarClick: () -> Unit,
     onBellClick: () -> Unit,
 ) {
@@ -351,21 +356,31 @@ private fun FeedTopNav(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Bell → notification center
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .border(1.dp, AppInk3)
-                    .background(AppPaper2)
-                    .clickable(onClick = onBellClick),
-                contentAlignment = Alignment.Center,
+            // Bell → notification center, with the unread count badge.
+            BadgedBox(
+                badge = {
+                    if (notificationCount > 0) {
+                        Badge {
+                            Text(if (notificationCount > 99) "99+" else "$notificationCount")
+                        }
+                    }
+                },
             ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    tint = AppInk2,
-                    modifier = Modifier.size(16.dp),
-                )
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .border(1.dp, AppInk3)
+                        .background(AppPaper2)
+                        .clickable(onClick = onBellClick),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notifications",
+                        tint = AppInk2,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
             // Avatar button → You screen
             Box(

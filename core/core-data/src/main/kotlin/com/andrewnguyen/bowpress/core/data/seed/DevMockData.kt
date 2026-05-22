@@ -63,7 +63,9 @@ import com.andrewnguyen.bowpress.core.model.DeliveryType
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.model.SocialBlock
+import com.andrewnguyen.bowpress.core.model.NotificationList
 import com.andrewnguyen.bowpress.core.model.SocialInvitation
+import com.andrewnguyen.bowpress.core.model.SocialNotification
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.TrophyCategory
@@ -1542,6 +1544,60 @@ internal object DevMockData {
             createdAt = daysAgo(2),
         ),
     )
+
+    // --- Notification center (§13) ----------------------------------------
+    //
+    // A populated bell for the offline DEBUG build — a mix of unread (paper-2
+    // tint + ink rule) and read rows across the filter categories.
+
+    val notifications: List<SocialNotification> = listOf(
+        SocialNotification(
+            id = "ntf_1", type = "like", actorUserId = "u_sarah",
+            actorHandle = "sarah.n", actorDisplayName = "Sara Lin",
+            subjectId = "ss_own", title = "Sara Lin liked your activity",
+            read = false, createdAt = hoursAgo(1),
+        ),
+        SocialNotification(
+            id = "ntf_2", type = "comment", actorUserId = "u_lina",
+            actorHandle = "lina.h", actorDisplayName = "Lina Hart",
+            subjectId = "ss_own", title = "Lina Hart commented",
+            body = "Clean ends — what sight mark were you on?",
+            read = false, createdAt = hoursAgo(3),
+        ),
+        SocialNotification(
+            id = "ntf_3", type = "mention_comment", actorUserId = "u_marcus",
+            actorHandle = "marcus.t", actorDisplayName = "Marcus Okonkwo",
+            subjectId = "ss1", title = "Marcus Okonkwo mentioned you on Sara's 50m PR",
+            body = "…that's the unlock. @reece.k stealing it for Saturday.",
+            read = false, createdAt = hoursAgo(6),
+        ),
+        SocialNotification(
+            id = "ntf_4", type = "friend_pr", actorUserId = "u_marcus",
+            actorHandle = "marcus.t", actorDisplayName = "Marcus Okonkwo",
+            subjectId = "ss3", title = "Marcus Okonkwo shot a new PR — 651",
+            read = false, createdAt = hoursAgo(28),
+        ),
+        SocialNotification(
+            id = "ntf_5", type = "friend_request", actorUserId = "u_tomas",
+            actorHandle = "tomas.v", actorDisplayName = "Tomás Vega",
+            title = "Tomás Vega wants to connect",
+            read = false, createdAt = hoursAgo(30),
+        ),
+        SocialNotification(
+            id = "ntf_6", type = "league_event", subjectId = "league_weekly_600",
+            title = "Peninsula Vegas — you moved to #4",
+            read = true, createdAt = hoursAgo(50),
+        ),
+        SocialNotification(
+            id = "ntf_7", type = "like", actorUserId = "u_ellie",
+            actorHandle = "ellie.w", actorDisplayName = "Ellie West",
+            subjectId = "ss_own", title = "Ellie West liked your 70m session",
+            read = true, createdAt = hoursAgo(96),
+        ),
+    )
+
+    val notificationList: NotificationList =
+        NotificationList(items = notifications, unread = notifications.count { !it.read })
 
     // --- Mutes / blocks (§14) ---------------------------------------------
     //

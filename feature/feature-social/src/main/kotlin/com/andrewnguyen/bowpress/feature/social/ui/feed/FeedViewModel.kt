@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.feature.social.ui.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
+import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.Friendship
@@ -15,7 +16,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -77,6 +81,7 @@ fun League.deadlineWithin(window: Duration): Boolean {
 @HiltViewModel
 class FeedViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
+    private val socialBadgeRefreshBus: SocialBadgeRefreshBus,
 ) : ViewModel() {
 
     /**
@@ -127,8 +132,27 @@ class FeedViewModel @Inject constructor(
         initialValue = FeedUiState(isLoading = true),
     )
 
+    /**
+     * Drives the notification-bell badge in the feed top-nav — the same
+     * pending-count total the Social *tab* badge shows.
+     *
+     * This re-fetches independently rather than reading AppStateViewModel's
+     * `socialPendingCount` on purpose: AppStateViewModel lives in the `app`
+     * module, which `feature-social` cannot depend on. SocialBadgeRefreshBus
+     * is the decoupling mechanism — both owners re-fetch on the same ping, so
+     * the bell and the tab badge stay consistent without a shared owner.
+     */
+    private val _pendingCount = MutableStateFlow(0)
+    val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
+
     init {
         refresh()
+        refreshPendingCount()
+        // A notification mutation (mark-read / dismiss / clear) bumps the bus;
+        // re-fetch so the bell badge stays in sync after the user acts.
+        socialBadgeRefreshBus.events
+            .onEach { refreshPendingCount() }
+            .launchIn(viewModelScope)
     }
 
     fun refresh() {
@@ -145,6 +169,14 @@ class FeedViewModel @Inject constructor(
                 _error.value = e.message
             }
             _isLoading.value = false
+        }
+        refreshPendingCount()
+    }
+
+    private fun refreshPendingCount() {
+        viewModelScope.launch {
+            runCatching { socialRepository.getPendingCount() }
+                .onSuccess { _pendingCount.value = it.total }
         }
     }
 
