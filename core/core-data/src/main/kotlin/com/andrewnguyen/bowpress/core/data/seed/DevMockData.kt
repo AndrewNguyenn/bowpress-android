@@ -72,6 +72,7 @@ import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.core.model.Zone
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
@@ -97,6 +98,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class DevMockDataSeeder @Inject constructor(
+    @ApplicationContext private val appContext: android.content.Context,
+    private val stationPhotoSeeder: DevStationPhotoSeeder,
     private val bowDao: BowDao,
     private val bowConfigDao: BowConfigDao,
     private val arrowConfigDao: ArrowConfigDao,
@@ -117,6 +120,14 @@ class DevMockDataSeeder @Inject constructor(
 ) {
 
     suspend fun seedIfEmpty() {
+        // Synthetic 3D-station scene / arrow photos for the mock courses.
+        // Run BEFORE the bow early-return: the Room fixtures and the
+        // CourseStationPhotoStore files are separate stores, so a build that
+        // already seeded Room but is missing the photo files (older install
+        // upgraded into this change) still gets its station photos. The
+        // seeder is itself idempotent per slot via CourseStationPhotoStore.
+        stationPhotoSeeder.seed(appContext, DevMockData.courseStations)
+
         if (bowDao.getAll().isNotEmpty()) return
         bowDao.upsertAll(DevMockData.bows.map { it.toEntity(pendingSync = false) })
         bowConfigDao.upsertAll(DevMockData.bowConfigs.map { it.toEntity(pendingSync = false) })

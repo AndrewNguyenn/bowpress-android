@@ -13,6 +13,10 @@ dependencies {
     api(project(":core:core-network"))
     api(project(":core:core-database"))
     api(project(":core:core-analytics"))
+    // DEBUG-only: the mock-data seeder writes synthetic 3D-station scene /
+    // arrow photos into CourseStationPhotoStore so the station bottom sheet
+    // shows real images on the emulator.
+    implementation(project(":core:core-designsystem"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
