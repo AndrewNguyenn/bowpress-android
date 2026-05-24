@@ -355,6 +355,17 @@ data class SubmitScoreBody(
 
 // ── §5 Activity Feed ─────────────────────────────────────────────────────────
 
+/**
+ * Paginated feed response envelope — wraps one page of [ActivityItem]s and an
+ * opaque [nextCursor] the caller passes back to load the following page.
+ * [nextCursor] is null when there are no more pages.
+ */
+@Serializable
+data class FeedPage(
+    val items: List<ActivityItem>,
+    val nextCursor: String?,
+)
+
 @Serializable
 enum class ActivityKind {
     friend_pr, club_session, league_event, friend_setup, club_member_joined,

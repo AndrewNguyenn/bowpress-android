@@ -5,6 +5,7 @@ import com.andrewnguyen.bowpress.core.model.Achievement
 import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.FeedPage
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
@@ -492,7 +493,7 @@ interface BowPressApi {
     // ---- Social — Activity Feed ------------------------------------------------
 
     @GET("social/feed")
-    suspend fun getActivityFeed(): List<ActivityItem>
+    suspend fun getActivityFeed(@Query("cursor") cursor: String? = null): FeedPage
 
     // ---- Social — Invitations (§11) --------------------------------------------
 

@@ -34,6 +34,8 @@ data class FeedUiState(
     val leagues: List<League> = emptyList(),
     val myProfile: SocialProfile? = null,
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val nextCursor: String? = null,
     val error: String? = null,
 ) {
     /**
@@ -44,13 +46,13 @@ data class FeedUiState(
         get() = leagues.any { it.status == LeagueStatus.active && it.deadlineWithin(URGENT_WINDOW) }
 
     /**
-     * Which empty-state variant to show when the 72-hour feed is empty and
-     * loading is complete. Null when there are items in the feed or when
-     * loading is still in progress.
+     * Which empty-state variant to show when the feed is empty and loading is
+     * complete. Null when there are items in the feed or when loading is still
+     * in progress.
      *
      *  - [FeedEmptyVariant.NewUser] — no friends AND no clubs AND no leagues:
      *    the archer is brand-new; show welcoming CTAs.
-     *  - [FeedEmptyVariant.QuietWeek] — connected but the 72-hour window has
+     *  - [FeedEmptyVariant.QuietWeek] — connected but the quiet period has
      *    nothing yet; show a softer "quiet week" notice.
      */
     val emptyVariant: FeedEmptyVariant?
@@ -95,14 +97,19 @@ class FeedViewModel @Inject constructor(
 
     private val _error = MutableStateFlow<String?>(null)
     private val _isLoading = MutableStateFlow(false)
+    private val _isLoadingMore = MutableStateFlow(false)
+    private val _nextCursor = MutableStateFlow<String?>(null)
     private val _myProfile = MutableStateFlow<SocialProfile?>(null)
 
-    // The five repository flows carry the list data; the three local
-    // MutableStateFlows must ALSO be combine inputs — `combine` only re-emits
-    // when a source flow changes, so reading `_myProfile.value` inside the
-    // lambda would leave the avatar / loading / error stuck on their initial
-    // values. Repo flows are pre-combined into one to stay within combine's
-    // typed-arity, then merged with the three local flows.
+    // The five repository flows carry the list data; the local MutableStateFlows
+    // must ALSO be combine inputs — `combine` only re-emits when a source flow
+    // changes, so reading `.value` inside the lambda would leave those fields
+    // stuck on their initial values.
+    //
+    // Repo flows are pre-combined into one FeedUiState stub to stay within
+    // `combine`'s 5-flow typed-arity limit. The two pagination flows
+    // (_isLoadingMore, _nextCursor) are pre-combined into a Pair for the same
+    // reason; the outer combine then merges four inputs.
     private val lists: Flow<FeedUiState> = combine(
         socialRepository.observeFeed(),
         socialRepository.observeFriends(),
@@ -119,13 +126,25 @@ class FeedViewModel @Inject constructor(
         )
     }
 
+    private val paginationState: Flow<Pair<Boolean, String?>> = combine(
+        _isLoadingMore,
+        _nextCursor,
+    ) { loadingMore, cursor -> loadingMore to cursor }
+
     val uiState: StateFlow<FeedUiState> = combine(
         lists,
         _myProfile,
         _isLoading,
         _error,
-    ) { base, profile, loading, error ->
-        base.copy(myProfile = profile, isLoading = loading, error = error)
+        paginationState,
+    ) { base, profile, loading, error, pagination ->
+        base.copy(
+            myProfile = profile,
+            isLoading = loading,
+            isLoadingMore = pagination.first,
+            nextCursor = pagination.second,
+            error = error,
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -156,11 +175,13 @@ class FeedViewModel @Inject constructor(
     }
 
     fun refresh() {
+        _nextCursor.value = null
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             runCatching {
-                socialRepository.refreshFeed()
+                val firstPage = socialRepository.refreshFeed()
+                _nextCursor.value = firstPage.nextCursor
                 socialRepository.refreshFriends()
                 socialRepository.refreshClubs()
                 socialRepository.refreshLeagues()
@@ -171,6 +192,24 @@ class FeedViewModel @Inject constructor(
             _isLoading.value = false
         }
         refreshPendingCount()
+    }
+
+    /**
+     * Load the next page of the activity feed using the current [_nextCursor].
+     * No-ops if there is no cursor (no more pages) or a load is already in
+     * flight. New items appear automatically via the Room `observeAll()` flow.
+     */
+    fun loadMore() {
+        val cursor = _nextCursor.value ?: return
+        if (_isLoadingMore.value) return
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            runCatching {
+                val page = socialRepository.loadMoreFeed(cursor)
+                _nextCursor.value = page.nextCursor
+            }.onFailure { /* silently ignore, user can scroll again */ }
+            _isLoadingMore.value = false
+        }
     }
 
     private fun refreshPendingCount() {

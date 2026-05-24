@@ -20,10 +20,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -157,7 +159,7 @@ fun FeedScreen(
                     SocialEmptyState(
                         icon = "○",
                         title = "Quiet week.",
-                        message = "No sessions from your friends or clubs in the last 72 hours. New activity shows up here as it happens.",
+                        message = "No sessions from your friends or clubs yet. New activity shows up here as it happens.",
                         actions = emptyList(),
                         modifier = Modifier.testTag(TestTags.SocialFeedQuietEmpty),
                     )
@@ -225,6 +227,28 @@ fun FeedScreen(
                     onMentionTap = onMentionTap,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 )
+                // Trigger loadMore when the last item in the list becomes
+                // visible — the item id is stable, so recompositions from
+                // other state changes don't re-fire the effect.
+                if (item == state.feed.lastOrNull()) {
+                    LaunchedEffect(item.id) {
+                        viewModel.loadMore()
+                    }
+                }
+            }
+
+            // Loading footer — shown while the next page is in flight.
+            if (state.isLoadingMore) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
             }
 
             // Pending requests section if any
@@ -517,7 +541,7 @@ private fun FeedEyebrow() {
             )
         }
         Text(
-            text = "last 72h",
+            text = "infinite scroll",
             style = jetbrainsMono(10.sp),
             color = AppInk3,
         )

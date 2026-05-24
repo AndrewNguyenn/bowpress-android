@@ -20,6 +20,7 @@ import com.andrewnguyen.bowpress.core.model.Achievement
 import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.FeedPage
 import com.andrewnguyen.bowpress.core.model.CommentSort
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.BlockKind
@@ -354,10 +355,21 @@ class SocialRepository @Inject constructor(
     fun observeFeed(): Flow<List<ActivityItem>> =
         feedDao.observeAll().map { rows -> rows.map { it.toDto() } }
 
-    suspend fun refreshFeed() {
+    suspend fun refreshFeed(): FeedPage {
         val remote = api.getActivityFeed()
         feedDao.clear()
-        feedDao.upsertAll(remote.map { it.toEntity() })
+        feedDao.upsertAll(remote.items.map { it.toEntity() })
+        return remote
+    }
+
+    /**
+     * Append the next page of the activity feed to the Room cache without
+     * clearing it. Returns the [FeedPage] so the caller can advance the cursor.
+     */
+    suspend fun loadMoreFeed(cursor: String): FeedPage {
+        val remote = api.getActivityFeed(cursor = cursor)
+        feedDao.upsertAll(remote.items.map { it.toEntity() })  // append, don't clear
+        return remote
     }
 
     // ── Invitations (§11) ──────────────────────────────────────────────────────
