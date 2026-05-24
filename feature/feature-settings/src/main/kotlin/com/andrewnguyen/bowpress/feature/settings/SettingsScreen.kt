@@ -54,6 +54,7 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.Entitlement
+import com.andrewnguyen.bowpress.core.model.FeatureFlags
 import com.andrewnguyen.bowpress.core.model.UnitSystem
 import com.andrewnguyen.bowpress.core.model.User
 
@@ -105,6 +106,10 @@ private fun SettingsBody(
 
     val planLabel = when {
         !entitlement.isActive -> "FREE"
+        // Free-app fixture (Entitlement.ActiveFree) is active but has no
+        // productId — render it as "FREE" so a flag-flip with stale fixtures
+        // doesn't silently brand a free seat as Pro.
+        entitlement.productId == null -> "FREE"
         entitlement.productId?.contains("annual") == true -> "PRO ANNUAL"
         entitlement.productId?.contains("monthly") == true -> "PRO MONTHLY"
         else -> "BOWPRESS PRO"
@@ -128,13 +133,18 @@ private fun SettingsBody(
         // Group 1: Subscription + Notifications + Units
         Column(modifier = Modifier.padding(horizontal = 18.dp)) {
             BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
-                SettingsValueRow(
-                    label = "Subscription",
-                    value = planLabel,
-                    onClick = onManageSubscription,
-                    testTag = "settings_subscription",
-                )
-                HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                // Subscription row hidden while the app is free
+                // (FeatureFlags.MONETIZATION_ENABLED = false). PaywallScreen
+                // still exists so re-enabling monetization just flips the flag.
+                if (FeatureFlags.MONETIZATION_ENABLED) {
+                    SettingsValueRow(
+                        label = "Subscription",
+                        value = planLabel,
+                        onClick = onManageSubscription,
+                        testTag = "settings_subscription",
+                    )
+                    HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                }
                 NotificationsRow(
                     enabled = notificationsEnabled,
                     onToggle = onNotificationsToggle,
@@ -204,21 +214,26 @@ private fun SettingsBody(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        // Group 3: Subscription / restore — matches iOS subscriptionAccessRow.
+        // Hidden while the app is free; the entire group, PaywallScreen, and
+        // SubscriptionVerifier code all remain so flipping
+        // FeatureFlags.MONETIZATION_ENABLED re-surfaces it.
+        if (FeatureFlags.MONETIZATION_ENABLED) {
+            Spacer(Modifier.height(16.dp))
 
-        // Group 3: Subscription / restore — matches iOS subscriptionAccessRow
-        Column(modifier = Modifier.padding(horizontal = 18.dp)) {
-            BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
-                SubscriptionAccessRow(
-                    title = subscriptionCtaLabel,
-                    onClick = onManageSubscription,
-                )
-                HorizontalDivider(color = AppLine2, thickness = 1.dp)
-                SettingsLinkRow(
-                    label = "Restore purchases",
-                    onClick = onRestorePurchases,
-                    testTag = "settings_restore_purchases",
-                )
+            Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+                BPCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
+                    SubscriptionAccessRow(
+                        title = subscriptionCtaLabel,
+                        onClick = onManageSubscription,
+                    )
+                    HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                    SettingsLinkRow(
+                        label = "Restore purchases",
+                        onClick = onRestorePurchases,
+                        testTag = "settings_restore_purchases",
+                    )
+                }
             }
         }
 

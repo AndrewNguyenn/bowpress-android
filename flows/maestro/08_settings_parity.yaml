@@ -1,8 +1,9 @@
 # Settings tab parity — iOS is the oracle.
 # Verifies the iter-14 restructure: sentence-case labels, ON-state mono text
-# next to the notifications toggle, Units row tap-to-toggle, View subscription
-# plans + Restore purchases card replacing the legacy Change Password / Delete
-# Account cards.
+# next to the notifications toggle, Units row tap-to-toggle. The Subscription
+# row and Group 3 (View subscription plans / Restore purchases) are hidden
+# while `FeatureFlags.MONETIZATION_ENABLED = false` — the app is currently
+# free for all users. Re-enable those assertions when monetization comes back.
 appId: ${APP_ID}
 ---
 - launchApp:
@@ -24,13 +25,11 @@ appId: ${APP_ID}
 # Notification ON-state mono label
 - assertVisible: "ON"
 
-# Subscription value uppercased to match iOS
-- assertVisible: "PRO MONTHLY"
-
-# Subscription / restore card replaces Change Password / Delete Account
-- assertVisible: "View subscription plans"
-- assertVisible: "unlock the full tuning engine"
-- assertVisible: "Restore purchases"
+# Subscription rows hidden while the app is free.
+- assertNotVisible: "Subscription"
+- assertNotVisible: "View subscription plans"
+- assertNotVisible: "unlock the full tuning engine"
+- assertNotVisible: "Restore purchases"
 - assertNotVisible: "Change Password"
 - assertNotVisible: "Delete Account"
 

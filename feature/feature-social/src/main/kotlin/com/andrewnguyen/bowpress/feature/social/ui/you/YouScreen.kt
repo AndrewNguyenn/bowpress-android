@@ -44,6 +44,7 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
+import com.andrewnguyen.bowpress.core.model.FeatureFlags
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementsViewModel
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.TrophyCaseSection
@@ -123,12 +124,16 @@ fun YouScreen(
                     sub = "email · password · delete account",
                     onClick = onAccountClick,
                 )
-                HorizontalDivider(color = AppLine2, thickness = 1.dp)
-                SettingsRow(
-                    title = "Subscription",
-                    sub = "manage your plan",
-                    onClick = onSubscriptionClick,
-                )
+                // Subscription row hidden while the app is free
+                // (FeatureFlags.MONETIZATION_ENABLED = false).
+                if (FeatureFlags.MONETIZATION_ENABLED) {
+                    HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                    SettingsRow(
+                        title = "Subscription",
+                        sub = "manage your plan",
+                        onClick = onSubscriptionClick,
+                    )
+                }
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 SettingsRow(
                     title = "Equipment",

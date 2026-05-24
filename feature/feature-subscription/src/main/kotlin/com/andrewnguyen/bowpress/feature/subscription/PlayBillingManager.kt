@@ -15,6 +15,7 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import android.util.Log
 import com.andrewnguyen.bowpress.core.model.Entitlement
+import com.andrewnguyen.bowpress.core.model.FeatureFlags
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -60,17 +61,23 @@ class PlayBillingManager @Inject constructor(
     val products: StateFlow<List<ProductDetails>> = _products.asStateFlow()
 
     /**
-     * Initial entitlement: `Active` in DEBUG (so ReadOnlyGate doesn't overlay
-     * the whole app during dev) unless `REAL_ENTITLEMENT=1` system property is
-     * set. Production builds always start `Inactive` and are updated by the
-     * Play Billing connect → verifier round-trip. Mirrors iOS
-     * `SubscriptionManager` DEBUG shortcut.
+     * Initial entitlement:
+     * - DEBUG without REAL_ENTITLEMENT=1: [Entitlement.ActiveDevDebug] so
+     *   ReadOnlyGate doesn't overlay the app during dev.
+     * - DEBUG with REAL_ENTITLEMENT=1: [Entitlement.Inactive] so the paywall
+     *   E2E flow can drive the real verifier round-trip.
+     * - Release with [FeatureFlags.MONETIZATION_ENABLED] = false: app is free
+     *   for all users, so seed [Entitlement.ActiveFree].
+     * - Release with monetization on: [Entitlement.Inactive], the Play
+     *   Billing connect → verifier round-trip updates it. Mirrors iOS
+     *   `SubscriptionManager`.
      */
     private val _entitlement = MutableStateFlow(
-        if (isDebugBuild() && !isRealEntitlementRequested()) {
-            Entitlement.ActiveDevDebug
-        } else {
-            Entitlement.Inactive
+        when {
+            isDebugBuild() && isRealEntitlementRequested() -> Entitlement.Inactive
+            isDebugBuild() -> Entitlement.ActiveDevDebug
+            !FeatureFlags.MONETIZATION_ENABLED -> Entitlement.ActiveFree
+            else -> Entitlement.Inactive
         },
     )
     val entitlement: StateFlow<Entitlement> = _entitlement.asStateFlow()
