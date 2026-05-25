@@ -20,8 +20,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,11 +88,17 @@ fun MySessionEditSheet(
     onAddPhotos: (List<android.net.Uri>) -> Unit,
     onRemovePhoto: (ActivityPhoto) -> Unit,
     onDismiss: () -> Unit,
+    isDeleting: Boolean = false,
+    // Optional — a caller without an owning context omits it; without it
+    // the Delete affordance is hidden entirely so a non-owner sheet (if
+    // one ever exists) can't even render the button.
+    onDelete: (() -> Unit)? = null,
 ) {
     var title by remember { mutableStateOf(initialTitle) }
     var description by remember { mutableStateOf(initialDescription) }
     var location by remember { mutableStateOf(initialLocation) }
     var showLocationPicker by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // How many more photos the §4 cap allows. Bounds the picker so the archer
     // can't pick more than will fit; PickMultipleVisualMedia needs maxItems ≥ 2.
@@ -130,19 +138,22 @@ fun MySessionEditSheet(
                     text = "Cancel",
                     style = interUI(13.sp, FontWeight.Medium),
                     color = AppInk3,
-                    modifier = Modifier.clickable(enabled = !isSaving, onClick = onDismiss),
+                    modifier = Modifier.clickable(
+                        enabled = !isSaving && !isDeleting, onClick = onDismiss,
+                    ),
                 )
                 Text(
                     text = "Edit session",
                     style = frauncesDisplay(16.sp),
                     color = AppInk,
                 )
+                val canSave = !isSaving && !isDeleting
                 Text(
                     text = "Save",
                     style = interUI(13.sp, FontWeight.SemiBold),
-                    color = if (isSaving) AppInk3 else AppPondDk,
+                    color = if (canSave) AppPondDk else AppInk3,
                     modifier = Modifier
-                        .clickable(enabled = !isSaving) { onSave(title, description, location) }
+                        .clickable(enabled = canSave) { onSave(title, description, location) }
                         .testTag(TestTags.MySessionEditSave),
                 )
             }
@@ -335,6 +346,48 @@ fun MySessionEditSheet(
                         )
                     }
                 }
+
+                // ── Danger zone — Delete post (Social Feed V2 §3) ───────────
+                // Only rendered when the caller supplied an onDelete handler.
+                if (onDelete != null) {
+                    Spacer(Modifier.height(28.dp))
+                    FieldLabel("DANGER ZONE")
+                    Spacer(Modifier.height(8.dp))
+                    val canDelete = !isDeleting && !isSaving
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, AppMaple)
+                            .clickable(enabled = canDelete) { showDeleteConfirm = true }
+                            .padding(vertical = 12.dp)
+                            .testTag(TestTags.MySessionEditDeletePost),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isDeleting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = AppMaple,
+                                )
+                                Spacer(Modifier.size(8.dp))
+                            }
+                            Text(
+                                text = if (isDeleting) "DELETING…" else "DELETE POST",
+                                style = interUI(10.sp, FontWeight.SemiBold).copy(letterSpacing = 0.2.em),
+                                color = AppMaple,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Removes the post from your feed and every friend's, " +
+                            "club's, and league's feed. The underlying session in the " +
+                            "Log tab is kept.",
+                        style = frauncesDisplay(11.5.sp),
+                        color = AppInk3,
+                    )
+                }
             }
         }
     }
@@ -349,6 +402,30 @@ fun MySessionEditSheet(
             },
             onRemove = { location = null },
             onDismiss = { showLocationPicker = false },
+        )
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete this post?") },
+            text = {
+                Text(
+                    "Removes the post from your feed and every friend's, club's, and " +
+                        "league's feed. Your underlying session in the Log tab is kept.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onDelete()
+                }) {
+                    Text("Delete", color = AppMaple)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
         )
     }
 }

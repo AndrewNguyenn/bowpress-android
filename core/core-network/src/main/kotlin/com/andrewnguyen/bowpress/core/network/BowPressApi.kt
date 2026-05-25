@@ -600,6 +600,19 @@ interface BowPressApi {
         @Body body: okhttp3.RequestBody,
     ): PatchSharedSessionResponse
 
+    /**
+     * Owner-only — deletes the shared session and cascades every fanout row
+     * (friend + club feed rows, the like / comment thread, notifications, the
+     * gallery's R2 bytes). 204 on success, 403 for a non-owner, 404 when the
+     * post is already gone. The underlying `shooting_sessions` row is left
+     * intact; the session-log delete cascades through the same path on the
+     * server.
+     */
+    @DELETE("social/sessions/{sharedSessionId}")
+    suspend fun deleteSharedSession(
+        @Path("sharedSessionId") sharedSessionId: String,
+    )
+
     // ---- Social Feed V2 — multi-photo gallery (contract §4) --------------------
 
     /**

@@ -165,6 +165,7 @@ object TestTags {
     const val MySessionEditDescriptionField: String = "my_session_edit_description_field"
     const val MySessionEditSave: String = "my_session_edit_save"
     const val MySessionEditAddPhoto: String = "my_session_edit_add_photo"
+    const val MySessionEditDeletePost: String = "my_session_edit_delete_post"
     const val FeedRowPhotoGallery: String = "feed_row_photo_gallery"
     const val SessionDetailPhotoGallery: String = "session_detail_photo_gallery"
     // Section 4 — the count-flexed photo strip on the activity card.

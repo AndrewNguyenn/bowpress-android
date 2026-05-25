@@ -33,6 +33,14 @@ data class FriendSessionDetailUiState(
     val isOwn: Boolean = false,
     /** True while an edit (title/location) or a photo op is in flight. */
     val isSaving: Boolean = false,
+    /** True while a delete is in flight — gates the destructive button. */
+    val isDeleting: Boolean = false,
+    /**
+     * Flips true once the server confirms the post has been deleted. The
+     * detail screen observes this to pop back to the feed. One-shot: the
+     * VM never resets it — a new `load()` rebuilds state from scratch.
+     */
+    val isDeleted: Boolean = false,
 )
 
 @HiltViewModel
@@ -150,6 +158,29 @@ class FriendSessionDetailViewModel @Inject constructor(
             _uiState.update {
                 it.copy(isSaving = false, error = message ?: it.error)
             }
+        }
+    }
+
+    /**
+     * Owner-only — delete the shared post. The server cascades the fanout
+     * (feed rows, like / comment thread, notifications, R2 bytes) so on
+     * success there's nothing left to load. Sets `isDeleted`; the screen
+     * observes it and navigates back to the feed. The underlying
+     * `shooting_sessions` row is intentionally kept.
+     */
+    fun deletePost() {
+        val ssId = sharedSessionId.ifBlank { return }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeleting = true, error = null) }
+            runCatching { socialRepository.deleteSharedSession(ssId) }
+                .onSuccess {
+                    _uiState.update { it.copy(isDeleting = false, isDeleted = true) }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(isDeleting = false, error = e.message)
+                    }
+                }
         }
     }
 

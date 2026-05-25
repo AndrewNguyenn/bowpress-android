@@ -839,6 +839,22 @@ class SocialRepository @Inject constructor(
     }
 
     /**
+     * Owner-only — delete the shared session post. Server cascades the
+     * fanout (every subscriber's feed row, the like/comment thread,
+     * notifications, the gallery's R2 bytes). The owner's underlying
+     * `shooting_sessions` row is kept; if the archer also wants to lose
+     * the session-log entry, they delete from the Log tab instead (which
+     * runs the same cascade).
+     *
+     * Bumps `refreshFeed` so the row drops out of the cached feed on the
+     * next render — same pattern as [editSharedSession].
+     */
+    suspend fun deleteSharedSession(sharedSessionId: String) {
+        api.deleteSharedSession(sharedSessionId)
+        runCatching { refreshFeed() }
+    }
+
+    /**
      * Offline/DEBUG fallback for [getSharedSessionDetail]: locate the tapped
      * shared session in the cached activity feed (the §15 feed rows carry an
      * `ActivitySession` payload), then join the local session/ends/arrows

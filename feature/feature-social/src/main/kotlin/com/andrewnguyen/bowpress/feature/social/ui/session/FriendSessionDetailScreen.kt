@@ -86,6 +86,12 @@ fun FriendSessionDetailScreen(
 
     LaunchedEffect(sharedSessionId, isOwn) { viewModel.load(sharedSessionId, isOwn) }
 
+    // The owner deleted the post — the server cascaded the fanout, so pop
+    // back to the feed (where the row is already gone via refreshFeed).
+    LaunchedEffect(state.isDeleted) {
+        if (state.isDeleted) onBack()
+    }
+
     // A tapped mention in the description resolves its handle → archer (§3.2).
     val onMentionTap: (String) -> Unit = { handle ->
         mentionResolver.openMention(handle, onOpenArcher)
@@ -352,6 +358,7 @@ fun FriendSessionDetailScreen(
             photos = detail.photos,
             photoLoader = viewModel.photoLoader,
             isSaving = state.isSaving,
+            isDeleting = state.isDeleting,
             onSearchHandles = mentionResolver::searchHandles,
             onSave = { title, description, location ->
                 viewModel.saveEdit(title, description, location)
@@ -359,6 +366,11 @@ fun FriendSessionDetailScreen(
             },
             onAddPhotos = { uris -> viewModel.addPhotos(uris) },
             onRemovePhoto = { photo -> viewModel.removePhoto(photo) },
+            onDelete = {
+                // Close the sheet so the LaunchedEffect on `isDeleted` can pop.
+                editing = false
+                viewModel.deletePost()
+            },
             onDismiss = { editing = false },
         )
     }
