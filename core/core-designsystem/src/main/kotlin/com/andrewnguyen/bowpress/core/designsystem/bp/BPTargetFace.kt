@@ -78,15 +78,28 @@ private val tenRingRings = listOf(
 )
 
 /**
- * 40cm Vegas inner face — 6 zones (rings 6,7,8,9,10,X), single blue band.
- * Mirrors iOS `sixRing` / `.vegas`.
+ * 40cm Vegas inner face — 6 zones (rings 6,7,8,9,10,X), single thin blue
+ * band. Ratios match iOS `sixRing` / `.vegas` (commit 65258d8): 20% blue,
+ * 40% red, 40% yellow. The blue band is the thin outermost annulus, not the
+ * chunky 30% double band the icon was previously drawing.
+ *
+ * In the 200-viewBox SVG reference the radii are r=40 (yellow outer) / 32
+ * (red outer) / 16 (blue outer) — i.e. 0.20 yellow → 0.40 red → 0.80 paper —
+ * which lands on our 0.96 outer radius as the band edges below:
+ *  - 0.96 → 0.80 (16% width) outer blue
+ *  - 0.80 → 0.40 (40% width) red
+ *  - 0.40 → 0.014 (~40% width) yellow
+ *
+ * NB: scoring math (TargetGeometry.SixRing) is unchanged — this is a purely
+ * visual ratio fix on the picker icon / SixRing-decorative variant.
  */
 private val sixRingVegasRings = listOf(
     Ring(0.96f, fill = AppTgtBlue),
-    Ring(0.66f, fill = AppTgtRed),
-    Ring(0.50f, stroke = AppInk, strokeWidth = 0.25f),
-    Ring(0.34f, fill = AppTgtYellow),
-    Ring(0.17f, stroke = AppInk, strokeWidth = 0.25f),
+    Ring(0.80f, fill = AppTgtRed),
+    Ring(0.64f, stroke = AppInk, strokeWidth = 0.25f),
+    Ring(0.48f, stroke = AppInk, strokeWidth = 0.25f),
+    Ring(0.40f, fill = AppTgtYellow),
+    Ring(0.20f, stroke = AppInk, strokeWidth = 0.25f),
     Ring(0.014f, fill = AppInk),
 )
 
