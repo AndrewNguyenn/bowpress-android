@@ -30,6 +30,7 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
+import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 
 // ── KudosRow ─────────────────────────────────────────────────────────────────
 //
@@ -39,22 +40,20 @@ import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 // (a quiet "Be the first" when nothing has landed yet). Used on the feed card
 // and as the read-only reaction summary on the Comments screen.
 
-/** A single 22dp overlapping avatar in the kudos stack. */
+/**
+ * A single 22dp overlapping avatar in the kudos stack. Parity E5 — renders
+ * the actor's uploaded photo via Coil when [actor].avatarUrl is present,
+ * else falls back to the monogram initials.
+ */
 @Composable
-private fun KudosAvatar(initials: String) {
-    Box(
-        modifier = Modifier
-            .size(22.dp)
-            .border(1.dp, AppPondDk)
-            .background(AppPaper2),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = initials,
-            style = frauncesDisplay(9.5.sp, italic = true, weight = FontWeight.Medium),
-            color = AppPondDk,
-        )
-    }
+private fun KudosAvatar(actor: ActivityActor) {
+    SocialAvatarImage(
+        displayName = actor.displayName,
+        avatarUrl = actor.avatarUrl,
+        avatarVersion = actor.avatarVersion,
+        size = 22,
+        borderTint = AppPondDk,
+    )
 }
 
 /** The `+N` chip terminating the stack — mono, ink-3 outline, paper ground. */
@@ -123,7 +122,7 @@ fun KudosRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             stack.forEachIndexed { index, actor ->
                 Box(modifier = if (index == 0) Modifier else Modifier.offset(x = (-5 * index).dp)) {
-                    KudosAvatar(avatarInitials(actor.displayName))
+                    KudosAvatar(actor)
                 }
             }
             if (extra > 0) {

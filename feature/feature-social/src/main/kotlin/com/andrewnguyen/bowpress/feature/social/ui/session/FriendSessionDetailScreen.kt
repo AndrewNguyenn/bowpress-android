@@ -55,7 +55,9 @@ import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.Scorecard
 import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.SharedSession
+import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
+import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel
 
@@ -130,11 +132,28 @@ fun FriendSessionDetailScreen(
                     color = AppInk,
                 )
                 state.detail?.let { d ->
-                    Text(
-                        "@${d.ownerHandle} · ${d.ownerDisplayName}",
-                        style = jetbrainsMono(10.sp),
-                        color = AppInk3,
-                    )
+                    // Parity E2 + E5 — owner avatar + name (tappable when the
+                    // viewer is not the owner), with uploaded photo via Coil
+                    // when present.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val ownerTap: (() -> Unit)? = if (!state.isOwn) {
+                            { onOpenArcher(d.sharedSession.userId) }
+                        } else null
+                        SocialAvatarImage(
+                            displayName = d.ownerDisplayName,
+                            avatarUrl = d.ownerAvatarUrl,
+                            avatarVersion = d.ownerAvatarVersion,
+                            size = 22,
+                            modifier = if (ownerTap != null) Modifier.clickable(onClick = ownerTap) else Modifier,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "@${d.ownerHandle} · ${d.ownerDisplayName}",
+                            style = jetbrainsMono(10.sp),
+                            color = AppInk3,
+                            modifier = if (ownerTap != null) Modifier.clickable(onClick = ownerTap) else Modifier,
+                        )
+                    }
                 }
             }
             // Social Feed V2 §3 — the owner edit affordance. Only on an own row.

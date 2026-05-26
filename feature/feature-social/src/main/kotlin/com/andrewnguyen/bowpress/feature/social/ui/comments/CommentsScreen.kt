@@ -58,6 +58,7 @@ import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.CommentSort
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
+import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.feed.KudosRow
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
@@ -267,7 +268,12 @@ private fun ContextStrip(ctx: CommentsContext) {
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SocialAvatar(initials = avatarInitials(ctx.authorDisplayName), size = 36)
+        SocialAvatarImage(
+            displayName = ctx.authorDisplayName,
+            avatarUrl = ctx.authorAvatarUrl,
+            avatarVersion = ctx.authorAvatarVersion,
+            size = 36,
+        )
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -502,8 +508,10 @@ private fun CommentRow(
             ),
         verticalAlignment = Alignment.Top,
     ) {
-        SocialAvatar(
-            initials = avatarInitials(comment.authorDisplayName),
+        SocialAvatarImage(
+            displayName = comment.authorDisplayName,
+            avatarUrl = comment.authorAvatarUrl,
+            avatarVersion = comment.authorAvatarVersion,
             size = if (isReply) 22 else 26,
         )
         Spacer(Modifier.width(if (isReply) 8.dp else 10.dp))
