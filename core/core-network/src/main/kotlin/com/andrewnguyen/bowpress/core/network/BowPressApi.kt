@@ -6,6 +6,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.FeedPage
+import com.andrewnguyen.bowpress.core.model.FeedSummary
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
@@ -511,6 +512,15 @@ interface BowPressApi {
 
     @GET("social/feed")
     suspend fun getActivityFeed(@Query("cursor") cursor: String? = null): FeedPage
+
+    /**
+     * Hero-carousel payload above the feed — four optional cards (this
+     * week / weekly snapshot / best session / tuning insight) plus the
+     * opening-card hint. Mirrors iOS `getFeedSummary()` and the API
+     * `GET /social/feed-summary` contract.
+     */
+    @GET("social/feed-summary")
+    suspend fun getFeedSummary(): FeedSummary
 
     // ---- Social — Invitations (§11) --------------------------------------------
 

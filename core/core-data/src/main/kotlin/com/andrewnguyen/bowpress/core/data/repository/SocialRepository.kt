@@ -21,6 +21,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.FeedPage
+import com.andrewnguyen.bowpress.core.model.FeedSummary
 import com.andrewnguyen.bowpress.core.model.CommentSort
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.BlockKind
@@ -431,6 +432,14 @@ class SocialRepository @Inject constructor(
         feedDao.upsertAll(remote.items.map { it.toEntity() })  // append, don't clear
         return remote
     }
+
+    /**
+     * Fetch the hero-carousel payload that renders above the feed (iOS
+     * parity — `GET /social/feed-summary`). Not cached: the summary
+     * derives from analytics + recent sessions, so we just refetch on
+     * every feed refresh. Caller is responsible for handling failures.
+     */
+    suspend fun getFeedSummary(): FeedSummary = api.getFeedSummary()
 
     // ── Invitations (§11) ──────────────────────────────────────────────────────
     //

@@ -213,28 +213,14 @@ class FeedViewModel @Inject constructor(
     )
 
     /**
-     * iOS parity (A3) — source for the swipeable hero carousel.
-     *
-     * Release builds emit `null` so the carousel hides entirely until a
-     * port of the iOS `GET /social/feed-summary` endpoint lands through
-     * `core-data` — shipping the preview fixture to every TestFlight /
-     * Play user would put a hardcoded "Hoyt RX-7 · Tuesday Vegas · …"
-     * card above their real feed.
-     *
-     * DEBUG builds emit `FeedSummaryUi.preview` so the layout can be
-     * verified end-to-end against iOS Maestro screenshots without
-     * blocking on the API port.
-     *
-     * TODO(porter:profile-social or follow-up): replace with a live
-     * `socialRepository.observeFeedSummary()` once the endpoint lands.
+     * iOS parity (A3) — source for the swipeable hero carousel above the
+     * activity list. Populated by [refreshFeedSummary] from
+     * `GET /social/feed-summary`; null until the first response lands and
+     * stays null on failure so the carousel hides cleanly without
+     * blocking the rest of the feed.
      */
-    val feedSummary: StateFlow<FeedSummaryUi?> = MutableStateFlow<FeedSummaryUi?>(
-        if (com.andrewnguyen.bowpress.feature.social.BuildConfig.DEBUG) {
-            FeedSummaryUi.preview
-        } else {
-            null
-        },
-    ).asStateFlow()
+    private val _feedSummary = MutableStateFlow<FeedSummaryUi?>(null)
+    val feedSummary: StateFlow<FeedSummaryUi?> = _feedSummary.asStateFlow()
 
     /**
      * Drives the notification-bell badge in the feed top-nav — the same
@@ -286,6 +272,23 @@ class FeedViewModel @Inject constructor(
             _isLoading.value = false
         }
         refreshPendingCount()
+        refreshFeedSummary()
+    }
+
+    /**
+     * Fetch the hero-carousel payload independently of the main feed
+     * refresh so a summary-endpoint failure can't blank the activity list
+     * (and vice versa). The cached summary is cleared up-front so a
+     * post-logout or account-switch [refresh] can't leave another
+     * archer's "Tuesday Vegas" card above the new user's feed if the
+     * summary call fails.
+     */
+    private fun refreshFeedSummary() {
+        _feedSummary.value = null
+        viewModelScope.launch {
+            runCatching { socialRepository.getFeedSummary().toUi() }
+                .onSuccess { _feedSummary.value = it }
+        }
     }
 
     /**

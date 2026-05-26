@@ -52,17 +52,17 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 // collapses to a single welcome hero (we just hide the carousel entirely
 // on Android — FeedScreen already has a "new user" empty-state below).
 //
-// Data: the live FeedSummary endpoint (iOS GET /social/feed-summary)
-// doesn't exist on Android yet — this composable accepts a [FeedSummaryUi]
-// argument that callers stub with [FeedSummaryUi.preview] until a port
-// lands. Wiring lives in FeedScreen.
+// Data: populated from `GET /social/feed-summary` via FeedViewModel
+// (see FeedSummaryMapper for the DTO → UI translation). [FeedSummaryUi.preview]
+// remains for Compose @Preview composables only.
 // =============================================================================
 
 /**
- * iOS parity (A3) — UI-side mirror of `FeedSummary`. Lives in the feature
- * module on purpose; once a real `/social/feed-summary` endpoint is wired
- * through `core-data` + `core-model`, this can be replaced with a domain
- * DTO. Fields are nullable so a card with no data drops out cleanly.
+ * iOS parity (A3) — UI-side mirror of the `FeedSummary` core-model DTO.
+ * Lives in the feature module on purpose so the carousel's per-card
+ * presentation choices (range-label formatting, day-letter derivation,
+ * card-collapse rules) stay out of the shared model. Fields are nullable
+ * so a card with no data drops out cleanly.
  */
 data class FeedSummaryUi(
     val thisWeek: ThisWeek? = null,
