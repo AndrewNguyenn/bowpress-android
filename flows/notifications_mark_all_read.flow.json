@@ -1,0 +1,16 @@
+{
+  "name": "notifications_mark_all_read",
+  "description": "Bell → NotificationCenter → MARK ALL READ. Verifies the FeedScreen top-nav bell opens NotificationCenterScreen with unread rows present, the MARK ALL READ affordance clears them, and returning to the feed leaves the bell badge gone. iOS oracle: NotificationCenterView.swift. Status DRAFT: the bell button + notification rows don't carry stable testTags yet — the flow drives by visible text (the 'Notifications' screen title + 'MARK ALL READ ›' affordance both render identically on both platforms).",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Feed" },
+    { "type": "wait", "tag": "social_feed_root", "timeout": 8 }
+  ]
+}
