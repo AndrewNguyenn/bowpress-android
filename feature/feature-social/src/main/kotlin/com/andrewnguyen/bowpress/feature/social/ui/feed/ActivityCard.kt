@@ -1196,14 +1196,21 @@ private fun parseFeedDistance(distance: String?): com.andrewnguyen.bowpress.core
 internal fun feedCardArrowDotRadiusPx(
     faceRadiusPx: Float,
     arrowDiameterMm: Double?,
-    @Suppress("UNUSED_PARAMETER") mmPerNormUnit: Double,
+    mmPerNormUnit: Double,
     density: Float,
 ): Float {
-    val shaftMm = (arrowDiameterMm ?: 6.0).toFloat()
-    val referenceRadius = faceRadiusPx * 0.04f
-    val scale = shaftMm / 6f
+    // iOS TargetRingScatter.swift:140-145 — `arrowDiameterMm /
+    // mmPerNormUnit * faceRadius`, floor 2pt. The earlier 6mm-reference
+    // formula (`faceRadius * 0.04 * shaftMm / 6`) ignored `mmPerNormUnit`,
+    // which made every dot the same fraction of the face regardless of
+    // whether the printed face was an 80cm outdoor (mmPerNormUnit = 400)
+    // or a 40cm indoor (≈123.5). Result: Outdoor80 dots came out ~2.7x
+    // too big and indoor dots ~0.8x too small. Restoring the geometric
+    // formula matches iOS dot-on-mm exactly across both faces.
+    val shaftMm = arrowDiameterMm ?: 6.0
+    val computed = (shaftMm / mmPerNormUnit).toFloat() * faceRadiusPx
     val floorPx = 2f * density
-    return (referenceRadius * scale).coerceAtLeast(floorPx)
+    return computed.coerceAtLeast(floorPx)
 }
 
 /**
