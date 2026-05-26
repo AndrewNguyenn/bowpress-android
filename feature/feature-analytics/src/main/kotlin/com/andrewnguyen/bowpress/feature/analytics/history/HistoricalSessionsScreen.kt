@@ -349,7 +349,7 @@ private fun SessionLogRow(
         // SessionLogRow exposed inline before the refactor.
         onEdit = onEdit,
         onDelete = onDelete,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+        modifier = Modifier.padding(vertical = 6.dp),
     )
 }
 
