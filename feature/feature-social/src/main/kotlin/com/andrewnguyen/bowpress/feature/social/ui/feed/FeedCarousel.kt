@@ -106,6 +106,8 @@ data class FeedSummaryUi(
     data class BestSession(
         val sessionName: String,
         val avgRing: Double,
+        /** Sum of non-excluded ring values (X=10). Null hides the "score/total" segment. */
+        val totalScore: Int? = null,
         val xCount: Int,
         val totalArrows: Int,
         val bowName: String,
@@ -192,6 +194,10 @@ data class FeedSummaryUi(
             bestSession = BestSession(
                 sessionName = "Tuesday Vegas",
                 avgRing = 8.7,
+                // 262/30 = 8.733… → rounds to 8.7; deliberately NOT 8.7*30 so
+                // the fixture demonstrates the precision the wire field
+                // exists to preserve (avgRing alone would lose ⅓ of a ring).
+                totalScore = 262,
                 xCount = 4,
                 totalArrows = 30,
                 bowName = "Hoyt RX-7",
@@ -307,8 +313,14 @@ fun FeedCarousel(
     }
 }
 
-/** Card slot height — matches the iOS standard size-class default. */
-private val CardHeight = 200.dp
+/**
+ * Card slot height — all four cards share this so the activity list
+ * below doesn't jump as the user swipes. Tuned to the tallest card's
+ * natural content height (Insight headline up to 2 lines + 2x2 metric
+ * grid) so smaller cards (notably BestSession) don't have the ~40dp of
+ * dead space the old 200dp value left below their footer.
+ */
+private val CardHeight = 172.dp
 
 // ── Shared chrome ────────────────────────────────────────────────────────────
 
@@ -537,9 +549,11 @@ private fun BestSessionCard(
             verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                // Hero: "9.9 · 14X / 30" — avg in italic Fraunces, stat line in
-                // mono. The "14X" run is medium-weight AppPondDk so the X-count
-                // reads as the highlight (iOS parity).
+                // Hero: "9.9 · 297/300 · 14X" — avg in italic Fraunces, then
+                // mono "score/maxPossible · xCount" with the score + X runs
+                // in medium AppPondDk for emphasis. Falls back to the prior
+                // "· 14X / 30" treatment if the API hasn't shipped totalScore
+                // yet (an older server response decodes that field as null).
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = "%.1f".format(data.avgRing),
@@ -550,10 +564,24 @@ private fun BestSessionCard(
                     Text(
                         text = buildAnnotatedString {
                             withStyle(SpanStyle(color = AppInk3)) { append("· ") }
-                            withStyle(SpanStyle(color = AppPondDk, fontWeight = FontWeight.Medium)) {
-                                append("${data.xCount}X")
+                            if (data.totalScore != null) {
+                                withStyle(SpanStyle(color = AppPondDk, fontWeight = FontWeight.Medium)) {
+                                    append(data.totalScore.toString())
+                                }
+                                withStyle(SpanStyle(color = AppInk3)) {
+                                    append("/${data.totalArrows * 10} · ")
+                                }
+                                withStyle(SpanStyle(color = AppPondDk, fontWeight = FontWeight.Medium)) {
+                                    append("${data.xCount}X")
+                                }
+                            } else {
+                                withStyle(SpanStyle(color = AppPondDk, fontWeight = FontWeight.Medium)) {
+                                    append("${data.xCount}X")
+                                }
+                                withStyle(SpanStyle(color = AppInk3)) {
+                                    append(" / ${data.totalArrows}")
+                                }
                             }
-                            withStyle(SpanStyle(color = AppInk3)) { append(" / ${data.totalArrows}") }
                         },
                         style = jetbrainsMono(11.sp),
                         modifier = Modifier.padding(bottom = 6.dp),
@@ -723,6 +751,11 @@ private fun TuningInsightCard(data: FeedSummaryUi.Insight) {
             text = data.headline,
             style = frauncesDisplay(13.5.sp, italic = true, weight = FontWeight.Medium),
             color = AppInk,
+            // Capped at 2 lines so a long headline can't overflow the
+            // 172dp card slot. iOS uses lineLimit(3); a 3rd line of
+            // 13.5sp italic would push the metric grid past the card.
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
         // 2x2 metric grid.
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

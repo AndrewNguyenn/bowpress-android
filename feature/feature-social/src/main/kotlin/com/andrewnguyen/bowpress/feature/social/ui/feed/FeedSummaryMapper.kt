@@ -70,6 +70,7 @@ private fun FeedSummaryBestSession.toUi(zone: ZoneId): FeedSummaryUi.BestSession
     FeedSummaryUi.BestSession(
         sessionName = sessionName,
         avgRing = avgRing,
+        totalScore = totalScore,
         xCount = xCount,
         totalArrows = totalArrows,
         bowName = bowName,

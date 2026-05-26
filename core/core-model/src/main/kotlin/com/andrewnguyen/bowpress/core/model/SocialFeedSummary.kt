@@ -52,6 +52,13 @@ data class FeedSummaryBestSession(
     val sharedSessionId: String? = null,
     val sessionName: String,
     val avgRing: Double,
+    /**
+     * Sum of ring values for non-excluded arrows (X scores 10). Max
+     * possible is `totalArrows * 10`. Defaulted to null for backward
+     * compat with an older API that didn't emit it; the carousel card
+     * falls back to "14X / 30" alone in that case.
+     */
+    val totalScore: Int? = null,
     val xCount: Int,
     val totalArrows: Int,
     val bowName: String,

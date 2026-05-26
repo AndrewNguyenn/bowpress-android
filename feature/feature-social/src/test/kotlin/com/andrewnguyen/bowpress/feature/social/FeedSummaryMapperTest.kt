@@ -113,6 +113,45 @@ class FeedSummaryMapperTest {
     }
 
     @Test
+    fun `best session forwards totalScore so the hero can render score over max`() {
+        val summary = baseSummary(
+            bestSession = FeedSummaryBestSession(
+                sessionId = "s1",
+                sharedSessionId = null,
+                sessionName = "S",
+                avgRing = 9.9,
+                totalScore = 297,
+                xCount = 14,
+                totalArrows = 30,
+                bowName = "Hoyt RX-7",
+                arrows = emptyList(),
+                prDeltaAvgRing = null,
+            ),
+        )
+        val bs = summary.toUi(now = today, zone = utc).bestSession!!
+        assertThat(bs.totalScore).isEqualTo(297)
+    }
+
+    @Test
+    fun `best session totalScore stays null for pre-totalScore API responses`() {
+        val summary = baseSummary(
+            bestSession = FeedSummaryBestSession(
+                sessionId = "s1",
+                sharedSessionId = null,
+                sessionName = "S",
+                avgRing = 9.9,
+                xCount = 14,
+                totalArrows = 30,
+                bowName = "Hoyt RX-7",
+                arrows = emptyList(),
+                prDeltaAvgRing = null,
+            ),
+        )
+        val bs = summary.toUi(now = today, zone = utc).bestSession!!
+        assertThat(bs.totalScore).isNull()
+    }
+
+    @Test
     fun `best session maps spec fields and formats startedAt for the local zone`() {
         val pacific = ZoneId.of("America/Los_Angeles")
         // 2026-05-26T19:23:00Z = 12:23pm PDT on a Tuesday.
