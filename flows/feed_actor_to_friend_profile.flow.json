@@ -1,0 +1,16 @@
+{
+  "name": "feed_actor_to_friend_profile",
+  "description": "Feed-row actor avatar/name navigates to the FriendProfileScreen. Verifies the activity-card header avatar (parity E2) is reachable as a tap target and lands on the friend profile with its hero + 4-cell stat row + This week chart panel. Dev mock data seeds a feed with friends Sara Lin / Marcus Okonkwo / Priya Varma — the flow taps the first non-self actor name visible in the feed. Status DRAFT: ActivityCardHeader actor avatar + name don't carry stable testTags yet (E2 wired the click but not the identifier), so the flow drills by visible display name.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Feed" },
+    { "type": "wait", "tag": "social_feed_root", "timeout": 8 }
+  ]
+}

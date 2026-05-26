@@ -1,0 +1,81 @@
+# Maestro flow: Feed actor → FriendProfile reachability (parity E2).
+#
+# A feed row's actor avatar and italic name are tap targets that drill into
+# the friend's profile screen. This flow proves the navigation works and
+# that the FriendProfileScreen renders its expected structural anchors:
+#   - the BACK link (so the user can return),
+#   - the 4-cell stat row (Friends / Mutuals / Sessions / Arrows labels),
+#   - the "This week" panel with the 7-day chart header.
+#
+# iOS oracle: FriendProfileView.swift (4-cell stat row + "This week" block).
+# DRAFT — the actor avatar / name in ActivityCardHeader carry the click but
+# not a stable testTag (E2 wired behavior, not the identifier). The flow
+# drills by visible display name; dev mock data seeds the feed with rows
+# from "Sara Lin", "Marcus Okonkwo", and "Priya Varma".
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-friend-profile     test flows/maestro/25_feed_actor_to_friend_profile.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-friend-profile test flows/maestro/25_feed_actor_to_friend_profile.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - social
+  - draft
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+
+# iOS parity (A1) — Feed is the home tab now; tapping the "Feed" label in
+# the bottom nav lands on FeedScreen (social_feed_root).
+- tapOn: "Feed"
+- waitForAnimationToEnd:
+    timeout: 4000
+- extendedWaitUntil:
+    visible:
+        id: "social_feed_root"
+    timeout: 8000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_01_feed
+
+# Scroll until a known friend's row is visible. Sara Lin is one of the
+# seeded mock friends with feed activity (DevMockData.kt:1474).
+- scrollUntilVisible:
+    element:
+        text: "Sara Lin"
+    direction: DOWN
+    timeout: 8000
+- tapOn: "Sara Lin"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# FriendProfileScreen structural anchors. The 4-cell stat row labels are
+# "Friends", "Mutuals", "Sessions", "Arrows"; the "This week" block carries
+# the literal "This week" italic header.
+- assertVisible: "‹ BACK"
+- assertVisible: "Sara Lin"
+- assertVisible: "Friends"
+- assertVisible: "Mutuals"
+- assertVisible: "Sessions"
+- assertVisible: "Arrows"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_02_profile
+
+# Scroll down to confirm the "This week" panel renders.
+- scrollUntilVisible:
+    element:
+        text: "This week"
+    direction: DOWN
+    timeout: 6000
+- assertVisible: "This week"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_03_this_week
+
+# Back to feed.
+- tapOn: "‹ BACK"
+- waitForAnimationToEnd:
+    timeout: 3000
+- extendedWaitUntil:
+    visible:
+        id: "social_feed_root"
+    timeout: 6000
