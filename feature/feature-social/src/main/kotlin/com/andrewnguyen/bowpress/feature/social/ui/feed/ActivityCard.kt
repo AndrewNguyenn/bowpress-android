@@ -157,11 +157,11 @@ fun ActivityCard(
     // that archer's profile. No-op default so previews / non-mention callers
     // need not wire it.
     onMentionTap: (handle: String) -> Unit = {},
-    // iOS parity (E2 / placeholder) — tapping the actor name or avatar opens
-    // the actor's profile. Wired by porter-profile-social; null today so the
-    // signature stays stable while the porter lands the eyebrow / actor-tap
-    // body implementation. Don't fill in the call sites without coordinating.
-    @Suppress("UNUSED_PARAMETER") onActorClick: ((String) -> Unit)? = null,
+    // Parity E2 — tapping the actor avatar OR name in the card header opens
+    // that archer's profile. Null when the row is own / inert (e.g. self
+    // posts in the feed); the header then renders avatar + name un-tapped.
+    // Default null so previews / older callers compile unchanged.
+    onActorClick: ((userId: String) -> Unit)? = null,
     // iOS parity (A5) — overflow affordances for own rows. When at least
     // one of [onEdit] / [onDelete] is non-null the header renders a 3-dot
     // overflow that opens a DropdownMenu with the corresponding items.
@@ -179,10 +179,19 @@ fun ActivityCard(
             .clickable(onClick = onClick)
             .testTag(TestTags.FeedRowPreview),
     ) {
+        // Parity E4 — small-caps "VIA @{handle}" eyebrow above the header row,
+        // shown when the row appeared in the feed because someone you follow
+        // was @-mentioned in the post (not because the poster is your friend).
+        // The handle tap opens that mentioning archer's profile.
+        item.session?.viaMentionHandle?.takeIf { it.isNotBlank() }?.let { viaHandle ->
+            ViaMentionEyebrow(handle = viaHandle, onMentionTap = onMentionTap)
+            HorizontalDivider(color = AppLine2, thickness = 1.dp)
+        }
         ActivityCardHeader(
             item = item,
             onLocationTap = onLocationTap,
             onMentionTap = onMentionTap,
+            onActorClick = onActorClick,
             onEdit = onEdit,
             onDelete = onDelete,
         )
@@ -236,11 +245,43 @@ fun ActivityCard(
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
+/**
+ * Parity E4 — the "VIA @{handle}" eyebrow row, shown above the card header on
+ * a row that surfaced through @-mention fanout. The handle text is tappable;
+ * the rest of the row is inert. Tap → opens the mentioning archer's profile.
+ */
+@Composable
+private fun ViaMentionEyebrow(
+    handle: String,
+    onMentionTap: (handle: String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AppPaper2)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "VIA ",
+            style = interUI(11.sp, FontWeight.Medium).copy(letterSpacing = 0.24.em),
+            color = AppInk3,
+        )
+        Text(
+            text = "@$handle",
+            style = interUI(11.sp, FontWeight.Medium).copy(letterSpacing = 0.24.em),
+            color = AppPondDk,
+            modifier = Modifier.clickable { onMentionTap(handle) },
+        )
+    }
+}
+
 @Composable
 private fun ActivityCardHeader(
     item: ActivityItem,
     onLocationTap: (SessionLocation) -> Unit,
     onMentionTap: (handle: String) -> Unit,
+    onActorClick: ((userId: String) -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
@@ -251,24 +292,26 @@ private fun ActivityCardHeader(
     // The avatar reads pine only when the card carries a pine (milestone)
     // stamp; otherwise it stays the neutral pond-dk. Mirrors iOS `avatarTone`.
     val avatarColor = if (stampColor == AppPine) AppPine else AppPondDk
+    // Parity E2 — actor avatar + name navigate to the actor's profile. Wire
+    // the click only when a callback was supplied AND the row carries a real
+    // actor id (older API rows have a blank actorUserId → nowhere to drill).
+    val actorTap: (() -> Unit)? = onActorClick?.takeIf { item.actorUserId.isNotBlank() }
+        ?.let { cb -> { cb(item.actorUserId) } }
     Row(
         modifier = Modifier.padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         // 32dp avatar — pond/pine border, paper-2 ground, italic Fraunces initials.
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .border(1.dp, avatarColor)
-                .background(AppPaper2),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = avatarInitials(item.actorDisplayName),
-                style = frauncesDisplay(12.5.sp, italic = true, weight = FontWeight.Medium),
-                color = avatarColor,
-            )
-        }
+        // Parity E5 — when the API ships an avatarUrl, render the URL with
+        // ?v=<avatarVersion> as a cache-buster; fall back to initials otherwise.
+        com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage(
+            displayName = item.actorDisplayName,
+            avatarUrl = item.actorAvatarUrl,
+            avatarVersion = item.actorAvatarVersion,
+            size = 32,
+            borderTint = avatarColor,
+            modifier = if (actorTap != null) Modifier.clickable(onClick = actorTap) else Modifier,
+        )
         Spacer(Modifier.width(10.dp))
 
         Column(Modifier.weight(1f)) {
@@ -292,12 +335,15 @@ private fun ActivityCardHeader(
                     )
                 }
             }
-            // Italic Fraunces name.
+            // Italic Fraunces name. Parity E2 — tappable when an actor click
+            // callback is wired (own posts pass null → name stays inert).
             Text(
                 text = item.actorDisplayName,
                 style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium),
                 color = AppInk,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .let { if (actorTap != null) it.clickable(onClick = actorTap) else it },
             )
             // Italic Fraunces verb / session-name headline. Only an
             // archer-authored custom title can carry `@handle` mentions

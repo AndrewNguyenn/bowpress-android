@@ -253,7 +253,13 @@ fun FeedScreen(
                         )
                     },
                     onMentionTap = onMentionTap,
-                    onActorClick = onActorClick,
+                    // Parity E2 — tappable actor avatar + name in the header.
+                    // Own posts (currentUserId == row actor) pass null so the
+                    // self-row stays inert; everyone else opens the actor's
+                    // profile.
+                    onActorClick = if (item.isOwn) null else { actorUserId: String ->
+                        if (actorUserId.isNotBlank()) onActorClick(actorUserId)
+                    },
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 )
             }

@@ -31,6 +31,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // §18 location tagging — fused location for "use current location".
     implementation(libs.play.services.location)
+    // Parity E5 — profile picture across feed / kudos / comments / detail.
+    // Coil AsyncImage with avatarUrl + ?v=avatarVersion cache buster.
+    implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
@@ -90,6 +91,65 @@ fun SocialAvatar(
             ),
             color = AppPondDk,
         )
+    }
+}
+
+/**
+ * Parity E5 — avatar that renders an uploaded profile picture when
+ * [avatarUrl] is non-null, with `?v=<avatarVersion>` appended so a fresh
+ * upload invalidates Coil's cache; falls back to initials otherwise. The
+ * square chrome (border + paper-2 ground) is preserved across both render
+ * paths so the kudos/feed/comments avatars stay visually consistent.
+ *
+ * Optional [borderTint] overrides the default pond-dk frame (used by the
+ * feed card's pine border for milestone posts).
+ */
+@Composable
+fun SocialAvatarImage(
+    displayName: String,
+    avatarUrl: String?,
+    avatarVersion: Int?,
+    size: Int = 32,
+    borderTint: androidx.compose.ui.graphics.Color = AppPondDk,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(size.dp)
+            .border(1.dp, borderTint)
+            .background(AppPaper2),
+        contentAlignment = Alignment.Center,
+    ) {
+        val cacheBustedUrl = remember(avatarUrl, avatarVersion) {
+            avatarUrl?.let { url ->
+                if (avatarVersion != null) {
+                    val sep = if (url.contains('?')) '&' else '?'
+                    "$url${sep}v=$avatarVersion"
+                } else {
+                    url
+                }
+            }
+        }
+        if (cacheBustedUrl != null) {
+            coil.compose.AsyncImage(
+                model = cacheBustedUrl,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier
+                    .size(size.dp)
+                    .padding(0.dp),
+            )
+        } else {
+            Text(
+                text = avatarInitials(displayName),
+                style = frauncesDisplay(
+                    size = (size * 0.38f).sp,
+                    weight = FontWeight.Medium,
+                    italic = true,
+                ),
+                color = borderTint,
+            )
+        }
     }
 }
 
