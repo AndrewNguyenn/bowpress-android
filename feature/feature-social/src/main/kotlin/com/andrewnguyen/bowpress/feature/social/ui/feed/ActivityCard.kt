@@ -40,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
@@ -591,15 +592,22 @@ private fun RangeSessionBody(
         // Left — the WA target face with arrows plotted as ink dots.
         // fillMaxHeight makes the cell fill the (taller) scorecard column's
         // height so the target sits vertically centred, not toward the top.
+        // Multi-spot skips the 12/18dp gutter so the 3-spot card can reach
+        // the column edges, matching iOS where `.padding(.vertical, 18)
+        // .padding(.horizontal, 12)` only wraps the single-face ZStack.
+        val isMulti = targetLayout != null && targetLayout.isMultiSpot
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .heightIn(min = 230.dp)
-                .padding(vertical = 18.dp, horizontal = 12.dp),
+                .padding(
+                    vertical = if (isMulti) 0.dp else 18.dp,
+                    horizontal = if (isMulti) 0.dp else 12.dp,
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            if (targetLayout != null && targetLayout.isMultiSpot) {
+            if (isMulti && targetLayout != null) {
                 // 3-spot card — same renderer the detail screen uses, so
                 // a Vegas triangle/vertical session looks the same in the
                 // feed as it does when opened. Arrows come from the real
@@ -621,13 +629,24 @@ private fun RangeSessionBody(
                     layout = targetLayout,
                     sixRingStyle = sixRingStyle,
                     // §B1 — shaft diameter from the feed payload sizes the
-                    // dot against the 180mm Vegas spot (a 9mm Black Eagle
-                    // reads visibly fatter than a 4mm X10). FEED_MIN_DOT_RADIUS
-                    // mirrors iOS `minDotSize: 3` (diameter) on the feed
-                    // multi-spot body.
+                    // dot against the 180mm Vegas spot. The dot formula in
+                    // BPPlottedTarget reads the Canvas pixel size at draw
+                    // time (shaftMm / 180 * spotRadiusPx), so it scales
+                    // proportionally as the face grows from 168 → 320dp —
+                    // no math change needed here. FEED_MIN_DOT_RADIUS
+                    // mirrors iOS `minDotSize: 3` (diameter).
                     arrowDiameterMm = arrowDiameterMm,
                     minDotRadius = FEED_MIN_DOT_RADIUS,
-                    modifier = Modifier.size(TARGET_FACE_SIZE),
+                    // Match iOS `SessionHeatMapView ... .scaleEffect(1.12)
+                    // .frame(maxWidth: 320, maxHeight: 320)` — fill the
+                    // column width up to a 320dp cap, then overflow 12%
+                    // so the spots reach the column edges. Drops the
+                    // previous fixed 168dp pin that left the 3-spot card
+                    // visibly smaller than its iOS counterpart.
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 320.dp)
+                        .scale(1.12f),
                 )
             } else {
                 // The design ships a ~188dp face; the 50/50 column at phone
