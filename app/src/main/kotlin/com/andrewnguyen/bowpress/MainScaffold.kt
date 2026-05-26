@@ -9,12 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.TrackChanges
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -27,8 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -133,12 +127,17 @@ fun MainScaffold(
                                 }
                             },
                             icon = {
+                                // iOS parity (A4) — archery-specific monoline
+                                // tab glyphs replace the generic Material icons.
+                                // Painters resolve via R.drawable on the per-tab
+                                // resource id, kept in the TopTab enum.
+                                val painter = painterResource(tab.iconRes)
                                 if (badge != null) {
                                     BadgedBox(badge = { Badge { Text(badge.toString()) } }) {
-                                        Icon(tab.icon, contentDescription = tab.label)
+                                        Icon(painter, contentDescription = tab.label)
                                     }
                                 } else {
-                                    Icon(tab.icon, contentDescription = tab.label)
+                                    Icon(painter, contentDescription = tab.label)
                                 }
                             },
                             label = {
@@ -284,7 +283,7 @@ fun MainScaffold(
 private enum class TopTab(
     val graphRoute: String,
     val label: String,
-    val icon: ImageVector,
+    @androidx.annotation.DrawableRes val iconRes: Int,
 ) {
     // iOS parity (A1) — Feed is the home tab, so the Social entry is first
     // in declaration order (Compose iterates `entries` for the bottom bar).
@@ -293,9 +292,13 @@ private enum class TopTab(
     // The route string `tab/social` is preserved on the Social entry so any
     // deep link / saved-state route survives the rename; only the
     // user-visible label is "Feed".
-    Social("tab/social", "Feed", Icons.Filled.Group),
-    Log("tab/log", "Log", Icons.Filled.Assignment),
-    Session("tab/session", "Session", Icons.Filled.TrackChanges),
-    Analytics("tab/analytics", "Analytics", Icons.Filled.BarChart),
-    Equipment("tab/equipment", "Equipment", Icons.Filled.Tune),
+    //
+    // iOS parity (A4) — archery-specific tab glyphs replace the Material
+    // icons. The drawables live in :core:core-designsystem and are tinted
+    // by NavigationBarItemDefaults per selection state.
+    Social("tab/social", "Feed", com.andrewnguyen.bowpress.core.designsystem.R.drawable.bp_tab_feed),
+    Log("tab/log", "Log", com.andrewnguyen.bowpress.core.designsystem.R.drawable.bp_tab_log),
+    Session("tab/session", "Session", com.andrewnguyen.bowpress.core.designsystem.R.drawable.bp_tab_session),
+    Analytics("tab/analytics", "Analytics", com.andrewnguyen.bowpress.core.designsystem.R.drawable.bp_tab_analytics),
+    Equipment("tab/equipment", "Equipment", com.andrewnguyen.bowpress.core.designsystem.R.drawable.bp_tab_equipment),
 }

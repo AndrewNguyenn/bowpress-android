@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS parity (A4) — Analytics tab: target circle with a 5-dot scatter group.
+  Monoline strokes, 1.5px. Mirrors bp-tab-analytics.svg's geometry.
+
+  Vector tinting: Compose's Icon composable replaces every pixel of this
+  drawable with its current LocalContentColor, so the literal "#000" here
+  is just a placeholder — the rendered hue is driven by selected/idle
+  NavigationBarItemDefaults tints in MainScaffold.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- Outer face — circle r=8.5 at (12,12). Encoded as two arc halves. -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 3.5 12 a 8.5 8.5 0 1 0 17 0 a 8.5 8.5 0 1 0 -17 0" />
+    <!-- 5-arrow plot group, filled dots. r ≈ 1.05. -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 9.35 10.2 a 1.05 1.05 0 1 0 2.1 0 a 1.05 1.05 0 1 0 -2.1 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 12.15 9.9 a 1.05 1.05 0 1 0 2.1 0 a 1.05 1.05 0 1 0 -2.1 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 9.85 13.1 a 1.05 1.05 0 1 0 2.1 0 a 1.05 1.05 0 1 0 -2.1 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 12.55 13.4 a 1.05 1.05 0 1 0 2.1 0 a 1.05 1.05 0 1 0 -2.1 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 11.05 11.5 a 1.05 1.05 0 1 0 2.1 0 a 1.05 1.05 0 1 0 -2.1 0" />
+</vector>

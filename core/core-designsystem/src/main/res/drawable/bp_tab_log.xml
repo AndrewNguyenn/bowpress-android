@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS parity (A4) — Log tab: bound-ledger glyph (vertical spine + 3 rows
+  of bullet + horizontal rule). Mirrors bp-tab-log.svg.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- Ledger spine -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 6 4 L 6 20" />
+    <!-- Row 1 — bullet + rule -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 8.65 7 a 0.95 0.95 0 1 0 1.9 0 a 0.95 0.95 0 1 0 -1.9 0" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 12 7 L 20 7" />
+    <!-- Row 2 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 8.65 12 a 0.95 0.95 0 1 0 1.9 0 a 0.95 0.95 0 1 0 -1.9 0" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 12 12 L 20 12" />
+    <!-- Row 3 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 8.65 17 a 0.95 0.95 0 1 0 1.9 0 a 0.95 0.95 0 1 0 -1.9 0" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 12 17 L 18 17" />
+</vector>

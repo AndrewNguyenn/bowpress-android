@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS parity (A4) — Feed tab: people-group glyph (two overlapping ring
+  outlines + 4 filled centre dots). Mirrors bp-tab-social.svg. Filename
+  uses `bp_tab_feed` to match the post-rename label; the iOS asset is
+  still `bp-tab-social` for historical reasons.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- Left ring — r=5.5 at (9,12) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 3.5 12 a 5.5 5.5 0 1 0 11 0 a 5.5 5.5 0 1 0 -11 0" />
+    <!-- Right ring — r=5.5 at (15,12) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 9.5 12 a 5.5 5.5 0 1 0 11 0 a 5.5 5.5 0 1 0 -11 0" />
+    <!-- Inner dots -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 7.9 12 a 1.1 1.1 0 1 0 2.2 0 a 1.1 1.1 0 1 0 -2.2 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 13.9 12 a 1.1 1.1 0 1 0 2.2 0 a 1.1 1.1 0 1 0 -2.2 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 10.3 13.6 a 1.1 1.1 0 1 0 2.2 0 a 1.1 1.1 0 1 0 -2.2 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 11.5 10.4 a 1.1 1.1 0 1 0 2.2 0 a 1.1 1.1 0 1 0 -2.2 0" />
+</vector>

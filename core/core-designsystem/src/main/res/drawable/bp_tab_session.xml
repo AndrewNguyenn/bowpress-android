@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS parity (A4) — Session tab: target face (outer + inner rings, filled
+  center dot) with an arrow flying out to the top-right (line + arrowhead
+  chevron). Mirrors bp-tab-session.svg.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- Outer face — circle r=8 at (11,13) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 3 13 a 8 8 0 1 0 16 0 a 8 8 0 1 0 -16 0" />
+    <!-- Inner ring — circle r=4.5 at (11,13) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 6.5 13 a 4.5 4.5 0 1 0 9 0 a 4.5 4.5 0 1 0 -9 0" />
+    <!-- Center spot (filled) — r=1.4 at (11,13) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 9.6 13 a 1.4 1.4 0 1 0 2.8 0 a 1.4 1.4 0 1 0 -2.8 0" />
+    <!-- Arrow shaft — from (11,13) to (21.2,2.8) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 11 13 L 21.2 2.8" />
+    <!-- Arrowhead — two short strokes off the tip -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 21.2 2.8 L 18.6 2.6 M 21.2 2.8 L 21.4 5.4" />
+</vector>
