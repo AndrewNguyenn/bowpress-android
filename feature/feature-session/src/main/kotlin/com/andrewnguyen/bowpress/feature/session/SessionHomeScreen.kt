@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -249,9 +250,20 @@ fun SessionHomeScreen(
                 },
             )
 
-            // iOS C5 (commit 01835ff) — the "nock up, breathe, and tap when
-            // you're on the line." microcopy block under Begin was removed in
-            // the same change that landed the FinishSheet. Android matches.
+            // iOS oracle (SessionView.swift `beginCtaBlock`) restored the
+            // helper-text block under Begin after the initial FinishSheet
+            // landing — Android matches.
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = if (isThreeD) {
+                    "walk the course; tap shoot at each target."
+                } else {
+                    "nock up, breathe, and tap when you're on the line."
+                },
+                style = frauncesDisplay(14.sp, italic = true, weight = FontWeight.Normal)
+                    .copy(color = AppInk3, textAlign = TextAlign.Center),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             state.error?.let { err ->
                 Spacer(Modifier.height(12.dp))
