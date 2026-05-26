@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only network security config — allows cleartext HTTP to localhost
+  and the Android emulator's host-machine alias (10.0.2.2) so the debug
+  build can hit a local `wrangler dev` API at http://localhost:8787 from
+  the emulator. Release builds use the platform default (cleartext denied
+  everywhere) because this file only exists in the debug source set.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Emulator → host machine. Standard alias for the loopback
+             interface of the development machine. -->
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- On-device loopback (mostly useful for instrumented tests). -->
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
