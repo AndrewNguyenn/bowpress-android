@@ -75,7 +75,7 @@ fun EquipmentHomeScreen(
             .fillMaxSize()
             .background(AppPaper),
     ) {
-        BPNavHeader(eyebrow = "BOWPRESS · KIT", title = "Equipment")
+        BPNavHeader(title = "Equipment")
 
         when {
             state.isLoading -> Box(

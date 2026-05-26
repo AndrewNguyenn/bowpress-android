@@ -112,7 +112,6 @@ internal fun SuggestionsDashboardContent(
             ) {
                 item {
                     BPNavHeader(
-                        eyebrow = "Bowpress",
                         title = "Insights",
                         meta = {
                             HeaderMeta(

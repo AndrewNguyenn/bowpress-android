@@ -100,7 +100,6 @@ fun ThreeDFinishReview(
             .verticalScroll(rememberScrollState()),
     ) {
         BPNavHeader(
-            eyebrow = "BOWPRESS · SIGN OFF",
             title = "Course complete",
             meta = {
                 Text(

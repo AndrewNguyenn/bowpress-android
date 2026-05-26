@@ -144,7 +144,6 @@ fun SessionHomeScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         BPNavHeader(
-            eyebrow = "BOWPRESS · SETUP",
             title = "Set the stage",
             meta = { SetupStamp() },
         )

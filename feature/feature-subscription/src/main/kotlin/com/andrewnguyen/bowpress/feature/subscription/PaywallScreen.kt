@@ -146,7 +146,6 @@ private fun PaywallBody(
         // Header
         BPNavHeader(
             title = "BowPress Pro",
-            eyebrow = "BOWPRESS · SUBSCRIPTION",
             meta = { BPEditLink(label = "CLOSE", onClick = onClose) },
         )
 

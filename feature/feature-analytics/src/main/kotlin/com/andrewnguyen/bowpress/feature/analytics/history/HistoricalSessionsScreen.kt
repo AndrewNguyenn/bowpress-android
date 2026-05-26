@@ -137,7 +137,6 @@ internal fun HistoricalSessionsContent(
             // 1. Nav header with session counts meta.
             item {
                 BPNavHeader(
-                    eyebrow = "Bowpress",
                     title = "Session log",
                     meta = {
                         SessionCountsSlot(

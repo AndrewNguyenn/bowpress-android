@@ -123,7 +123,7 @@ private fun SettingsBody(
             .background(AppPaper)
             .verticalScroll(rememberScrollState()),
     ) {
-        BPNavHeader(eyebrow = "BOWPRESS · ACCOUNT", title = "Settings")
+        BPNavHeader(title = "Settings")
 
         // Profile block
         ProfileBlock(user = user, onEdit = onEditProfile)

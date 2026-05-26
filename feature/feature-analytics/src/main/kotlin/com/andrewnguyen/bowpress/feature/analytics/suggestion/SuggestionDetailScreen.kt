@@ -137,7 +137,6 @@ private fun SuggestionDetailBody(
     val scroll = rememberScrollState()
     Column(modifier = Modifier.fillMaxSize()) {
         BPNavHeader(
-            eyebrow = "Bowpress",
             title = "Adjustment",
             meta = { BPEditLink(label = "Close", onClick = onBack) },
         )

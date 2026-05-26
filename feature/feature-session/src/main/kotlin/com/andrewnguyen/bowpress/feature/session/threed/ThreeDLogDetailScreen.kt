@@ -62,7 +62,6 @@ fun ThreeDLogDetailScreen(
             .background(AppPaper),
     ) {
         BPNavHeader(
-            eyebrow = "BOWPRESS · 3D COURSE",
             title = state.session?.title?.takeIf { it.isNotBlank() } ?: "Course",
             meta = {
                 Text(

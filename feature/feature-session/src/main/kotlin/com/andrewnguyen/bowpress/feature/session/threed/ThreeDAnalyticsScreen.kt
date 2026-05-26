@@ -54,7 +54,6 @@ fun ThreeDAnalyticsScreen(
             .background(AppPaper),
     ) {
         BPNavHeader(
-            eyebrow = "BOWPRESS · 3D ANALYTICS",
             title = "Course form",
             meta = {
                 Text(

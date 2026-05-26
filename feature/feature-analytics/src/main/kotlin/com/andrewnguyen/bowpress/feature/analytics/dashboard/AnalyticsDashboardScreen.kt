@@ -186,7 +186,6 @@ internal fun AnalyticsDashboardContent(
             // 1. Nav header — owns its own 18dp h-padding; the 1dp hairline runs edge-to-edge.
             item {
                 BPNavHeader(
-                    eyebrow = "Bowpress",
                     title = "Analytics",
                     meta = { DateMetaSlot(sessionCount = state.overview?.sessionCount ?: 0) },
                 )

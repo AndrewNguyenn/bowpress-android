@@ -454,11 +454,6 @@ private fun FeedTopNav(
         verticalAlignment = Alignment.Bottom,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "BOWPRESS",
-                style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.32.em),
-                color = AppPondDk,
-            )
             // iOS parity (A1) — the screen-title text is "Feed". The graph
             // route string and class names stay `Social*` for back-compat.
             Text(

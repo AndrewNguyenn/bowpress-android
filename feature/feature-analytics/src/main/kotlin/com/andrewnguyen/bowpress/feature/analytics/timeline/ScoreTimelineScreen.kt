@@ -64,7 +64,6 @@ internal fun ScoreTimelineContent(
             .background(AppPaper),
     ) {
         BPNavHeader(
-            eyebrow = "Bowpress",
             title = state.bow?.name?.let { "$it · timeline" } ?: "Score timeline",
             meta = { BPEditLink(label = "Close", onClick = onBack) },
         )
