@@ -20,11 +20,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -33,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.andrewnguyen.bowpress.core.model.HandleSuggestion
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
@@ -55,6 +60,7 @@ import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 
+@OptIn(FlowPreview::class)
 @Composable
 fun FriendsScreen(
     onBack: () -> Unit,
@@ -63,6 +69,15 @@ fun FriendsScreen(
 ) {
     val state by viewModel.friendsState.collectAsState()
     val searchState by viewModel.searchState.collectAsState()
+
+    // Parity E9 — live, debounced (250ms) substring fuzzy search. Every
+    // keystroke kicks `searchSuggestions`; the view model handles the
+    // empty-query short-circuit. Mirrors iOS commit 5bcf33a.
+    LaunchedEffect(Unit) {
+        snapshotFlow { searchState.query }
+            .debounce(250)
+            .collect { q -> viewModel.searchSuggestions(q) }
+    }
 
     Column(
         modifier = Modifier
@@ -97,71 +112,76 @@ fun FriendsScreen(
         HorizontalDivider(color = AppLine, thickness = 1.dp)
 
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
-            // Search section
+            // Parity E9 — live, substring fuzzy add-friend search. Replaces
+            // the old exact-handle + manual SEARCH-button flow.
             item {
                 Spacer(Modifier.height(14.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        "FIND BY HANDLE",
-                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
-                        color = AppInk3,
-                    )
-                }
+                Text(
+                    "FIND ARCHERS",
+                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                    color = AppInk3,
+                )
                 Spacer(Modifier.height(6.dp))
                 HorizontalDivider(color = AppLine, thickness = 1.dp)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 10.dp),
+                        .padding(top = 10.dp, bottom = 4.dp)
+                        .border(1.dp, AppLine)
+                        .background(AppPaper2)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("@", style = jetbrainsMono(12.sp), color = AppPondDk)
-                    Spacer(Modifier.width(4.dp))
-                    BasicTextField(
-                        value = searchState.query,
-                        onValueChange = { viewModel.setQuery(it) },
-                        textStyle = jetbrainsMono(12.sp).copy(color = AppInk),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag(TestTags.SocialFriendSearchField),
-                        decorationBox = { inner ->
-                            if (searchState.query.isEmpty()) {
-                                Text("handle", style = jetbrainsMono(12.sp), color = AppInk3)
-                            }
-                            inner()
-                        },
-                    )
+                    Text("Q", style = jetbrainsMono(13.sp), color = AppInk3)
                     Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .border(1.dp, AppPondDk)
-                            .clickable { viewModel.searchArcher(searchState.query) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                            .testTag(TestTags.SocialFriendSearchSubmit),
-                    ) {
-                        Text(
-                            "SEARCH",
-                            style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                            color = AppPondDk,
+                    Box(Modifier.weight(1f)) {
+                        if (searchState.query.isEmpty()) {
+                            Text(
+                                "name or @handle",
+                                style = interUI(14.sp),
+                                color = AppInk3,
+                            )
+                        }
+                        BasicTextField(
+                            value = searchState.query,
+                            onValueChange = { viewModel.setQuery(it) },
+                            textStyle = interUI(14.sp).copy(color = AppInk),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag(TestTags.SocialFriendSearchField),
                         )
                     }
                 }
-                // Search result
-                searchState.result?.let { profile ->
-                    SearchResultCard(
-                        profile = profile,
-                        requestSent = searchState.requestSent,
-                        onAdd = { viewModel.sendFriendRequest(profile.handle) },
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
                 searchState.error?.let { err ->
+                    Spacer(Modifier.height(6.dp))
                     Text(err, style = jetbrainsMono(10.sp), color = AppMaple)
-                    Spacer(Modifier.height(8.dp))
+                }
+            }
+
+            // Live substring results. Hidden when the query is blank so the
+            // pending + friends sections still take the full page on first
+            // open.
+            if (searchState.query.isNotBlank()) {
+                if (searchState.suggestions.isEmpty()) {
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "No archers match \"${searchState.query.trim()}\".",
+                            style = jetbrainsMono(10.5.sp),
+                            color = AppInk3,
+                        )
+                    }
+                } else {
+                    items(searchState.suggestions, key = { it.userId }) { hit ->
+                        SuggestionRow(
+                            suggestion = hit,
+                            requestSent = searchState.requestSent &&
+                                searchState.result?.handle == hit.handle,
+                            onAdd = { viewModel.sendFriendRequest(hit.handle) },
+                            onOpen = { onFriendClick(hit.userId) },
+                        )
+                        HorizontalDivider(color = AppLine2, thickness = 1.dp)
+                    }
                 }
             }
 
@@ -230,6 +250,55 @@ fun FriendsScreen(
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
+        }
+    }
+}
+
+/**
+ * Parity E9 — single row in the live substring add-friend results. The whole
+ * row is tappable to open the archer's profile; the CONNECT chip on the
+ * right consumes its own taps to send the friend request without leaving the
+ * search.
+ */
+@Composable
+private fun SuggestionRow(
+    suggestion: HandleSuggestion,
+    requestSent: Boolean,
+    onAdd: () -> Unit,
+    onOpen: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SocialAvatar(initials = avatarInitials(suggestion.displayName), size = 32)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(suggestion.displayName, style = frauncesDisplay(14.sp), color = AppInk)
+            Text("@${suggestion.handle}", style = jetbrainsMono(9.5.sp), color = AppInk3)
+        }
+        if (requestSent) {
+            Text(
+                "SENT",
+                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                color = AppStone,
+                modifier = Modifier
+                    .border(1.dp, AppStone)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        } else {
+            Text(
+                "CONNECT",
+                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                color = AppPondDk,
+                modifier = Modifier
+                    .border(1.dp, AppPondDk)
+                    .clickable(onClick = onAdd)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
         }
     }
 }
