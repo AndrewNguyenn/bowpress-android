@@ -10,7 +10,6 @@ import com.andrewnguyen.bowpress.core.model.FriendshipDirection
 import com.andrewnguyen.bowpress.core.model.FriendshipSource
 import com.andrewnguyen.bowpress.core.model.FriendshipStatus
 import com.andrewnguyen.bowpress.core.model.HandleSuggestion
-import com.andrewnguyen.bowpress.core.model.SocialProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,19 +42,25 @@ data class FriendProfileUiState(
     val followError: String? = null,
 )
 
+/**
+ * Parity E9 — backing state for the live fuzzy add-friend search. The
+ * legacy single-handle `searchArcher` path is gone (commit 5bcf33a on iOS
+ * deleted it too); every keystroke now drives [suggestions] and each row
+ * carries its own SENT chip via [sentHandles].
+ */
 data class FriendSearchUiState(
     val query: String = "",
-    val result: SocialProfile? = null,
     val isSearching: Boolean = false,
-    val requestSent: Boolean = false,
     val error: String? = null,
-    /**
-     * Parity E9 — live substring fuzzy results. The screen's debounced
-     * effect kicks `searchSuggestions(query)`; an empty query clears the
-     * list. Distinct from [result] which still drives the exact-handle
-     * single-row resolution.
-     */
+    /** Live substring suggestions. Cleared synchronously when the query goes blank. */
     val suggestions: List<HandleSuggestion> = emptyList(),
+    /**
+     * Handles successfully sent a friend request this session. Mirrors the
+     * per-row state pattern in `InviteArcherSheet` so the row chip flips to
+     * SENT without leaving the search. Defensively a Set so duplicate adds
+     * are a no-op.
+     */
+    val sentHandles: Set<String> = emptySet(),
 )
 
 data class CompareUiState(
@@ -89,8 +94,43 @@ class FriendsViewModel @Inject constructor(
     private val _compareState = MutableStateFlow(CompareUiState())
     val compareState: StateFlow<CompareUiState> = _compareState.asStateFlow()
 
+    /**
+     * Parity E1 — the friend-profile screen is rendered inside this VM's
+     * scope and reads [_profileState.friendship] off these flows. Collecting
+     * them once at init time (instead of inside [loadFriendProfile]) avoids
+     * stacking collectors per nav-entry recomposition. The match filter is
+     * keyed by [profileTargetUserId] so the right friendship row surfaces
+     * even though the flows fire on every Room mutation.
+     */
+    private var profileTargetUserId: String = ""
+
     init {
         loadFriends()
+        // Single-collector lifetime — keyed by [profileTargetUserId] so the
+        // flow can re-target without spawning new collectors.
+        viewModelScope.launch {
+            socialRepository.observeFriends().collect { friends ->
+                val target = profileTargetUserId
+                if (target.isEmpty()) return@collect
+                val match = friends.firstOrNull { it.otherUserId == target }
+                if (match != null) {
+                    _profileState.update { it.copy(friendship = match) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            socialRepository.observePendingRequests().collect { pending ->
+                val target = profileTargetUserId
+                if (target.isEmpty()) return@collect
+                val match = pending.firstOrNull { it.otherUserId == target }
+                // Only set when there's a matching pending row; an unrelated
+                // mutation shouldn't blow away an accepted friendship we
+                // already resolved on the friends-flow side.
+                if (match != null) {
+                    _profileState.update { it.copy(friendship = match) }
+                }
+            }
+        }
     }
 
     // ── Friends list ──────────────────────────────────────────────────────────
@@ -133,31 +173,44 @@ class FriendsViewModel @Inject constructor(
         }
     }
 
-    // ── Friend search ─────────────────────────────────────────────────────────
+    // ── Friend search (parity E9) ────────────────────────────────────────────
 
+    /**
+     * Update the typed query. Clears [suggestions] synchronously when the
+     * trimmed input goes empty so the row list disappears immediately on
+     * backspace-to-blank instead of waiting for the screen's 250ms debounce
+     * to land.
+     */
     fun setQuery(query: String) {
-        _searchState.update { it.copy(query = query, result = null, error = null, requestSent = false) }
-    }
-
-    fun searchArcher(handle: String) {
-        viewModelScope.launch {
-            _searchState.update { it.copy(isSearching = true, error = null) }
-            runCatching { socialRepository.searchArcher(handle) }
-                .onSuccess { p -> _searchState.update { it.copy(result = p, isSearching = false) } }
-                .onFailure { e -> _searchState.update { it.copy(error = e.message, isSearching = false) } }
+        val trimmed = query.trim()
+        _searchState.update {
+            it.copy(
+                query = query,
+                error = null,
+                suggestions = if (trimmed.isEmpty()) emptyList() else it.suggestions,
+            )
         }
     }
 
+    /**
+     * Parity E9 — fire-and-forget friend request from a suggestion-row tap.
+     * Adds the handle to [sentHandles] on success so the row chip flips to
+     * SENT; surfaces errors via [error] without dropping the typed query.
+     */
     fun sendFriendRequest(handle: String) {
         viewModelScope.launch {
             runCatching { socialRepository.sendFriendRequest(handle) }
-                .onSuccess { _searchState.update { it.copy(requestSent = true, error = null) } }
+                .onSuccess {
+                    _searchState.update {
+                        it.copy(error = null, sentHandles = it.sentHandles + handle)
+                    }
+                }
                 .onFailure { e -> _searchState.update { it.copy(error = e.message) } }
         }
     }
 
     /**
-     * Parity E9 — live, substring fuzzy search backing the new add-friend
+     * Parity E9 — live, substring fuzzy search backing the add-friend
      * picker. Matches on handle OR display name. The screen debounces; this
      * is a plain pass-through that swallows network errors so an offline
      * blip doesn't blow away the typed query.
@@ -166,15 +219,16 @@ class FriendsViewModel @Inject constructor(
         viewModelScope.launch {
             val trimmed = query.trim()
             if (trimmed.isEmpty()) {
-                _searchState.update { it.copy(suggestions = emptyList()) }
+                _searchState.update { it.copy(suggestions = emptyList(), isSearching = false) }
                 return@launch
             }
+            _searchState.update { it.copy(isSearching = true) }
             runCatching { socialRepository.searchHandlesSubstring(trimmed) }
                 .onSuccess { hits ->
-                    _searchState.update { it.copy(suggestions = hits) }
+                    _searchState.update { it.copy(suggestions = hits, isSearching = false) }
                 }
                 .onFailure {
-                    _searchState.update { it.copy(suggestions = emptyList()) }
+                    _searchState.update { it.copy(suggestions = emptyList(), isSearching = false) }
                 }
         }
     }
@@ -182,6 +236,12 @@ class FriendsViewModel @Inject constructor(
     // ── Friend profile ────────────────────────────────────────────────────────
 
     fun loadFriendProfile(otherUserId: String) {
+        // Re-target the lifetime-long observers in [init]. They'll surface
+        // any matching friendship row from the next emission of either flow.
+        profileTargetUserId = otherUserId
+        // Clear any leftover friendship from the previously-viewed profile
+        // before the observers settle on the new target.
+        _profileState.update { it.copy(friendship = null) }
         viewModelScope.launch {
             _profileState.update { it.copy(isLoading = true, error = null) }
             runCatching { socialRepository.getFriendProfile(otherUserId) }
@@ -189,32 +249,9 @@ class FriendsViewModel @Inject constructor(
                     _profileState.update { it.copy(friendProfile = fp, isLoading = false) }
                 }
                 .onFailure { e -> _profileState.update { it.copy(error = e.message, isLoading = false) } }
-            // Best-effort refresh so the observe-flows below get a current
+            // Best-effort refresh so the init-time observers see a current
             // friends + pending list. Soft-fail.
             runCatching { socialRepository.refreshFriends() }
-        }
-        // Parity E1 — observe the friends + pending-requests flows so the
-        // follow button reflects accept / cancel / unfriend mutations as
-        // they land in Room.
-        viewModelScope.launch {
-            socialRepository.observeFriends().collect { friends ->
-                val match = friends.firstOrNull { it.otherUserId == otherUserId }
-                if (match != null) {
-                    _profileState.update { it.copy(friendship = match) }
-                }
-            }
-        }
-        viewModelScope.launch {
-            socialRepository.observePendingRequests().collect { pending ->
-                val match = pending.firstOrNull { it.otherUserId == otherUserId }
-                _profileState.update { state ->
-                    // Don't overwrite an accepted friendship with a stale
-                    // pending row (a pending row can linger in Room briefly
-                    // after the accept call updates the friends list).
-                    if (state.friendship?.status == FriendshipStatus.accepted) state
-                    else state.copy(friendship = match)
-                }
-            }
         }
     }
 

@@ -135,7 +135,6 @@ object TestTags {
     const val SocialYouRoot: String = "social_you_root"
     const val SocialFriendsRoot: String = "social_friends_root"
     const val SocialFriendSearchField: String = "social_friend_search_field"
-    const val SocialFriendSearchSubmit: String = "social_friend_search_submit"
     const val SocialClubsRoot: String = "social_clubs_root"
     const val SocialLeaguesRoot: String = "social_leagues_root"
     const val SocialLeagueComposerName: String = "social_league_composer_name"

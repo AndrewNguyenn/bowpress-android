@@ -56,7 +56,6 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.Friendship
 import com.andrewnguyen.bowpress.core.model.FriendshipDirection
-import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 
@@ -175,8 +174,10 @@ fun FriendsScreen(
                     items(searchState.suggestions, key = { it.userId }) { hit ->
                         SuggestionRow(
                             suggestion = hit,
-                            requestSent = searchState.requestSent &&
-                                searchState.result?.handle == hit.handle,
+                            // Parity E9 — per-row SENT chip, driven off the
+                            // sentHandles set the VM updates on a successful
+                            // sendFriendRequest.
+                            requestSent = hit.handle in searchState.sentHandles,
                             onAdd = { viewModel.sendFriendRequest(hit.handle) },
                             onOpen = { onFriendClick(hit.userId) },
                         )
@@ -299,49 +300,6 @@ private fun SuggestionRow(
                     .clickable(onClick = onAdd)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun SearchResultCard(
-    profile: SocialProfile,
-    requestSent: Boolean,
-    onAdd: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, AppLine)
-            .background(AppPaper2)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SocialAvatar(initials = avatarInitials(profile.displayName), size = 32)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(profile.displayName, style = frauncesDisplay(14.sp), color = AppInk)
-            Text("@${profile.handle}", style = jetbrainsMono(9.5.sp), color = AppInk3)
-        }
-        if (requestSent) {
-            Text(
-                "SENT",
-                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                color = AppStone,
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .border(1.dp, AppPondDk)
-                    .clickable(onClick = onAdd)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    "CONNECT",
-                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                    color = AppPondDk,
-                )
-            }
         }
     }
 }
