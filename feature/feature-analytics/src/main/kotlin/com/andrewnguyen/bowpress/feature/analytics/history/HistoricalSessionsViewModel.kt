@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
+import com.andrewnguyen.bowpress.core.data.sync.LocalHydration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
@@ -96,6 +97,7 @@ class HistoricalSessionsViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val bowRepository: BowRepository,
     private val plotRepository: PlotRepository,
+    private val localHydration: LocalHydration,
 ) : ViewModel() {
 
     private val bowFilter = MutableStateFlow<String?>(null)
@@ -124,8 +126,10 @@ class HistoricalSessionsViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            runCatching { sessionRepository.refreshFromRemote() }
-            runCatching { bowRepository.refreshFromRemote() }
+            // Full fan-out: sessions alone leave arrow_plots empty, so cards
+            // would render 0/0 even after a pull-to-refresh. iOS parity —
+            // LocalHydration walks sessions → plots/ends/stations.
+            runCatching { localHydration.hydrateFromApi() }
         }
     }
 

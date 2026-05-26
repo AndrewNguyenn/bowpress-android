@@ -8,6 +8,8 @@ import com.andrewnguyen.bowpress.core.data.repository.UnitPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.repository.UserRepository
 import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
+import com.andrewnguyen.bowpress.core.data.sync.AppSnackbarBus
+import com.andrewnguyen.bowpress.core.data.sync.LocalHydration
 import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
 import com.andrewnguyen.bowpress.core.model.AuthProvider
@@ -72,6 +74,8 @@ class AppStateViewModelTest {
             mockk<DevMockDataSeeder>(relaxed = true),
             mockk<SocialRepository>(relaxed = true),
             SocialBadgeRefreshBus(),
+            mockk<AppSnackbarBus>(relaxed = true),
+            mockk<LocalHydration>(relaxed = true),
         )
         vm.uiState.test {
             val s = awaitItem()
@@ -110,6 +114,8 @@ class AppStateViewModelTest {
             mockk<DevMockDataSeeder>(relaxed = true),
             mockk<SocialRepository>(relaxed = true),
             SocialBadgeRefreshBus(),
+            mockk<AppSnackbarBus>(relaxed = true),
+            mockk<LocalHydration>(relaxed = true),
         )
         vm.uiState.test {
             val s = awaitItem()
@@ -151,6 +157,8 @@ class AppStateViewModelTest {
             mockk<DevMockDataSeeder>(relaxed = true),
             mockk<SocialRepository>(relaxed = true),
             SocialBadgeRefreshBus(),
+            mockk<AppSnackbarBus>(relaxed = true),
+            mockk<LocalHydration>(relaxed = true),
         )
         vm.uiState.test {
             val s = awaitItem()
@@ -186,6 +194,8 @@ class AppStateViewModelTest {
             mockk<DevMockDataSeeder>(relaxed = true),
             socialRepo,
             SocialBadgeRefreshBus(),
+            mockk<AppSnackbarBus>(relaxed = true),
+            mockk<LocalHydration>(relaxed = true),
         )
         vm.refreshSocialPendingCount()
 
@@ -222,6 +232,8 @@ class AppStateViewModelTest {
             mockk<DevMockDataSeeder>(relaxed = true),
             socialRepo,
             SocialBadgeRefreshBus(),
+            mockk<AppSnackbarBus>(relaxed = true),
+            mockk<LocalHydration>(relaxed = true),
         )
         vm.refreshSocialPendingCount()
 

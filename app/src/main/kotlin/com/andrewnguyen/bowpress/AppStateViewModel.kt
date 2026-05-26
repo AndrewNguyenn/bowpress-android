@@ -14,6 +14,7 @@ import com.andrewnguyen.bowpress.core.designsystem.coursemap.ElevationGridCache
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.MockTerrain
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
 import com.andrewnguyen.bowpress.core.data.sync.AppSnackbarBus
+import com.andrewnguyen.bowpress.core.data.sync.LocalHydration
 import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.UnitSystem
@@ -51,6 +52,7 @@ class AppStateViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
     private val socialBadgeRefreshBus: SocialBadgeRefreshBus,
     private val appSnackbarBus: AppSnackbarBus,
+    private val localHydration: LocalHydration,
 ) : ViewModel() {
 
     init {
@@ -221,6 +223,10 @@ class AppStateViewModel @Inject constructor(
                 runCatching { devMockDataSeeder.seedIfEmpty() }.getOrDefault(Unit).let { true }
             } else false
             runCatching { userRepository.refreshProfile() }
+            // Pull bows + configs + sessions + per-session plots/ends/stations
+            // so the Session log, Analytics, and detail screens have arrow data
+            // on first launch / second device. Mirrors iOS LocalHydration.
+            runCatching { localHydration.hydrateFromApi() }
             pushInitializer.start()
             refreshSocialPendingCount()
             _uiState.value = _uiState.value.copy(isHydrating = false)
