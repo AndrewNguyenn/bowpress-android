@@ -213,6 +213,19 @@ class FeedViewModel @Inject constructor(
     )
 
     /**
+     * iOS parity (A3) — stub source for the swipeable hero carousel.
+     *
+     * TODO(porter:profile-social or follow-up): replace with a live
+     * `socialRepository.observeFeedSummary()` once a port of the iOS
+     * `/social/feed-summary` endpoint lands on Android. For now, return
+     * the in-process preview so the carousel composable + layout can be
+     * verified end-to-end against iOS Maestro screenshots.
+     */
+    val feedSummary: StateFlow<FeedSummaryUi?> = MutableStateFlow<FeedSummaryUi?>(
+        FeedSummaryUi.preview,
+    ).asStateFlow()
+
+    /**
      * Drives the notification-bell badge in the feed top-nav — the same
      * pending-count total the Social *tab* badge shows.
      *

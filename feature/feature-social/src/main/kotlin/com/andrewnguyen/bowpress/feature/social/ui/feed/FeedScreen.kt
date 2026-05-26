@@ -80,6 +80,8 @@ fun FeedScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val pendingCount by viewModel.pendingCount.collectAsState()
+    // iOS parity (A3) — swipeable hero carousel under the top nav.
+    val feedSummary by viewModel.feedSummary.collectAsState()
 
     // Mentions contract §3.2 — a tapped `@handle` in a post title resolves to
     // an archer profile, reusing the actor-profile navigation.
@@ -124,6 +126,26 @@ fun FeedScreen(
         HorizontalDivider(color = AppLine, thickness = 1.dp)
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
+            // iOS parity (A3) — swipeable hero carousel above the
+            // activity list. Hidden entirely when there's no summary
+            // data (a brand-new account); the per-card empty-handling
+            // collapses individual cards too.
+            feedSummary?.takeIf { it.cards.isNotEmpty() }?.let { summary ->
+                item {
+                    FeedCarousel(
+                        summary = summary,
+                        // Best-session "Open" wired to the existing
+                        // session-detail navigation when the best
+                        // session is shared. The viewmodel preview
+                        // currently leaves sharedSessionId = null so
+                        // the link is hidden.
+                        onOpenBest = summary.bestSession
+                            ?.sharedSessionId
+                            ?.let { sid -> { onSessionClick(sid, /* isOwn */ false) } },
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            }
             // Eyebrow
             item {
                 FeedEyebrow()
