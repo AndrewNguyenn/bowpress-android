@@ -52,7 +52,9 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
  * (`titleIsCustom`, `isOwn`) in version 16, the Likes & Comments
  * columns on `activity_feed` (`subjectId`, `likeCount`, `likedByMe`,
  * `commentCount`) in version 17, and the Comment-threads kudos column on
- * `activity_feed` (`likersJson`) in version 18.
+ * `activity_feed` (`likersJson`) in version 18, and the avatar
+ * cache-buster columns on `activity_feed`
+ * (`actorAvatarVersion`, `actorAvatarUrl`) in version 19 (parity E5).
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -83,7 +85,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 3D Course stations — added v15
         CourseStationEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -128,6 +130,11 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 17→18: added the Comment-threads kudos column to activity_feed
         // (likersJson). Pure additive — nullable, defaults to NULL.
         AutoMigration(from = 17, to = 18),
+        // 18→19: added the avatar cache-buster columns to activity_feed
+        // (actorAvatarVersion, actorAvatarUrl). Pure additive — both nullable
+        // with defaults of NULL; an older cached row resolves to the monogram
+        // until a fresh feed fetch backfills the version.
+        AutoMigration(from = 18, to = 19),
     ],
 )
 @TypeConverters(Converters::class)

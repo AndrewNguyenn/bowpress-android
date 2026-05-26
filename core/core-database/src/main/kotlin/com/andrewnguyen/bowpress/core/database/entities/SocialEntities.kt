@@ -113,6 +113,13 @@ data class ActivityItemEntity(
     // club/league row that has no session blob still caches its kudos stack.
     // Nullable → the v17→v18 AutoMigration is purely additive.
     val likersJson: String? = null,
+    // Avatar cache-buster columns — added v19 (parity E5). `actorAvatarVersion`
+    // is the actor's profile-picture cache-buster (0 = monogram, otherwise the
+    // version on `/social/avatars/:userId?v=...`). Drives the feed-card avatar
+    // render. Nullable → the v18→v19 AutoMigration is purely additive; an
+    // older cached row decodes as null and the UI falls back to the monogram.
+    val actorAvatarVersion: Int? = null,
+    val actorAvatarUrl: String? = null,
 )
 
 // ── League ─────────────────────────────────────────────────────────────────

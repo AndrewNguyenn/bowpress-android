@@ -31,6 +31,20 @@ data class SocialProfile(
     val sessionCount: Int = 0,
     val arrowCount: Int = 0,
     val division: Division? = null,
+    /**
+     * Profile-picture cache-buster — 0 / null when no avatar is set,
+     * otherwise the version to ask `/social/avatars/:userId?v=...` for.
+     * Drives the URL-vs-monogram fork on every avatar render surface.
+     * Defaulted so a pre-avatarVersion payload still decodes.
+     */
+    val avatarVersion: Int? = null,
+    /**
+     * Pre-resolved avatar URL — most endpoints don't emit this (the API
+     * just bumps [avatarVersion] and clients build the URL themselves),
+     * but the field is here so any endpoint that does emit one — or a
+     * future contract change — wires through without another model bump.
+     */
+    val avatarUrl: String? = null,
 )
 
 @Serializable
@@ -425,6 +439,15 @@ data class ActivityItem(
     val sourceKind: ActivitySourceKind,
     val actorHandle: String,
     val actorDisplayName: String,
+    /**
+     * Actor's profile-picture cache-buster — 0 / null when no avatar is set,
+     * otherwise the version for `/social/avatars/:userId?v=...`. Defaulted so
+     * a pre-avatarVersion feed payload still decodes (monogram fallback).
+     * Mirrors iOS `ActivityItem.actorAvatarVersion` (commit ebd0258).
+     */
+    val actorAvatarVersion: Int? = null,
+    /** Pre-resolved actor avatar URL when the endpoint emits one. */
+    val actorAvatarUrl: String? = null,
     val title: String,
     val meta: String? = null,
     val stamp: String? = null,
@@ -484,6 +507,16 @@ data class ActivityActor(
     val userId: String,
     val handle: String,
     val displayName: String,
+    /**
+     * Profile-picture cache-buster — 0 / null when no avatar is set,
+     * otherwise the version for `/social/avatars/:userId?v=...`. Drives
+     * the kudos-stack / liker-list avatar render. Defaulted so a
+     * pre-avatarVersion payload still decodes (monogram fallback).
+     * Mirrors iOS `ActivityActor.avatarVersion` (commit ebd0258).
+     */
+    val avatarVersion: Int? = null,
+    /** Pre-resolved actor avatar URL when the endpoint emits one. */
+    val avatarUrl: String? = null,
 )
 
 // ── Mentions — handle search (mentions contract §2.1 / §3.1) ─────────────────
@@ -931,6 +964,16 @@ data class SharedSessionDetail(
     val sharedSession: SharedSession,
     val ownerHandle: String,
     val ownerDisplayName: String,
+    /**
+     * Owner's profile-picture cache-buster — 0 / null when no avatar is set,
+     * otherwise the version for `/social/avatars/:userId?v=...`. Drives the
+     * detail screen's owner-avatar render. Defaulted so a pre-avatarVersion
+     * detail payload still decodes. Mirrors iOS
+     * `SharedSessionDetail.ownerAvatarVersion` (commit ebd0258).
+     */
+    val ownerAvatarVersion: Int? = null,
+    /** Pre-resolved owner avatar URL when the endpoint emits one. */
+    val ownerAvatarUrl: String? = null,
     val session: ShootingSession? = null,
     val ends: List<SessionEnd> = emptyList(),
     val arrows: List<ArrowPlot> = emptyList(),
@@ -977,6 +1020,16 @@ data class ActivityComment(
     val userId: String,
     val authorHandle: String,
     val authorDisplayName: String,
+    /**
+     * Author's profile-picture cache-buster — 0 / null when no avatar is set,
+     * otherwise the version for `/social/avatars/:userId?v=...`. Drives the
+     * per-comment avatar render. Defaulted so a pre-avatarVersion comment
+     * payload still decodes (monogram fallback). Mirrors iOS
+     * `ActivityComment.authorAvatarVersion` (commit ebd0258).
+     */
+    val authorAvatarVersion: Int? = null,
+    /** Pre-resolved author avatar URL when the endpoint emits one. */
+    val authorAvatarUrl: String? = null,
     val body: String,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant,
