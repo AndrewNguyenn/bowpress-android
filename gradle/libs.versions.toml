@@ -45,6 +45,8 @@ firebaseBom = "33.7.0"
 googleServices = "4.4.2"
 playBilling = "7.1.1"
 playServicesLocation = "21.3.0"
+# uCrop — Mantis-equivalent crop step before session/avatar photo upload (D1).
+ucrop = "2.2.8"
 
 # Charts / animation
 lottieCompose = "6.6.0"
@@ -133,6 +135,11 @@ play-billing = { group = "com.android.billingclient", name = "billing-ktx", vers
 
 # Play Services — fused location (§18 "use current location")
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+
+# uCrop — Mantis-equivalent crop step (parity gap D1). Hosted on JitPack
+# (the repo is declared in settings.gradle.kts). Used by PhotoCropperSheet
+# to wrap an Activity-based crop with a Compose-friendly callback.
+ucrop = { group = "com.github.yalantis", name = "ucrop", version.ref = "ucrop" }
 
 # Charts / animation
 lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version.ref = "lottieCompose" }

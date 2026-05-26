@@ -35,6 +35,12 @@ dependencies {
     // Coil AsyncImage with avatarUrl + ?v=avatarVersion cache buster.
     implementation(libs.coil.compose)
 
+    // D1 — uCrop wraps the photo-crop step before avatar / shared-session
+    // uploads. PhotoCropperSheet (in this module) bridges its Activity-based
+    // API to Compose, exposing a `.free` (free-aspect) and `.square` mode
+    // mirroring iOS's Mantis configuration. Mantis = uCrop on Android.
+    implementation(libs.ucrop)
+
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.turbine)

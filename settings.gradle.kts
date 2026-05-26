@@ -18,6 +18,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // uCrop (com.github.yalantis:ucrop) is published on JitPack. Used by
+        // PhotoCropperSheet (parity gap D1) — the in-app crop step before a
+        // session/avatar photo upload, mirroring iOS's Mantis integration.
+        maven("https://jitpack.io")
     }
 }
 
