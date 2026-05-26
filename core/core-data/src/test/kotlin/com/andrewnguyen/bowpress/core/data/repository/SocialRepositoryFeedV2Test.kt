@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.data.repository
 
 import com.andrewnguyen.bowpress.core.data.social.SessionPhotoCache
 import com.andrewnguyen.bowpress.core.database.dao.ActivityFeedDao
+import com.andrewnguyen.bowpress.core.model.FeedPage
 import com.andrewnguyen.bowpress.core.model.PhotoStatus
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.SharedSession
@@ -104,7 +105,7 @@ class SocialRepositoryFeedV2Test {
         coEvery {
             api.patchSharedSession("ss-1", capture(bodySlot))
         } returns PatchSharedSessionResponse(sharedSession())
-        coEvery { api.getActivityFeed() } returns emptyList()
+        coEvery { api.getActivityFeed() } returns FeedPage(items = emptyList(), nextCursor = null)
 
         val place = SessionLocation(name = "Riverside", latitude = 1.0, longitude = 2.0)
         val result = repo.editSharedSession(
@@ -133,7 +134,7 @@ class SocialRepositoryFeedV2Test {
         coEvery {
             api.patchSharedSession("ss-1", capture(bodySlot))
         } returns PatchSharedSessionResponse(sharedSession())
-        coEvery { api.getActivityFeed() } returns emptyList()
+        coEvery { api.getActivityFeed() } returns FeedPage(items = emptyList(), nextCursor = null)
 
         val original = SessionLocation(name = "Riverside", latitude = 1.0, longitude = 2.0)
         repo.editSharedSession(
@@ -158,7 +159,7 @@ class SocialRepositoryFeedV2Test {
         coEvery {
             api.patchSharedSession("ss-1", capture(bodySlot))
         } returns PatchSharedSessionResponse(sharedSession(title = null))
-        coEvery { api.getActivityFeed() } returns emptyList()
+        coEvery { api.getActivityFeed() } returns FeedPage(items = emptyList(), nextCursor = null)
 
         repo.editSharedSession(
             sharedSessionId = "ss-1",
@@ -182,7 +183,7 @@ class SocialRepositoryFeedV2Test {
         coEvery {
             api.patchSharedSession("ss-1", capture(bodySlot))
         } returns PatchSharedSessionResponse(sharedSession())
-        coEvery { api.getActivityFeed() } returns emptyList()
+        coEvery { api.getActivityFeed() } returns FeedPage(items = emptyList(), nextCursor = null)
 
         repo.editSharedSession(
             sharedSessionId = "ss-1",
@@ -219,7 +220,7 @@ class SocialRepositoryFeedV2Test {
         coEvery {
             api.patchSharedSession("ss-1", capture(bodySlot))
         } returns PatchSharedSessionResponse(sharedSession())
-        coEvery { api.getActivityFeed() } returns emptyList()
+        coEvery { api.getActivityFeed() } returns FeedPage(items = emptyList(), nextCursor = null)
 
         val place = SessionLocation(name = "New Range", latitude = 3.0, longitude = 4.0)
         repo.editSharedSession(
