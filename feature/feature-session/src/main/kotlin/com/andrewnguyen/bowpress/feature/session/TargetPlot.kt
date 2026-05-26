@@ -230,14 +230,15 @@ private fun DrawScope.drawTargetFace(geometry: TargetGeometry) {
     val radiusPx = minOf(size.width, size.height) / 2f
     val center = Offset(size.width / 2f, size.height / 2f)
 
-    // Paint the outer-most ring as a filled disc, then each inner ring on
-    // top. `thresholds` is innermost-first (X .. outer), so walking it in
-    // reverse yields outer-first which is what the painter wants.
-    // Skip thresholds[0] (the X radius) — X is painted at the centre as
-    // the [drawXTick] cross, not as a coloured disc.
-    val outerThreshold = geometry.thresholds.last()
-    drawCircle(color = WHITE, radius = (outerThreshold * radiusPx).toFloat(), center = center)
-    // Walk outer → inner skipping the X ring at index 0.
+    // Paint a paper-coloured disc at the FULL canvas radius first so any
+    // gap between the outer-most scoring band and the canvas edge — most
+    // notably Vegas, whose ring-6 outer edge is at ~0.808 rather than 1.0
+    // — reads as a true white margin instead of leaking the parent
+    // background through. Mirrors PenLensOverlay's lens-face renderer.
+    drawCircle(color = WHITE, radius = radiusPx, center = center)
+    // Walk outer → inner skipping the X ring at index 0. `thresholds` is
+    // innermost-first (X .. outer), so walking in reverse paints outer
+    // first — exactly what the over-paint stack wants.
     for (i in geometry.thresholds.size - 1 downTo 1) {
         val ringEdge = geometry.thresholds[i]
         // ringEdge corresponds to the outer edge of the (innermostNumericRing - (size-1-i))'th ring.
