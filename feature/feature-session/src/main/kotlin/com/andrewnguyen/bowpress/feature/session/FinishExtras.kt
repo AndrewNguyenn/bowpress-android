@@ -98,43 +98,9 @@ data class FinishExtras(
     }
 }
 
-/**
- * Reports which post-share steps actually landed. The initial `shareSession`
- * call returns a [sharedSessionId]; everything after that (description PATCH,
- * photo uploads) is best-effort, so [hasPartialFailure] surfaces a "Posted,
- * but..." hint the UI can render as a Snackbar with a deep-link to the post's
- * edit sheet. Mirrors iOS `ShareOutcome`.
- */
-data class ShareOutcome(
-    val sharedSessionId: String,
-    val descriptionSucceeded: Boolean,
-    /** Number of photos that uploaded cleanly. Always ≤ [photosAttempted]. */
-    val photosUploaded: Int,
-    val photosAttempted: Int,
-) {
-    val hasPartialFailure: Boolean
-        get() = !descriptionSucceeded || photosUploaded < photosAttempted
-
-    /**
-     * Human-readable hint for the caller's "Posted, but..." surface. Returns
-     * null on a clean post so the caller's nil-check doubles as a partial-
-     * failure guard.
-     */
-    val partialFailureMessage: String?
-        get() {
-            if (!hasPartialFailure) return null
-            val missingPhotos = photosAttempted - photosUploaded
-            return when {
-                !descriptionSucceeded && missingPhotos == 0 ->
-                    "Posted, but your description didn't attach. Tap the post to add it."
-                descriptionSucceeded && missingPhotos > 0 -> {
-                    val label = if (missingPhotos == 1) "1 photo" else "$missingPhotos photos"
-                    "Posted, but $label didn't upload. Tap the post to retry."
-                }
-                else -> {
-                    val label = if (missingPhotos == 1) "1 photo" else "$missingPhotos photos"
-                    "Posted, but your description and $label didn't attach. Tap the post to retry."
-                }
-            }
-        }
-}
+// Note: a [ShareOutcome] data class used to live here as a parallel surface
+// for the partial-failure message. It has been collapsed — [SocialSessionSharer]
+// fans the same hint string straight to [AppSnackbarBus], which the
+// MainScaffold's SnackbarHost consumes. One source of truth for the message
+// shape, one delivery path. [ShareWithExtrasOutcome] in core-data carries the
+// raw counters when callers need to assert (tests).

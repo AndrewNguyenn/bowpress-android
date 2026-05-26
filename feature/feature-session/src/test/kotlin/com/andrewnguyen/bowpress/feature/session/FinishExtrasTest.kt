@@ -26,66 +26,10 @@ class FinishExtrasTest {
         assertThat(FinishAudience.Private.primaryTitle).isEqualTo("Finish")
     }
 
-    @Test
-    fun `clean share outcome reports no partial failure`() {
-        val outcome = ShareOutcome(
-            sharedSessionId = "ss-1",
-            descriptionSucceeded = true,
-            photosUploaded = 3,
-            photosAttempted = 3,
-        )
-        assertThat(outcome.hasPartialFailure).isFalse()
-        assertThat(outcome.partialFailureMessage).isNull()
-    }
-
-    @Test
-    fun `description-only failure surfaces a description hint`() {
-        val outcome = ShareOutcome(
-            sharedSessionId = "ss-1",
-            descriptionSucceeded = false,
-            photosUploaded = 0,
-            photosAttempted = 0,
-        )
-        assertThat(outcome.hasPartialFailure).isTrue()
-        assertThat(outcome.partialFailureMessage)
-            .isEqualTo("Posted, but your description didn't attach. Tap the post to add it.")
-    }
-
-    @Test
-    fun `single photo failure with succeeding description surfaces a photo hint`() {
-        val outcome = ShareOutcome(
-            sharedSessionId = "ss-1",
-            descriptionSucceeded = true,
-            photosUploaded = 0,
-            photosAttempted = 1,
-        )
-        assertThat(outcome.partialFailureMessage)
-            .isEqualTo("Posted, but 1 photo didn't upload. Tap the post to retry.")
-    }
-
-    @Test
-    fun `multi-photo failure with succeeding description pluralises`() {
-        val outcome = ShareOutcome(
-            sharedSessionId = "ss-1",
-            descriptionSucceeded = true,
-            photosUploaded = 1,
-            photosAttempted = 3,
-        )
-        assertThat(outcome.partialFailureMessage)
-            .isEqualTo("Posted, but 2 photos didn't upload. Tap the post to retry.")
-    }
-
-    @Test
-    fun `combined description and photo failure surfaces a combined hint`() {
-        val outcome = ShareOutcome(
-            sharedSessionId = "ss-1",
-            descriptionSucceeded = false,
-            photosUploaded = 0,
-            photosAttempted = 2,
-        )
-        assertThat(outcome.partialFailureMessage)
-            .isEqualTo("Posted, but your description and 2 photos didn't attach. Tap the post to retry.")
-    }
+    // Note: partial-failure message tests for the share path live with the
+    // owner of the message string — see core-data
+    // SocialSessionSharerPartialFailureTest. The earlier ShareOutcome wrapper
+    // was deleted along with the dead VM-side path.
 
     @Test
     fun `finish extras equality is by value not reference for photo bytes`() {

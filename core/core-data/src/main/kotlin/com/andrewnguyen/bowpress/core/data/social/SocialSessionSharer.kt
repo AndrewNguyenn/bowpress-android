@@ -214,27 +214,28 @@ class SocialSessionSharer @Inject constructor(
     /**
      * Render the partial-failure hint string for [outcome]. Mirrors iOS
      * `SessionViewModel.ShareOutcome.partialFailureMessage` — null when the
-     * post landed cleanly. Lives here so the SessionViewModel layer can
-     * compute the same string from its own outcome wrapper.
+     * post landed cleanly. Exposed at @JvmStatic on the companion so the
+     * core-data unit tests can pin the message shape directly.
      */
-    private fun partialFailureHint(outcome: ShareWithExtrasOutcome): String? {
-        if (!outcome.hasPartialFailure) return null
-        val missingPhotos = outcome.photosAttempted - outcome.photosUploaded
-        return when {
-            !outcome.descriptionSucceeded && missingPhotos == 0 ->
-                "Posted, but your description didn't attach. Tap the post to add it."
-            outcome.descriptionSucceeded && missingPhotos > 0 -> {
-                val label = if (missingPhotos == 1) "1 photo" else "$missingPhotos photos"
-                "Posted, but $label didn't upload. Tap the post to retry."
-            }
-            else -> {
-                val label = if (missingPhotos == 1) "1 photo" else "$missingPhotos photos"
-                "Posted, but your description and $label didn't attach. Tap the post to retry."
+    companion object {
+        @JvmStatic
+        fun partialFailureHint(outcome: ShareWithExtrasOutcome): String? {
+            if (!outcome.hasPartialFailure) return null
+            val missingPhotos = outcome.photosAttempted - outcome.photosUploaded
+            return when {
+                !outcome.descriptionSucceeded && missingPhotos == 0 ->
+                    "Posted, but your description didn't attach. Tap the post to add it."
+                outcome.descriptionSucceeded && missingPhotos > 0 -> {
+                    val label = if (missingPhotos == 1) "1 photo" else "$missingPhotos photos"
+                    "Posted, but $label didn't upload. Tap the post to retry."
+                }
+                else -> {
+                    val label = if (missingPhotos == 1) "1 photo" else "$missingPhotos photos"
+                    "Posted, but your description and $label didn't attach. Tap the post to retry."
+                }
             }
         }
-    }
 
-    private companion object {
-        const val TAG = "SocialSessionSharer"
+        private const val TAG = "SocialSessionSharer"
     }
 }

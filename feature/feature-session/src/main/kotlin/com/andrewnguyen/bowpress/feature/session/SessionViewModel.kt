@@ -723,8 +723,10 @@ class SessionViewModel @Inject constructor(
      * C1 extras-bearing share — POSTs the share, then best-effort PATCHes
      * the description and uploads the photo gallery sequentially so the
      * server-side display order matches the archer's pick order. Partial
-     * failures surface through [lastSharePartialFailure] so the UI can
-     * render the iOS-equivalent "Posted, but..." Snackbar.
+     * failures surface through [AppSnackbarBus] (fanned out from inside
+     * [SocialSessionSharer]) — the SessionViewModel may be torn down by the
+     * time the archer lands on Log, so the message rides the app-scoped bus
+     * rather than VM state.
      */
     private fun shareSessionWithExtras(
         session: ShootingSession,
@@ -738,11 +740,8 @@ class SessionViewModel @Inject constructor(
         val score = scored.sumOf { it.ring.coerceAtMost(10) }
         val xCount = scored.count { it.ring == 11 }
         val arrowCount = scored.size
-        // Reset the partial-failure hint at the top of every share path so a
-        // stale message from a previous post can't haunt a fresh clean one.
-        _uiState.update { it.copy(lastSharePartialFailure = null) }
         viewModelScope.launch {
-            val outcome = socialSessionSharer.shareWithExtras(
+            socialSessionSharer.shareWithExtras(
                 sessionId = session.id,
                 score = score,
                 xCount = xCount,
@@ -755,21 +754,7 @@ class SessionViewModel @Inject constructor(
                 description = extras.description,
                 photoData = extras.photoData,
             )
-            if (outcome != null && outcome.hasPartialFailure) {
-                val asOutcome = ShareOutcome(
-                    sharedSessionId = outcome.sharedSessionId,
-                    descriptionSucceeded = outcome.descriptionSucceeded,
-                    photosUploaded = outcome.photosUploaded,
-                    photosAttempted = outcome.photosAttempted,
-                )
-                _uiState.update { it.copy(lastSharePartialFailure = asOutcome.partialFailureMessage) }
-            }
         }
-    }
-
-    /** Clear the partial-share failure hint once the user has seen it. */
-    fun consumeSharePartialFailure() {
-        _uiState.update { it.copy(lastSharePartialFailure = null) }
     }
 
     /**

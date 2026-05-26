@@ -3,19 +3,17 @@ package com.andrewnguyen.bowpress.feature.session.threed
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.CourseStationRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.social.SocialSessionSharer
 import com.andrewnguyen.bowpress.core.designsystem.photo.TargetPhotoStore
+import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.CourseStation
 import com.andrewnguyen.bowpress.core.model.SessionType
-import com.andrewnguyen.bowpress.core.model.ShareSessionBody
 import com.andrewnguyen.bowpress.core.model.ShootingSession
-import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
-import com.andrewnguyen.bowpress.feature.session.FinishAudience
 import com.andrewnguyen.bowpress.feature.session.FinishExtras
-import com.andrewnguyen.bowpress.feature.session.ShareOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,13 +38,12 @@ data class ThreeDCourseUiState(
     val elevationGrid: ElevationGrid? = null,
     val autoEnded: AutoEndReason? = null,
     /**
-     * Non-null when the most recent C1 finish-sheet share landed the initial
-     * POST but had at least one best-effort step fail. The MainScaffold-level
-     * Snackbar renders this string and clears it via
-     * [ThreeDCourseViewModel.consumeSharePartialFailure]. Mirrors iOS
-     * `ThreeDCourseViewModel.lastSharePartialFailure`.
+     * The bow the course is being shot with — hydrated lazily once the
+     * active 3D session emits. Null while loading or when the bow row was
+     * removed under us. Used by the C1 FinishSheet meta strip so the post
+     * carries the real bow name instead of a placeholder.
      */
-    val lastSharePartialFailure: String? = null,
+    val bow: Bow? = null,
 ) {
     val isCourseActive: Boolean get() = session != null
     val scoringSystem: ThreeDScoringSystem get() = session?.scoringSystem ?: ThreeDScoringSystem.ASA
@@ -83,6 +80,7 @@ class ThreeDCourseViewModel @Inject constructor(
     private val sessionRepo: SessionRepository,
     private val courseStationRepo: CourseStationRepository,
     private val socialSessionSharer: SocialSessionSharer,
+    private val bowRepo: BowRepository,
 ) : ViewModel() {
 
     val locationTracker = CourseLocationTracker(appContext)
@@ -114,6 +112,14 @@ class ThreeDCourseViewModel @Inject constructor(
                     trackersRunning = false
                     locationTracker.stop()
                     motionReader.stop()
+                }
+                // Hydrate the bow row off the session's bowId. Done after
+                // every distinct active session emits so a course launched
+                // from a fresh VM instance still resolves to the right bow
+                // by the time the archer hits Sign & Save.
+                val bow = session?.bowId?.let { bowRepo.getBow(it) }
+                if (bow != _uiState.value.bow) {
+                    _uiState.update { it.copy(bow = bow) }
                 }
             }
         }
@@ -284,10 +290,14 @@ class ThreeDCourseViewModel @Inject constructor(
             sessionRepo.endSession(session.id, Instant.now(), notes)
 
             // Audience gate. Private → skip the share entirely; the session
-            // still lands in the archer's log, nobody else sees it.
+            // still lands in the archer's log, nobody else sees it. Partial
+            // failures (description PATCH, photo upload) fan out via
+            // [AppSnackbarBus] from inside [SocialSessionSharer.shareWithExtras]
+            // — this VM doesn't need to mirror the message into its own state
+            // because the surface (MainScaffold's SnackbarHost) reads the bus
+            // directly through [AppStateViewModel.pendingSnackbar].
             if (extras.audience.shouldShare) {
-                _uiState.update { it.copy(lastSharePartialFailure = null) }
-                val outcome = socialSessionSharer.shareWithExtras(
+                socialSessionSharer.shareWithExtras(
                     sessionId = session.id,
                     score = totalScore,
                     // xCount=0 for 3D — the scoring systems treat the inner
@@ -304,22 +314,8 @@ class ThreeDCourseViewModel @Inject constructor(
                     description = notes,
                     photoData = extras.photoData,
                 )
-                if (outcome != null && outcome.hasPartialFailure) {
-                    val asOutcome = ShareOutcome(
-                        sharedSessionId = outcome.sharedSessionId,
-                        descriptionSucceeded = outcome.descriptionSucceeded,
-                        photosUploaded = outcome.photosUploaded,
-                        photosAttempted = outcome.photosAttempted,
-                    )
-                    _uiState.update { it.copy(lastSharePartialFailure = asOutcome.partialFailureMessage) }
-                }
             }
         }
-    }
-
-    /** Clear the partial-share failure hint once the user has seen it. */
-    fun consumeSharePartialFailure() {
-        _uiState.update { it.copy(lastSharePartialFailure = null) }
     }
 
     /** Abandon the course — delete the session row and its stations. */
