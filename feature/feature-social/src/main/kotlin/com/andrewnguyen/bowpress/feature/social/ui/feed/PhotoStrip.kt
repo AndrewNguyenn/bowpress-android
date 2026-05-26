@@ -1,7 +1,13 @@
 package com.andrewnguyen.bowpress.feature.social.ui.feed
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +24,19 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +44,10 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlin.math.abs
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
@@ -308,11 +329,138 @@ internal fun PhotoStripViewer(
         ),
     ) {
         val pagerState = rememberPagerState(initialPage = start) { photos.size }
+        // Vertical-drag-to-dismiss state. The viewer tracks the finger
+        // as the user drags down; release past `dismissThresholdPx` or a
+        // fast downward flick tears the Dialog down via [onDismiss],
+        // otherwise the gallery springs back. Mirrors the iOS Photos /
+        // Twitter behavior and the iOS PhotoGalleryViewer fix.
+        val density = LocalDensity.current
+        val dismissThresholdPx = with(density) { 140.dp.toPx() }
+        val flickVelocityPx = with(density) { 800.dp.toPx() }
+        // First-sample direction multiplier (matches the iOS
+        // FeedMediaDismiss.directionRatio). A drag is treated as
+        // dismiss-intent only once |dy| > |dx| * this — gives a
+        // diagonal page-swipe a buffer before being misread.
+        val directionRatio = 1.2f
+        val offsetY = remember { Animatable(0f) }
+        val coroutineScope = rememberCoroutineScope()
+        val velocityTracker = remember { VelocityTracker() }
+        var containerHeightPx by remember { mutableFloatStateOf(0f) }
+        // Background fades with drag — at ~half the dismiss distance the
+        // ink is ~50% transparent, matching the iOS feel.
+        val dismissProgress = (offsetY.value / (dismissThresholdPx * 2)).coerceIn(0f, 1f)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(AppInk)
-                .clickable(onClick = onDismiss),
+                .onSizeChanged { containerHeightPx = it.height.toFloat() }
+                .background(AppInk.copy(alpha = 1f - dismissProgress))
+                // Tap and drag share a single pointerInput block so
+                // Compose can arbitrate tap-vs-drag in one place
+                // (matching the iOS PhotoGalleryViewer.fullScreenCover
+                // + simultaneousGesture pair). A separate `.clickable`
+                // would compete with the drag detector on slow nudges
+                // — the tap could fire while the snap-back is still
+                // animating.
+                .pointerInput(Unit) {
+                    // In-flight snap-back / dismiss animation. A new
+                    // touch cancels the previous animation so a user
+                    // can grab the gallery mid-snap and keep dragging
+                    // without fighting the spring.
+                    var animJob: Job? = null
+                    // Total accumulated travel since touch-down. The
+                    // gate at `isCommittedVertical` only flips once
+                    // |totalDy| has dominated |totalDx| by the
+                    // directionRatio — before then, HorizontalPager
+                    // sees the drag and pages photos normally.
+                    var totalDx = 0f
+                    var totalDy = 0f
+                    var isCommittedVertical = false
+                    coroutineScope {
+                        launch {
+                            // Pass an empty onLongPress so a long-press-
+                            // then-release doesn't fall through to onTap.
+                            // iOS's onTapGesture doesn't fire on long
+                            // press, so without this Android would
+                            // dismiss the gallery on a held finger
+                            // release — a behaviour divergence.
+                            detectTapGestures(
+                                onLongPress = {},
+                                onTap = { onDismiss() },
+                            )
+                        }
+                        launch {
+                            detectVerticalDragGestures(
+                                onDragStart = {
+                                    animJob?.cancel()
+                                    velocityTracker.resetTracking()
+                                    totalDx = 0f
+                                    totalDy = 0f
+                                    isCommittedVertical = false
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    velocityTracker.addPointerInputChange(change)
+                                    val delta = change.position - change.previousPosition
+                                    totalDx += delta.x
+                                    totalDy += delta.y
+                                    if (!isCommittedVertical) {
+                                        // Until vertical dominance is
+                                        // established, swallow drag
+                                        // amount without translating
+                                        // — lets HorizontalPager keep
+                                        // owning a diagonal-page intent.
+                                        if (totalDy > 0f
+                                            && totalDy > abs(totalDx) * directionRatio
+                                        ) {
+                                            isCommittedVertical = true
+                                        } else {
+                                            return@detectVerticalDragGestures
+                                        }
+                                    }
+                                    animJob = coroutineScope.launch {
+                                        offsetY.snapTo(
+                                            (offsetY.value + dragAmount).coerceAtLeast(0f),
+                                        )
+                                    }
+                                },
+                                onDragEnd = {
+                                    if (!isCommittedVertical) return@detectVerticalDragGestures
+                                    val vy = velocityTracker.calculateVelocity().y
+                                    animJob = coroutineScope.launch {
+                                        if (offsetY.value > dismissThresholdPx
+                                            || vy > flickVelocityPx
+                                        ) {
+                                            // Slide off then dismiss
+                                            // — the suspending animateTo
+                                            // serializes the dismissal
+                                            // after the animation, so
+                                            // there's no teardown race.
+                                            val target =
+                                                if (containerHeightPx > 0f) containerHeightPx
+                                                else dismissThresholdPx * 4
+                                            offsetY.animateTo(target, tween(durationMillis = 220))
+                                            onDismiss()
+                                        } else {
+                                            offsetY.animateTo(
+                                                0f,
+                                                spring(dampingRatio = Spring.DampingRatioLowBouncy),
+                                            )
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    if (!isCommittedVertical) return@detectVerticalDragGestures
+                                    animJob = coroutineScope.launch {
+                                        offsetY.animateTo(
+                                            0f,
+                                            spring(dampingRatio = Spring.DampingRatioLowBouncy),
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+                .graphicsLayer { translationY = offsetY.value },
             contentAlignment = Alignment.Center,
         ) {
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
