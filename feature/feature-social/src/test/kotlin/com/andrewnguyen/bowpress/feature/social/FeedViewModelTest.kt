@@ -117,7 +117,8 @@ class FeedViewModelTest {
         every { repository.observeClubs() } returns flowOf(listOf(stubClub))
         every { repository.observeLeagues() } returns flowOf(listOf(stubLeague))
 
-        coEvery { repository.refreshFeed() } returns Unit
+        coEvery { repository.refreshFeed() } returns
+            com.andrewnguyen.bowpress.core.model.FeedPage(items = emptyList(), nextCursor = null)
         coEvery { repository.refreshFriends() } returns Unit
         coEvery { repository.refreshClubs() } returns Unit
         coEvery { repository.refreshLeagues() } returns Unit
