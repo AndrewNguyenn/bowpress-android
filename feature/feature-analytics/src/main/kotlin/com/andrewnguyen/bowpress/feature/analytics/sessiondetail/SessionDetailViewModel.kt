@@ -3,6 +3,7 @@ package com.andrewnguyen.bowpress.feature.analytics.sessiondetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
@@ -38,6 +39,14 @@ data class SessionDetailUiState(
     val distance: ShootingDistance? = null,
     val notes: String = "",
     val feelTags: List<String> = emptyList(),
+    /**
+     * Shaft outside diameter (mm) of the arrow config the session was shot
+     * with — drives the plot-dot size on the multi-spot `BPPlottedTarget`
+     * render so the dot represents the real shaft against the printed Vegas
+     * spot. Null when the session has no arrow config, or the config has
+     * no shaft diameter recorded → BPPlottedTarget falls back to 6mm.
+     */
+    val arrowDiameterMm: Double? = null,
 ) {
     val arrowCount: Int get() = arrows.size
 
@@ -56,6 +65,7 @@ class SessionDetailViewModel @Inject constructor(
     private val plotRepo: PlotRepository,
     private val sessionEndRepo: SessionEndRepository,
     private val sessionRepo: SessionRepository,
+    private val arrowConfigRepo: ArrowConfigRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -69,6 +79,11 @@ class SessionDetailViewModel @Inject constructor(
             val arrows = plotRepo.getBySession(sessionId)
             val ends = sessionEndRepo.getBySession(sessionId)
             val session = sessionRepo.getById(sessionId)
+            // Pull the shaft diameter off the arrow config the session
+            // was shot with — drives BPPlottedTarget's per-shaft dot
+            // size. Null when there's no config or no diameter recorded.
+            val shaftMm = session?.arrowConfigId
+                ?.let { arrowConfigRepo.getById(it)?.shaftDiameter }
             _state.update {
                 it.copy(
                     isLoading = false,
@@ -80,6 +95,7 @@ class SessionDetailViewModel @Inject constructor(
                     distance = session?.distance,
                     notes = session?.notes.orEmpty(),
                     feelTags = session?.feelTags.orEmpty(),
+                    arrowDiameterMm = shaftMm,
                 )
             }
         }

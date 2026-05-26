@@ -219,6 +219,9 @@ private fun SessionDetailContent(
                         // §B3 — 6-ring at 50/70m → Outdoor80 7-zone face.
                         sixRingStyle = com.andrewnguyen.bowpress.core.designsystem.bp.BPSixRingStyle
                             .forDistance(state.distance),
+                        // §B1 — shaft diameter from the session's arrow
+                        // config sizes the plot dot. Null → 6mm default.
+                        arrowDiameterMm = state.arrowDiameterMm,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 } else {

@@ -338,6 +338,10 @@ fun FriendSessionDetailScreen(
                                     // on the Vegas 6-zone default.
                                     sixRingStyle = com.andrewnguyen.bowpress.core.designsystem.bp.BPSixRingStyle
                                         .forDistance(shotSession.distance),
+                                    // §B1 — shaft diameter sizes the plot
+                                    // dot against the printed face. Null on
+                                    // a pre-B1 detail payload → 6mm default.
+                                    arrowDiameterMm = detail.arrowDiameterMm,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag(TestTags.SocialSessionTarget),

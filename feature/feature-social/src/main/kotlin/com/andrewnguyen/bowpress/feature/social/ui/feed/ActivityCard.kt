@@ -66,6 +66,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPSixRingStyle
+import com.andrewnguyen.bowpress.core.designsystem.bp.FEED_MIN_DOT_RADIUS
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
 import com.andrewnguyen.bowpress.core.designsystem.bp.ringTint
@@ -619,6 +620,13 @@ private fun RangeSessionBody(
                         ?: TargetFaceType.TEN_RING,
                     layout = targetLayout,
                     sixRingStyle = sixRingStyle,
+                    // §B1 — shaft diameter from the feed payload sizes the
+                    // dot against the 180mm Vegas spot (a 9mm Black Eagle
+                    // reads visibly fatter than a 4mm X10). FEED_MIN_DOT_RADIUS
+                    // mirrors iOS `minDotSize: 3` (diameter) on the feed
+                    // multi-spot body.
+                    arrowDiameterMm = arrowDiameterMm,
+                    minDotRadius = FEED_MIN_DOT_RADIUS,
                     modifier = Modifier.size(TARGET_FACE_SIZE),
                 )
             } else {
