@@ -355,6 +355,14 @@ fun FinishSheet(
         },
     )
 
+    // C3 — auto-tag the nearest archery range (with reverse-geocode fallback)
+    // as soon as the sheet mounts with an empty location. The resolver
+    // self-races against a manual pick by re-checking `location == null` at
+    // assignment time, mirroring iOS `FinishDraft.autoTagNearestRange`.
+    AutoTagNearestRange(initialLocation = location) { resolved ->
+        if (location == null) location = resolved
+    }
+
     if (showLocationPicker) {
         LocationTagPicker(
             initial = location,
@@ -824,9 +832,12 @@ internal fun timeOfDaySuggestion(instant: Instant): String {
 
 /**
  * Decode the uCrop result URI off the main thread and produce the upload
- * bytes + a thumbnail bitmap for the grid. The bytes go through
- * `TargetPhotoStore.downscaledForUpload` so the upload payload is bounded
- * (~2048px-edge, q0.8) — matches iOS `downscaledForUpload`.
+ * bytes + a thumbnail bitmap for the grid. The decoded bitmap is reused —
+ * we encode `bitmap → JPEG bytes` through the Bitmap overload of
+ * [TargetPhotoStore.downscaledForUpload] (parity gap D1) so we don't pay
+ * for a `bytes → bitmap → bytes → bitmap` round-trip. Also deletes the
+ * uCrop output cache file the moment we're done with it, matching iOS's
+ * autoreleased temp URLs.
  */
 private suspend fun decodeAndDownscale(
     context: Context,
@@ -835,9 +846,16 @@ private suspend fun decodeAndDownscale(
     val raw = runCatching {
         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
     }.getOrNull() ?: return@withContext null to null
-    val bytes = TargetPhotoStore.downscaledForUpload(raw)
     val bmp = runCatching {
-        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-    }.getOrNull()
+        android.graphics.BitmapFactory.decodeByteArray(raw, 0, raw.size)
+    }.getOrNull() ?: return@withContext null to null
+    val bytes = TargetPhotoStore.downscaledForUpload(bmp)
+    // Free the uCrop cache file once we have the decoded bitmap + bytes —
+    // a session with three picks would otherwise leave three multi-MB
+    // jpegs in cache for the OS to GC at its leisure.
+    runCatching {
+        val path = uri.path
+        if (path != null) java.io.File(path).takeIf { it.exists() }?.delete()
+    }
     bytes to bmp
 }
