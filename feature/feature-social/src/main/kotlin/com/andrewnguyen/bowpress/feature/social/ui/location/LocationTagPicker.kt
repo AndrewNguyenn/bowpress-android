@@ -19,10 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,11 +52,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
+import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppLine2
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
+import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
@@ -177,6 +185,29 @@ fun LocationTagPicker(
             }
         }
 
+        // Parity E6 — Instagram-style place search (iOS commit aea47c7).
+        // Debounced (300ms) Geocoder.getFromLocationName lookup; tap a result
+        // to recenter the map + fill the name.
+        var searchQuery by remember { mutableStateOf("") }
+        var searchResults by remember { mutableStateOf<List<PlaceHit>>(emptyList()) }
+        var isSearching by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            snapshotFlow { searchQuery }
+                .debounce(300)
+                .collect { q ->
+                    val trimmed = q.trim()
+                    if (trimmed.isEmpty()) {
+                        searchResults = emptyList()
+                        isSearching = false
+                        return@collect
+                    }
+                    isSearching = true
+                    val hits = searchPlaces(context, trimmed, near = mapState.center)
+                    isSearching = false
+                    searchResults = hits
+                }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -195,6 +226,11 @@ fun LocationTagPicker(
                     )
                 },
             )
+            SearchField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                isSearching = isSearching,
+            )
             // Map with a fixed centre pin — the map moves under it.
             Box(
                 Modifier
@@ -209,6 +245,28 @@ fun LocationTagPicker(
                         .fillMaxSize()
                         .testTag(TestTags.LocationPickerMap),
                 )
+                // Parity E6 — when the archer is searching, the result list
+                // overlays the map. Tap to jump the pin + fill the name.
+                if (searchQuery.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(AppPaper.copy(alpha = 0.95f)),
+                    ) {
+                        SearchResults(
+                            results = searchResults,
+                            isSearching = isSearching,
+                            query = searchQuery,
+                            onPick = { hit ->
+                                userEditedName = true
+                                placeName = hit.primary
+                                searchQuery = ""
+                                searchResults = emptyList()
+                                mapState.moveTo(GeoPoint(hit.lat, hit.lng), PICKER_ZOOM)
+                            },
+                        )
+                    }
+                }
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -400,6 +458,156 @@ private suspend fun currentLocation(context: android.content.Context): GeoPoint?
             .await()
         loc?.let { GeoPoint(it.latitude, it.longitude) }
     }.getOrNull()
+}
+
+/**
+ * Parity E6 — one search hit from [Geocoder.getFromLocationName]. iOS uses
+ * `MKLocalSearchCompleter`; on Android the geocoder doesn't need a separate
+ * API key but is best-effort (Samsung devices sometimes ship a stub
+ * implementation that returns nothing).
+ */
+internal data class PlaceHit(
+    val primary: String,
+    val secondary: String,
+    val lat: Double,
+    val lng: Double,
+)
+
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    isSearching: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .border(1.dp, AppLine)
+            .background(AppPaper2)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = null,
+            tint = AppInk3,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.size(8.dp))
+        Box(Modifier.weight(1f)) {
+            if (query.isEmpty()) {
+                Text(
+                    "Search places — range, club, park…",
+                    style = frauncesDisplay(14.sp),
+                    color = AppInk3,
+                )
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                textStyle = frauncesDisplay(14.sp).copy(color = AppInk),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(AppPondDk),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (isSearching) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                strokeWidth = 1.5.dp,
+                color = AppPondDk,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchResults(
+    results: List<PlaceHit>,
+    isSearching: Boolean,
+    query: String,
+    onPick: (PlaceHit) -> Unit,
+) {
+    if (isSearching && results.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+            Text(
+                "Searching for \"$query\"…",
+                style = frauncesDisplay(13.sp, italic = true),
+                color = AppInk3,
+            )
+        }
+        return
+    }
+    if (results.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+            Text(
+                "No places match \"$query\".",
+                style = frauncesDisplay(13.sp, italic = true),
+                color = AppInk3,
+            )
+        }
+        return
+    }
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(results, key = { "${it.primary}|${it.lat},${it.lng}" }) { hit ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onPick(hit) }
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
+            ) {
+                Text(hit.primary, style = frauncesDisplay(14.sp), color = AppInk)
+                if (hit.secondary.isNotBlank()) {
+                    Text(hit.secondary, style = jetbrainsMono(10.sp), color = AppInk3)
+                }
+            }
+            HorizontalDivider(color = AppLine2, thickness = 1.dp)
+        }
+    }
+}
+
+/**
+ * Parity E6 — best-effort place search via Android's [Geocoder]. Skips the
+ * Google Places API to avoid a key dependency; the geocoder takes a free-form
+ * string and returns ranked address candidates around the given anchor when
+ * supported by the device.
+ */
+private suspend fun searchPlaces(
+    context: android.content.Context,
+    query: String,
+    near: GeoPoint,
+): List<PlaceHit> = withContext(Dispatchers.IO) {
+    runCatching {
+        @Suppress("DEPRECATION")
+        val results = Geocoder(context, Locale.getDefault())
+            .getFromLocationName(
+                query,
+                /* maxResults */ 6,
+                /* lowerLeftLat */ near.latitude - 1.5,
+                /* lowerLeftLng */ near.longitude - 1.5,
+                /* upperRightLat */ near.latitude + 1.5,
+                /* upperRightLng */ near.longitude + 1.5,
+            )
+        results.orEmpty().mapNotNull { a ->
+            val primary = a.featureName?.takeIf { it.isNotBlank() && it != a.thoroughfare }
+                ?: a.subLocality
+                ?: a.locality
+                ?: a.adminArea
+                ?: return@mapNotNull null
+            val secondary = listOfNotNull(
+                a.locality?.takeIf { it != primary },
+                a.adminArea?.takeIf { it != primary },
+                a.countryName,
+            ).joinToString(", ")
+            PlaceHit(
+                primary = primary,
+                secondary = secondary,
+                lat = a.latitude,
+                lng = a.longitude,
+            )
+        }
+    }.getOrDefault(emptyList())
 }
 
 /** Reverse-geocode a coordinate into a human place name. Null on failure. */
