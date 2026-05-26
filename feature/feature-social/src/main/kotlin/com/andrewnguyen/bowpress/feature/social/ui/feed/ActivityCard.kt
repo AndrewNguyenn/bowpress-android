@@ -1122,13 +1122,14 @@ private fun parseFeedDistance(distance: String?): com.andrewnguyen.bowpress.core
 internal fun feedCardArrowDotRadiusPx(
     faceRadiusPx: Float,
     arrowDiameterMm: Double?,
-    mmPerNormUnit: Double,
+    @Suppress("UNUSED_PARAMETER") mmPerNormUnit: Double,
     density: Float,
 ): Float {
-    val shaftMm = arrowDiameterMm ?: 6.0
-    val rawPx = (shaftMm.toFloat() / mmPerNormUnit.toFloat()) * faceRadiusPx
-    val floorPx = 2f * density   // 2dp minimum for thumbnail legibility
-    return rawPx.coerceAtLeast(floorPx)
+    val shaftMm = (arrowDiameterMm ?: 6.0).toFloat()
+    val referenceRadius = faceRadiusPx * 0.04f
+    val scale = shaftMm / 6f
+    val floorPx = 2f * density
+    return (referenceRadius * scale).coerceAtLeast(floorPx)
 }
 
 /**
