@@ -7,6 +7,7 @@ import com.andrewnguyen.bowpress.core.model.FeedSummaryInsight
 import com.andrewnguyen.bowpress.core.model.FeedSummaryOpeningCard
 import com.andrewnguyen.bowpress.core.model.FeedSummarySnapshot
 import com.andrewnguyen.bowpress.core.model.FeedSummaryThisWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -23,7 +24,7 @@ fun FeedSummary.toUi(now: LocalDate = LocalDate.now(), zone: ZoneId = ZoneId.sys
     FeedSummaryUi(
         thisWeek = thisWeek?.toUi(now = now, zone = zone),
         snapshot = snapshot?.toUi(),
-        bestSession = bestSession?.toUi(),
+        bestSession = bestSession?.toUi(zone = zone),
         insight = insight?.toUi(),
         openingCard = openingCard.toUi(),
     )
@@ -65,7 +66,7 @@ private fun FeedSummarySnapshot.toUi(): FeedSummaryUi.Snapshot =
         rangeLabel = "${formatShortDate(rangeStart)} → ${formatShortDate(rangeEnd)}",
     )
 
-private fun FeedSummaryBestSession.toUi(): FeedSummaryUi.BestSession =
+private fun FeedSummaryBestSession.toUi(zone: ZoneId): FeedSummaryUi.BestSession =
     FeedSummaryUi.BestSession(
         sessionName = sessionName,
         avgRing = avgRing,
@@ -75,6 +76,12 @@ private fun FeedSummaryBestSession.toUi(): FeedSummaryUi.BestSession =
         arrows = arrows.map { FeedSummaryUi.ArrowPoint(x = it.x, y = it.y) },
         prDeltaAvgRing = prDeltaAvgRing,
         sharedSessionId = sharedSessionId,
+        distanceLabel = distance?.label,
+        arrowLabel = arrowLabel?.takeIf { it.isNotBlank() },
+        targetFaceType = targetFaceType,
+        targetLayout = targetLayout,
+        startedAtRelative = startedAt?.let { formatStartedAtRelative(it, zone) }
+            ?.takeIf { it.isNotBlank() },
     )
 
 private fun FeedSummaryInsight.toUi(): FeedSummaryUi.Insight =
@@ -84,6 +91,8 @@ private fun FeedSummaryInsight.toUi(): FeedSummaryUi.Insight =
         metrics = metrics.map {
             FeedSummaryUi.InsightMetric(label = it.label, value = it.value, maple = it.maple)
         },
+        suggestionId = suggestionId,
+        bowId = bowId,
     )
 
 private fun FeedSummaryOpeningCard.toUi(): FeedSummaryUi.OpeningCard = when (this) {
@@ -101,3 +110,19 @@ private val SHORT_DATE_FORMATTER: DateTimeFormatter =
 private fun formatShortDate(iso: String): String =
     runCatching { LocalDate.parse(iso).format(SHORT_DATE_FORMATTER).lowercase(Locale.ENGLISH) }
         .getOrDefault(iso)
+
+// iOS card footer prints "tue 12:23pm" (lower-cased EEE h:mma) on the
+// right of the BestSession card. Server emits `startedAt` as an ISO-8601
+// instant — read it in the archer's local TZ. On parse failure we return
+// the raw string (matches [formatShortDate]) so the footer slot still
+// shows something a developer can grep for instead of silently collapsing.
+private val STARTED_AT_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE h:mma", Locale.ENGLISH)
+
+private fun formatStartedAtRelative(iso: String, zone: ZoneId): String =
+    runCatching {
+        Instant.parse(iso)
+            .atZone(zone)
+            .format(STARTED_AT_FORMATTER)
+            .lowercase(Locale.ENGLISH)
+    }.getOrDefault(iso)

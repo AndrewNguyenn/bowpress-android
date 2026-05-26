@@ -21,15 +21,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.CircleShape
+import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
@@ -40,6 +46,9 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 
 // =============================================================================
 // Feed-tab swipeable hero carousel.
@@ -104,6 +113,16 @@ data class FeedSummaryUi(
         val prDeltaAvgRing: Double?,
         /** Open-detail callback target — null when the session isn't shared. */
         val sharedSessionId: String?,
+        /** Pre-formatted "20yd" / "50m" / "70m" — drops out of the spec line when null. */
+        val distanceLabel: String? = null,
+        /** Pre-formatted "110gr X10" — drops out of the spec line when null/blank. */
+        val arrowLabel: String? = null,
+        /** Face type for the single-spot mini-face renderer. */
+        val targetFaceType: TargetFaceType? = null,
+        /** Multi-spot layout. SINGLE / null = bullseye; TRIANGLE / VERTICAL = 3-spot. */
+        val targetLayout: TargetLayout? = null,
+        /** Pre-formatted "tue 12:23pm" — shown in the card footer. */
+        val startedAtRelative: String? = null,
     )
 
     data class InsightMetric(val label: String, val value: String, val maple: Boolean = false)
@@ -112,6 +131,10 @@ data class FeedSummaryUi(
         val headline: String,
         val metrics: List<InsightMetric>,
         val sampleSize: Int,
+        /** Suggestion the insight derived from — drives a future "Review" deep-link. */
+        val suggestionId: String? = null,
+        /** Bow the suggestion is scoped to — same purpose as [suggestionId]. */
+        val bowId: String? = null,
     )
 
     /** Ordered, non-null card payload list — empty cards drop out. */
@@ -182,6 +205,11 @@ data class FeedSummaryUi(
                 ),
                 prDeltaAvgRing = 0.4,
                 sharedSessionId = null,
+                distanceLabel = "20yd",
+                arrowLabel = "140gr",
+                targetFaceType = TargetFaceType.TEN_RING,
+                targetLayout = TargetLayout.SINGLE,
+                startedAtRelative = "tue 12:23pm",
             ),
             insight = Insight(
                 headline = "Group centred right of POA — try a small left sight adjustment.",
@@ -498,81 +526,181 @@ private fun BestSessionCard(
 ) {
     CardFrame {
         CardHeader(
-            eyebrow = "Best session",
-            detail = data.bowName,
+            eyebrow = "Best this week",
+            detail = "top session",
             linkLabel = "Open",
             onLink = onOpen,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                // Hero: "9.9 · 14X / 30" — avg in italic Fraunces, stat line in
+                // mono. The "14X" run is medium-weight AppPondDk so the X-count
+                // reads as the highlight (iOS parity).
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "%.1f".format(data.avgRing),
+                        style = frauncesDisplay(38.sp, italic = true, weight = FontWeight.Medium),
+                        color = AppPondDk,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(SpanStyle(color = AppInk3)) { append("· ") }
+                            withStyle(SpanStyle(color = AppPondDk, fontWeight = FontWeight.Medium)) {
+                                append("${data.xCount}X")
+                            }
+                            withStyle(SpanStyle(color = AppInk3)) { append(" / ${data.totalArrows}") }
+                        },
+                        style = jetbrainsMono(11.sp),
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = data.sessionName,
-                    style = frauncesDisplay(15.sp, italic = true, weight = FontWeight.Medium),
+                    style = frauncesDisplay(14.sp, italic = true, weight = FontWeight.Medium),
                     color = AppInk,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "%.1f".format(data.avgRing),
-                    style = frauncesDisplay(36.sp, italic = true, weight = FontWeight.Medium),
-                    color = AppPondDk,
-                )
-                Text(
-                    text = "${data.xCount}X · ${data.totalArrows} arrows",
-                    style = jetbrainsMono(10.sp),
-                    color = AppInk3,
-                )
-                if (data.prDeltaAvgRing != null) {
+                val spec = bestSessionSpecLine(data)
+                if (spec.isNotEmpty()) {
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "PR +%.1f vs prior".format(data.prDeltaAvgRing),
-                        style = interUI(10.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                        color = AppPondDk,
+                        text = spec,
+                        style = jetbrainsMono(10.sp),
+                        color = AppInk3,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-            // Mini target face thumbnail with arrow plot.
             MiniTargetFace(
                 arrows = data.arrows,
-                modifier = Modifier.size(96.dp),
+                layout = data.targetLayout ?: TargetLayout.SINGLE,
+                faceType = data.targetFaceType ?: TargetFaceType.TEN_RING,
+                modifier = Modifier.size(70.dp),
+            )
+        }
+        BestSessionFooter(data)
+    }
+}
+
+private fun bestSessionSpecLine(data: FeedSummaryUi.BestSession): String =
+    listOfNotNull(
+        data.distanceLabel?.takeIf { it.isNotBlank() },
+        data.bowName.takeIf { it.isNotBlank() },
+        data.arrowLabel?.takeIf { it.isNotBlank() },
+    ).joinToString(" · ")
+
+@Composable
+private fun BestSessionFooter(data: FeedSummaryUi.BestSession) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            // iOS draws a 0.5pt hairline above the footer to separate it from
+            // the hero block. drawBehind lets us paint it without nesting a
+            // wrapper Box.
+            .drawBehind {
+                drawLine(
+                    color = AppLine,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 0.5.dp.toPx(),
+                )
+            }
+            .padding(top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (data.prDeltaAvgRing != null) {
+            val delta = data.prDeltaAvgRing
+            val sign = if (delta >= 0) "+" else "-"
+            val tint = if (delta >= 0) AppPondDk else AppMaple
+            Text(
+                text = "PR · ",
+                style = jetbrainsMono(10.sp),
+                color = AppInk3,
+            )
+            Text(
+                text = "$sign%.1f".format(kotlin.math.abs(delta)),
+                style = jetbrainsMono(10.sp, FontWeight.Medium),
+                color = tint,
+            )
+            Text(
+                text = " over previous best",
+                style = jetbrainsMono(10.sp),
+                color = AppInk3,
+            )
+        } else {
+            Text(
+                text = "New baseline",
+                style = jetbrainsMono(10.sp),
+                color = AppInk3,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        if (!data.startedAtRelative.isNullOrBlank()) {
+            Text(
+                text = data.startedAtRelative,
+                style = jetbrainsMono(10.sp),
+                color = AppInk3,
             )
         }
     }
 }
 
+// Design-fixed perceptual ramp — iOS parity. Capped at 6 arrows so the
+// face stays readable even when the server happens to return more.
+private val MINI_ARROW_FADE_RAMP: List<Float> = listOf(1.0f, 0.78f, 0.62f, 0.5f, 0.38f, 0.28f)
+
+/**
+ * `modifier` must size the face to a square — `BPPlottedTarget` always
+ * self-squares via `.fillMaxWidth().aspectRatio(1f)`, and a non-square
+ * outer would let the overlay arrow dots drift off the painted face.
+ */
 @Composable
 private fun MiniTargetFace(
     arrows: List<FeedSummaryUi.ArrowPoint>,
+    layout: TargetLayout,
+    faceType: TargetFaceType,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier) {
-        val r = size.minDimension / 2f
-        val centre = Offset(size.width / 2f, size.height / 2f)
-        // Concentric rings — simple monoline rendering (the porter-target-face
-        // porter will replace this with the shared `BPTargetFace` Canvas once
-        // it lands).
-        val rings = listOf(1.0f, 0.8f, 0.6f, 0.4f, 0.2f)
-        rings.forEach { ratio ->
-            drawCircle(
-                color = AppLine,
-                radius = r * ratio,
-                center = centre,
-                style = Stroke(width = 1.dp.toPx()),
-            )
-        }
-        // Centre dot
-        drawCircle(color = AppPondDk, radius = r * 0.06f, center = centre)
-        // Arrow dots — clamp -1..1 to the face radius.
-        arrows.forEach { p ->
-            val px = centre.x + (p.x.toFloat() * r)
-            val py = centre.y + (p.y.toFloat() * r)
-            drawCircle(
-                color = AppInk,
-                radius = (r * 0.04f).coerceAtLeast(2.dp.toPx()),
-                center = Offset(px, py),
-            )
+    Box(modifier = modifier) {
+        // Face only — pass empty arrows so BPPlottedTarget paints the
+        // bullseye(s) but doesn't plot anything. The carousel layers its
+        // own fade-ramp arrows on top to match iOS's hand-drawn dots.
+        BPPlottedTarget(
+            arrows = emptyList(),
+            layout = layout,
+            faceType = faceType,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val r = size.minDimension / 2f
+            val centre = Offset(size.width / 2f, size.height / 2f)
+            val dotRadius = 2.dp.toPx()
+            val haloStroke = 0.75.dp.toPx()
+            val limit = arrows.take(MINI_ARROW_FADE_RAMP.size)
+            limit.forEachIndexed { idx, p ->
+                val px = centre.x + (p.x.toFloat() * r)
+                val py = centre.y + (p.y.toFloat() * r)
+                val center = Offset(px, py)
+                val alpha = MINI_ARROW_FADE_RAMP[idx]
+                drawCircle(color = AppInk.copy(alpha = alpha), radius = dotRadius, center = center)
+                // Cream halo so the dot reads on yellow X/9 rings and the
+                // white outer band — matches iOS's Color.appCream 0.75pt
+                // stroke on the same dot.
+                drawCircle(
+                    color = AppCream.copy(alpha = alpha),
+                    radius = dotRadius,
+                    center = center,
+                    style = Stroke(width = haloStroke),
+                )
+            }
         }
     }
 }

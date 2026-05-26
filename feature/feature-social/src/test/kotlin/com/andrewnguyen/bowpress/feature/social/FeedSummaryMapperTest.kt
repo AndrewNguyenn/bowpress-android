@@ -113,6 +113,51 @@ class FeedSummaryMapperTest {
     }
 
     @Test
+    fun `best session maps spec fields and formats startedAt for the local zone`() {
+        val pacific = ZoneId.of("America/Los_Angeles")
+        // 2026-05-26T19:23:00Z = 12:23pm PDT on a Tuesday.
+        val summary = baseSummary(
+            bestSession = FeedSummaryBestSession(
+                sessionId = "s1",
+                sharedSessionId = null,
+                sessionName = "Midday shooting session",
+                avgRing = 9.9,
+                xCount = 14,
+                totalArrows = 30,
+                bowName = "Hoyt RX-7",
+                arrows = emptyList(),
+                prDeltaAvgRing = -0.1,
+                distance = com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20,
+                arrowLabel = "140gr",
+                targetFaceType = com.andrewnguyen.bowpress.core.model.TargetFaceType.TEN_RING,
+                targetLayout = com.andrewnguyen.bowpress.core.model.TargetLayout.TRIANGLE,
+                startedAt = "2026-05-26T19:23:00Z",
+            ),
+        )
+        val bs = summary.toUi(now = today, zone = pacific).bestSession!!
+        assertThat(bs.distanceLabel).isEqualTo("20yd")
+        assertThat(bs.arrowLabel).isEqualTo("140gr")
+        assertThat(bs.targetLayout).isEqualTo(com.andrewnguyen.bowpress.core.model.TargetLayout.TRIANGLE)
+        assertThat(bs.startedAtRelative).isEqualTo("tue 12:23pm")
+    }
+
+    @Test
+    fun `insight forwards suggestionId and bowId for future deep-link`() {
+        val summary = baseSummary(
+            insight = FeedSummaryInsight(
+                headline = "Try a small left adjustment.",
+                metrics = emptyList(),
+                sampleSize = 42,
+                suggestionId = "sug-123",
+                bowId = "bow-7",
+            ),
+        )
+        val insight = summary.toUi(now = today, zone = utc).insight!!
+        assertThat(insight.suggestionId).isEqualTo("sug-123")
+        assertThat(insight.bowId).isEqualTo("bow-7")
+    }
+
+    @Test
     fun `all four cards copy across with non-null payloads`() {
         val summary = FeedSummary(
             thisWeek = FeedSummaryThisWeek(weekStreak = 2, days = emptyList(), totalArrows = 10, sessionCount = 1),
