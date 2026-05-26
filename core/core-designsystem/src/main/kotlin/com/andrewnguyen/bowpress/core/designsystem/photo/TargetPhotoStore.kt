@@ -3,7 +3,6 @@ package com.andrewnguyen.bowpress.core.designsystem.photo
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import java.io.ByteArrayOutputStream
 import java.io.File
 import kotlin.math.max
@@ -66,16 +65,13 @@ object TargetPhotoStore {
         file(context, sessionId).delete()
     }
 
-    // ── Shared downscale helpers ─────────────────────────────────────────────
+    // ── Shared downscale helper ──────────────────────────────────────────────
     //
     // Used by every photo-upload path (FinishSheet, MySessionEditSheet) so the
     // ~2048px-edge q0.8 treatment is consistent. Mirrors iOS
-    // `downscaledForUpload(_ data:)` / `downscaledForUpload(_ image:)`.
-
-    /** Decode + downscale arbitrary bytes to a bounded JPEG. */
-    fun downscaledForUpload(data: ByteArray): ByteArray {
-        return downscaledJPEG(data) ?: data
-    }
+    // `downscaledForUpload(_ image:)`. Callers that start from raw bytes
+    // (rare — the crop flow always has a decoded Bitmap) should decode then
+    // pass through this helper to avoid the bytes→bitmap→bytes round-trip.
 
     /**
      * Bitmap overload — used by the in-app crop flow so an already-decoded
@@ -85,16 +81,7 @@ object TargetPhotoStore {
      */
     fun downscaledForUpload(bitmap: Bitmap): ByteArray = downscaledJPEG(bitmap)
 
-    /** Convenience: decode + downscale from a `content://` Uri. */
-    fun downscaledForUpload(context: Context, uri: Uri): ByteArray? {
-        val bytes = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        }.getOrNull() ?: return null
-        return downscaledForUpload(bytes)
-    }
-
-    /** Decode, downscale, re-encode. Returns null only when the input
-     *  is not a decodable image. */
+    /** Resize if larger than [MAX_DIMENSION] + encode once as JPEG. */
     private fun downscaledJPEG(data: ByteArray): ByteArray? {
         val bmp = runCatching { BitmapFactory.decodeByteArray(data, 0, data.size) }
             .getOrNull() ?: return null

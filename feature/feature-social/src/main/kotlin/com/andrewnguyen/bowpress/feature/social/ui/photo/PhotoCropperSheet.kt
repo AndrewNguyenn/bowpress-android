@@ -136,9 +136,9 @@ internal class UCropContract(private val context: Context) : ActivityResultContr
         val options = UCrop.Options().apply {
             setCompressionFormat(android.graphics.Bitmap.CompressFormat.JPEG)
             // Quality matches iOS Mantis output — high but not lossless,
-            // because we re-encode the result through TargetPhotoStore /
-            // AvatarStore for upload anyway. 92 gives a faithful preview
-            // without inflating the cache file.
+            // because we re-encode the result through
+            // TargetPhotoStore.downscaledForUpload for upload anyway. 92
+            // gives a faithful preview without inflating the cache file.
             setCompressionQuality(92)
             setHideBottomControls(false)
             setFreeStyleCropEnabled(input.mode == PhotoCropMode.Free)
