@@ -390,6 +390,15 @@ private fun ActivityCardHeader(
                     modifier = Modifier.padding(top = 3.dp),
                 )
             }
+            // Equipment-inline strip — bow · type · arrow, one truncated
+            // mono row beneath the description. The composable renders
+            // nothing when no equipment metadata ships on the session.
+            EquipmentInlineLine(
+                bowName = item.session?.bowName,
+                bowType = item.session?.bowType?.label,
+                arrowName = item.session?.arrowName,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
         Spacer(Modifier.width(6.dp))
 

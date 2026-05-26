@@ -181,6 +181,17 @@ private fun SessionDetailContent(
             .verticalScroll(rememberScrollState()),
     ) {
         TitleHeader(title = state.displayTitle, distance = state.distance?.label)
+
+        // Equipment-inline strip — bow · type · arrow, resolved off the
+        // local bow + arrow_configurations rows. The composable hides
+        // itself when no equipment metadata is available.
+        com.andrewnguyen.bowpress.feature.social.ui.feed.EquipmentInlineLine(
+            bowName = state.bowName,
+            bowType = state.bowType?.label,
+            arrowName = state.arrowName,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+
         SectionDivider()
 
         // Scorecard

@@ -938,6 +938,13 @@ data class SharedSession(
     // §18 — the tagged location, or null when shared untagged. New, so
     // decoding tolerates pre-v1.6 payloads that omit it.
     val location: SessionLocation? = null,
+    // Equipment-inline strip — joined on the server off the owner's bows
+    // and arrow_configurations rows. Each is independently nullable so
+    // a session whose bow row was deleted still ships an arrow name, etc.
+    // Mirrors iOS commit 548ee80 / API commit b34c7ef.
+    val bowName: String? = null,
+    val bowType: BowType? = null,
+    val arrowName: String? = null,
 )
 
 /**
@@ -1088,6 +1095,14 @@ data class ActivitySession(
     // bunched in a fake triangle. Null on pre-0038 payloads → single-face
     // fallback. Mirrors iOS `ActivitySession.targetLayout`.
     val targetLayout: TargetLayout? = null,
+    // Equipment-inline strip — bow name, the canonical BowType enum, and
+    // arrow set name, joined on the server off the owner's bow +
+    // arrow_configurations rows. Each is independently nullable; the
+    // rendered strip drops missing fields along with their separator.
+    // Mirrors iOS commit 548ee80 / API commit b34c7ef.
+    val bowName: String? = null,
+    val bowType: BowType? = null,
+    val arrowName: String? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a

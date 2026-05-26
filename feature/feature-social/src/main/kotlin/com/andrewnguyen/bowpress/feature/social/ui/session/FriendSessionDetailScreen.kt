@@ -239,6 +239,19 @@ fun FriendSessionDetailScreen(
                                 }
                             }
 
+                        // Equipment-inline strip — bow · type · arrow,
+                        // sourced off the shared-session payload (matches
+                        // the feed card's strip). The composable hides
+                        // itself when no equipment metadata ships.
+                        item {
+                            Spacer(Modifier.height(10.dp))
+                            com.andrewnguyen.bowpress.feature.social.ui.feed.EquipmentInlineLine(
+                                bowName = detail.sharedSession.bowName,
+                                bowType = detail.sharedSession.bowType?.label,
+                                arrowName = detail.sharedSession.arrowName,
+                            )
+                        }
+
                         // Social Feed V2 §5 — the like + comment action bar. The
                         // subject id falls back to the shared-session id for a
                         // pre-§5 detail payload; the subject owner is the session

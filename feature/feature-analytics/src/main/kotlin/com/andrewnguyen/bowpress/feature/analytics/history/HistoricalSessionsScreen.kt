@@ -385,6 +385,13 @@ private fun SessionRow.toActivityItem(): com.andrewnguyen.bowpress.core.model.Ac
         endRings = rings.takeIf { it.isNotEmpty() }
             ?.chunked(3)
             ?.take(10),
+        // Equipment-inline strip — own Log rows surface the same
+        // bow + type + arrow trio the friend feed cards do.
+        // Resolved off local repositories by the ViewModel, no
+        // server round-trip needed.
+        bowName = this.bowName,
+        bowType = this.bowType,
+        arrowName = this.arrowName,
     )
     return com.andrewnguyen.bowpress.core.model.ActivityItem(
         id = this.id,
@@ -689,6 +696,8 @@ private fun HistoricalSessionsPreview() {
                                 startedAt = Instant.now(),
                                 bowId = "b1",
                                 bowName = "Hoyt RX7",
+                                bowType = com.andrewnguyen.bowpress.core.model.BowType.COMPOUND,
+                                arrowName = "Easton X10",
                                 arrowConfigLabel = "Easton X10",
                                 arrowCount = 36,
                                 feelTags = listOf("locked-in", "focused"),

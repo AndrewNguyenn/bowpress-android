@@ -2,10 +2,12 @@ package com.andrewnguyen.bowpress.feature.analytics.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.sync.LocalHydration
+import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
@@ -36,6 +38,19 @@ data class SessionRow(
     val startedAt: Instant,
     val bowId: String,
     val bowName: String,
+    /**
+     * The owner's [com.andrewnguyen.bowpress.core.model.BowType] for the
+     * bow this session was shot on. Drives the equipment-inline strip's
+     * second field; resolved off the bows map by [bowId]. Null when the
+     * bow row is missing.
+     */
+    val bowType: com.andrewnguyen.bowpress.core.model.BowType?,
+    /**
+     * Archer-authored arrow set name resolved off the arrow_configurations
+     * row by the session's `arrowConfigId`. Drives the equipment-inline
+     * strip's third field. Null when the arrow row is missing.
+     */
+    val arrowName: String?,
     val arrowConfigLabel: String,
     val arrowCount: Int,
     val feelTags: List<String>,
@@ -97,6 +112,7 @@ class HistoricalSessionsViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val bowRepository: BowRepository,
     private val plotRepository: PlotRepository,
+    private val arrowConfigRepository: ArrowConfigRepository,
     private val localHydration: LocalHydration,
 ) : ViewModel() {
 
@@ -106,10 +122,15 @@ class HistoricalSessionsViewModel @Inject constructor(
         sessionRepository.observeCompleted(),
         bowRepository.observeBows(),
         plotRepository.observeAll(),
+        // Arrow configs feed the equipment-inline strip's third field
+        // (archer-authored set name) — observed locally so the strip
+        // updates the moment the archer renames an arrow set in
+        // Equipment.
+        arrowConfigRepository.observeAll(),
         bowFilter,
-    ) { sessions, bows, plots, filterBowId ->
+    ) { sessions, bows, plots, arrowConfigs, filterBowId ->
         val filtered = if (filterBowId == null) sessions else sessions.filter { it.bowId == filterBowId }
-        build(filtered, bows, plots, filterBowId)
+        build(filtered, bows, plots, arrowConfigs, filterBowId)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -149,9 +170,11 @@ class HistoricalSessionsViewModel @Inject constructor(
         sessions: List<ShootingSession>,
         bows: List<Bow>,
         allPlots: List<ArrowPlot>,
+        arrowConfigs: List<ArrowConfiguration>,
         filterBowId: String?,
     ): HistoricalSessionsUiState {
         val bowById = bows.associateBy { it.id }
+        val arrowConfigById = arrowConfigs.associateBy { it.id }
         val plotsBySession = allPlots.groupBy { it.sessionId }
         val sorted = sessions.sortedByDescending { it.startedAt }
 
@@ -231,12 +254,21 @@ class HistoricalSessionsViewModel @Inject constructor(
                         session.sessionType == com.andrewnguyen.bowpress.core.model.SessionType.THREE_D_COURSE
                     val title: String? = session.title?.takeIf { it.isNotBlank() }
                         ?: if (isThreeD) "3D Course" else session.distance?.let { "Range · ${it.label}" }
+                    val bow = bowById[session.bowId]
+                    val arrowConfig = arrowConfigById[session.arrowConfigId]
                     SessionRow(
                         id = session.id,
                         startedAt = session.startedAt,
                         bowId = session.bowId,
-                        bowName = bowById[session.bowId]?.name ?: "bow",
-                        arrowConfigLabel = session.arrowConfigId,
+                        bowName = bow?.name ?: "bow",
+                        bowType = bow?.bowType,
+                        arrowName = arrowConfig?.label,
+                        // Prefer the resolved label; fall back to the raw
+                        // id only when the arrow_config row is missing
+                        // (legacy state). Pre-equipment-inline this field
+                        // always carried the id — the strip's
+                        // `arrowName` is the proper user-facing label.
+                        arrowConfigLabel = arrowConfig?.label ?: session.arrowConfigId,
                         arrowCount = session.arrowCount,
                         feelTags = session.feelTags,
                         notes = session.notes,

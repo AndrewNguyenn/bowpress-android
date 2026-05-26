@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
+import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
@@ -47,6 +48,15 @@ data class SessionDetailUiState(
      * no shaft diameter recorded → BPPlottedTarget falls back to 6mm.
      */
     val arrowDiameterMm: Double? = null,
+    /**
+     * Equipment-inline strip — bow name + canonical [com.andrewnguyen.bowpress.core.model.BowType]
+     * + arrow set name, resolved off local bow + arrow_configurations
+     * rows. Each is independently nullable; the rendered strip drops
+     * missing fields along with their separator.
+     */
+    val bowName: String? = null,
+    val bowType: com.andrewnguyen.bowpress.core.model.BowType? = null,
+    val arrowName: String? = null,
 ) {
     val arrowCount: Int get() = arrows.size
 
@@ -65,6 +75,7 @@ class SessionDetailViewModel @Inject constructor(
     private val plotRepo: PlotRepository,
     private val sessionEndRepo: SessionEndRepository,
     private val sessionRepo: SessionRepository,
+    private val bowRepo: BowRepository,
     private val arrowConfigRepo: ArrowConfigRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -79,11 +90,21 @@ class SessionDetailViewModel @Inject constructor(
             val arrows = plotRepo.getBySession(sessionId)
             val ends = sessionEndRepo.getBySession(sessionId)
             val session = sessionRepo.getById(sessionId)
-            // Pull the shaft diameter off the arrow config the session
-            // was shot with — drives BPPlottedTarget's per-shaft dot
-            // size. Null when there's no config or no diameter recorded.
-            val shaftMm = session?.arrowConfigId
-                ?.let { arrowConfigRepo.getById(it)?.shaftDiameter }
+            // Equipment-inline strip — resolve the bow + arrow_config
+            // rows the session was shot on. Either lookup is a quick
+            // local DAO read; null when the row was deleted or the id
+            // points nowhere, in which case the strip drops the span.
+            // The arrow_config doubles as the source of the shaft
+            // diameter that drives BPPlottedTarget's per-shaft dot size.
+            //
+            // NOTE: one-shot read — matches the surrounding fields
+            // (notes, feel tags, etc.). A bow / arrow rename in
+            // Equipment while this screen is open won't reflect until
+            // the screen is re-entered. Future refactor: move all of
+            // this off `init { launch { once } }` onto an observed
+            // combine() and the strip updates live.
+            val bow = session?.bowId?.let { bowRepo.getBow(it) }
+            val arrowConfig = session?.arrowConfigId?.let { arrowConfigRepo.getById(it) }
             _state.update {
                 it.copy(
                     isLoading = false,
@@ -95,7 +116,10 @@ class SessionDetailViewModel @Inject constructor(
                     distance = session?.distance,
                     notes = session?.notes.orEmpty(),
                     feelTags = session?.feelTags.orEmpty(),
-                    arrowDiameterMm = shaftMm,
+                    arrowDiameterMm = arrowConfig?.shaftDiameter,
+                    bowName = bow?.name,
+                    bowType = bow?.bowType,
+                    arrowName = arrowConfig?.label,
                 )
             }
         }
