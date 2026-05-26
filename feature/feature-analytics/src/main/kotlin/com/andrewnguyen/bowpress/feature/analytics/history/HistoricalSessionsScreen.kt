@@ -401,6 +401,11 @@ private fun SessionRow.toActivityItem(): com.andrewnguyen.bowpress.core.model.Ac
         // Shaft diameter feeds BPPlottedTarget's dot-radius scaler
         // (parity B1) — without it dots fell back to the 6mm reference.
         arrowDiameterMm = this.arrowDiameterMm,
+        // Plotted positions for the target-face dots. Without this the
+        // 3-spot card rendered the bare face with no arrows; the multi-
+        // spot renderer needs real `[x, y]` coordinates to bucket each
+        // shot to its nearest spot via MultiSpotGeometry.assignArrows.
+        plotPoints = this.plotPoints.takeIf { it.isNotEmpty() },
     )
     return com.andrewnguyen.bowpress.core.model.ActivityItem(
         id = this.id,
@@ -726,6 +731,7 @@ private fun HistoricalSessionsPreview() {
                                 targetFaceType = com.andrewnguyen.bowpress.core.model.TargetFaceType.TEN_RING,
                                 targetLayout = com.andrewnguyen.bowpress.core.model.TargetLayout.SINGLE,
                                 arrowDiameterMm = 5.6,
+                                plotPoints = emptyList(),
                                 actorUserId = null,
                                 actorAvatarVersion = null,
                             ),

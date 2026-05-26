@@ -84,6 +84,13 @@ data class SessionRow(
      * falls back to the 6mm reference in the renderer.
      */
     val arrowDiameterMm: Double?,
+    /**
+     * Plotted arrow positions in shot order — each `[x, y]` normalised
+     * to −1…1. Drives the dots on the Log card's target face. Plots
+     * with no recorded coordinates are dropped; empty list leaves the
+     * face bare (matches iOS).
+     */
+    val plotPoints: List<List<Double>>,
     /** Signed-in user id — populates the actor avatar on a Log row. */
     val actorUserId: String?,
     /** Signed-in user's avatar version — cache-busts the `?v=` query. */
@@ -274,7 +281,16 @@ class HistoricalSessionsViewModel @Inject constructor(
                 bucket = bucket,
                 rangeLabel = rangeLabel,
                 rows = items.map { session ->
-                    val rings = plotsBySession[session.id].orEmpty().map { it.ring }
+                    val sessionPlots = plotsBySession[session.id].orEmpty()
+                    val rings = sessionPlots.map { it.ring }
+                    // Drop arrows that never recorded coordinates (older plots
+                    // without plotX/plotY). The renderer ignores empty lists
+                    // and just shows the bare face.
+                    val plotPoints: List<List<Double>> = sessionPlots.mapNotNull { plot ->
+                        val x = plot.plotX
+                        val y = plot.plotY
+                        if (x != null && y != null) listOf(x, y) else null
+                    }
                     val xCount = rings.count { it == 11 }
                     val xPct = if (rings.isNotEmpty()) (xCount * 100 / rings.size) else 0
                     val avg = avgBySession[session.id] ?: 0.0
@@ -323,6 +339,7 @@ class HistoricalSessionsViewModel @Inject constructor(
                         targetFaceType = session.targetFaceType,
                         targetLayout = session.targetLayout,
                         arrowDiameterMm = arrowConfig?.shaftDiameter,
+                        plotPoints = plotPoints,
                         actorUserId = myProfile?.userId,
                         actorAvatarVersion = myProfile?.avatarVersion,
                     )
