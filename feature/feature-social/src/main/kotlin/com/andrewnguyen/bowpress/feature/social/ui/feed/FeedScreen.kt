@@ -268,7 +268,7 @@ fun FeedScreen(
                     onActorClick = if (item.isOwn) null else { actorUserId: String ->
                         if (actorUserId.isNotBlank()) onActorClick(actorUserId)
                     },
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(vertical = 8.dp),
                 )
             }
 
