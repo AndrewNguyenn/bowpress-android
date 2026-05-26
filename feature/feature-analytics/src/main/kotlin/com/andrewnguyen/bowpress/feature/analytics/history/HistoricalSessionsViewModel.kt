@@ -6,12 +6,16 @@ import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
 import com.andrewnguyen.bowpress.core.data.repository.PlotRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
+import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.data.sync.LocalHydration
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialProfile
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +69,25 @@ data class SessionRow(
     val isBest: Boolean,
     /** True for a 3D-course session — the row taps through to the 3D detail. */
     val isThreeDCourse: Boolean = false,
+    /**
+     * Authoritative target-face fields off the session row. Drive the
+     * Log card's face renderer so a Vegas 3-spot session shows the
+     * triangle of small 6-rings (instead of the free-text-label
+     * fallback that defaulted every Log row to a single 10-ring).
+     * Mirrors iOS `SessionLogRow.targetFaceType` / `.targetLayout`.
+     */
+    val targetFaceType: TargetFaceType,
+    val targetLayout: TargetLayout,
+    /**
+     * Arrow shaft diameter in mm, resolved off the session's arrow
+     * config. Drives `BPPlottedTarget` dot sizing (parity B1) — null
+     * falls back to the 6mm reference in the renderer.
+     */
+    val arrowDiameterMm: Double?,
+    /** Signed-in user id — populates the actor avatar on a Log row. */
+    val actorUserId: String?,
+    /** Signed-in user's avatar version — cache-busts the `?v=` query. */
+    val actorAvatarVersion: Int?,
 )
 
 /** One group header + its rows. */
@@ -113,6 +136,7 @@ class HistoricalSessionsViewModel @Inject constructor(
     private val bowRepository: BowRepository,
     private val plotRepository: PlotRepository,
     private val arrowConfigRepository: ArrowConfigRepository,
+    private val socialRepository: SocialRepository,
     private val localHydration: LocalHydration,
 ) : ViewModel() {
 
@@ -127,10 +151,24 @@ class HistoricalSessionsViewModel @Inject constructor(
         // updates the moment the archer renames an arrow set in
         // Equipment.
         arrowConfigRepository.observeAll(),
+        // Signed-in user's profile feeds the actor avatar on Log rows.
+        // Mirrors iOS HistoricalSessionsView reading
+        // `appState.socialProfile`.
+        socialRepository.observeMyProfile(),
         bowFilter,
-    ) { sessions, bows, plots, arrowConfigs, filterBowId ->
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val sessions = values[0] as List<ShootingSession>
+        @Suppress("UNCHECKED_CAST")
+        val bows = values[1] as List<Bow>
+        @Suppress("UNCHECKED_CAST")
+        val plots = values[2] as List<ArrowPlot>
+        @Suppress("UNCHECKED_CAST")
+        val arrowConfigs = values[3] as List<ArrowConfiguration>
+        val myProfile = values[4] as SocialProfile?
+        val filterBowId = values[5] as String?
         val filtered = if (filterBowId == null) sessions else sessions.filter { it.bowId == filterBowId }
-        build(filtered, bows, plots, arrowConfigs, filterBowId)
+        build(filtered, bows, plots, arrowConfigs, myProfile, filterBowId)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -171,6 +209,7 @@ class HistoricalSessionsViewModel @Inject constructor(
         bows: List<Bow>,
         allPlots: List<ArrowPlot>,
         arrowConfigs: List<ArrowConfiguration>,
+        myProfile: SocialProfile?,
         filterBowId: String?,
     ): HistoricalSessionsUiState {
         val bowById = bows.associateBy { it.id }
@@ -281,6 +320,11 @@ class HistoricalSessionsViewModel @Inject constructor(
                         previousAvg = prevAvg?.takeIf { it > 0.0 },
                         isBest = isBest,
                         isThreeDCourse = isThreeD,
+                        targetFaceType = session.targetFaceType,
+                        targetLayout = session.targetLayout,
+                        arrowDiameterMm = arrowConfig?.shaftDiameter,
+                        actorUserId = myProfile?.userId,
+                        actorAvatarVersion = myProfile?.avatarVersion,
                     )
                 },
             )

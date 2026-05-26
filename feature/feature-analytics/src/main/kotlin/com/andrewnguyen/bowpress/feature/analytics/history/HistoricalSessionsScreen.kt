@@ -392,6 +392,15 @@ private fun SessionRow.toActivityItem(): com.andrewnguyen.bowpress.core.model.Ac
         bowName = this.bowName,
         bowType = this.bowType,
         arrowName = this.arrowName,
+        // Authoritative face type + layout off the session row.
+        // Without these, ActivityCard fell back to parsing the free-
+        // text `face` label and defaulted to a single 10-ring face
+        // (so Vegas 3-spot sessions rendered as one big bullseye).
+        targetFaceType = this.targetFaceType,
+        targetLayout = this.targetLayout,
+        // Shaft diameter feeds BPPlottedTarget's dot-radius scaler
+        // (parity B1) — without it dots fell back to the 6mm reference.
+        arrowDiameterMm = this.arrowDiameterMm,
     )
     return com.andrewnguyen.bowpress.core.model.ActivityItem(
         id = this.id,
@@ -418,7 +427,11 @@ private fun SessionRow.toActivityItem(): com.andrewnguyen.bowpress.core.model.Ac
         // any future affordances (edit, delete) gate correctly.
         isOwn = true,
         titleIsCustom = this.title != null,
-        actorUserId = "",
+        // Signed-in user id + avatar version — populates the header
+        // avatar via the LocalAvatarUrl resolver. Without these the
+        // own-row header rendered initials instead of the profile photo.
+        actorUserId = this.actorUserId.orEmpty(),
+        actorAvatarVersion = this.actorAvatarVersion,
         subjectId = this.id,
     )
 }
@@ -710,6 +723,11 @@ private fun HistoricalSessionsPreview() {
                                 xPct = 25,
                                 previousAvg = 9.2,
                                 isBest = true,
+                                targetFaceType = com.andrewnguyen.bowpress.core.model.TargetFaceType.TEN_RING,
+                                targetLayout = com.andrewnguyen.bowpress.core.model.TargetLayout.SINGLE,
+                                arrowDiameterMm = 5.6,
+                                actorUserId = null,
+                                actorAvatarVersion = null,
                             ),
                         ),
                     ),
