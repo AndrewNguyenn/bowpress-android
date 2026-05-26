@@ -372,4 +372,142 @@ class FeedViewModelTest {
         assertThat(initialState.isLoading).isTrue()
         assertThat(initialState.emptyVariant).isNull()
     }
+
+    // -------------------------------------------------------------------------
+    // F1 — Pagination generation counter (parity with iOS commit 0fac113)
+    // -------------------------------------------------------------------------
+
+    /**
+     * A [refresh] firing while a [loadMore] is in flight must cause the stale
+     * page-2 result to be dropped (not appended onto the freshly-reloaded
+     * page-1). The [_nextCursor] must reflect the refresh's first-page cursor,
+     * NOT the discarded page's `nextCursor`.
+     */
+    @Test
+    fun `loadMore drops stale page when refresh fires mid-fetch`() = runTest {
+        // refreshFeed returns a fresh first page with a "page2-fresh" cursor.
+        coEvery { repository.refreshFeed() } returns
+            com.andrewnguyen.bowpress.core.model.FeedPage(
+                items = emptyList(),
+                nextCursor = "page2-fresh",
+            )
+        // The in-flight loadMore returns a stale page-2 that the caller MUST
+        // discard because refresh bumped the generation underneath it.
+        val loadMoreSignal = kotlinx.coroutines.CompletableDeferred<Unit>()
+        coEvery { repository.loadMoreFeed("page2-stale") } coAnswers {
+            loadMoreSignal.await()
+            com.andrewnguyen.bowpress.core.model.FeedPage(
+                items = emptyList(),
+                nextCursor = "page3-stale",
+            )
+        }
+
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
+        // Drain initial refresh emitted by `init`.
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Seed the cursor to simulate a prior refresh leaving page-2 available.
+        // We use the public API: feed loaded with nextCursor present.
+        val nextCursorField = FeedViewModel::class.java
+            .getDeclaredField("_nextCursor")
+            .apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val nextCursor = nextCursorField.get(vm) as MutableStateFlow<String?>
+        nextCursor.value = "page2-stale"
+
+        // Kick off a loadMore that will suspend on `loadMoreSignal`.
+        vm.loadMore()
+        testDispatcher.scheduler.runCurrent()
+
+        // While loadMore is awaiting, a refresh bumps the generation.
+        vm.refresh()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Now release the stale loadMore. The page MUST be dropped — the
+        // cursor must reflect the refresh's "page2-fresh", not the stale
+        // "page3-stale" the discarded page would have set.
+        loadMoreSignal.complete(Unit)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertThat(nextCursor.value).isEqualTo("page2-fresh")
+    }
+
+    /**
+     * Sanity check: a normal loadMore with NO concurrent refresh advances the
+     * cursor to the page's `nextCursor`.
+     */
+    @Test
+    fun `loadMore advances cursor when no concurrent refresh fires`() = runTest {
+        coEvery { repository.refreshFeed() } returns
+            com.andrewnguyen.bowpress.core.model.FeedPage(
+                items = emptyList(),
+                nextCursor = "p2",
+            )
+        coEvery { repository.loadMoreFeed("p2") } returns
+            com.andrewnguyen.bowpress.core.model.FeedPage(
+                items = emptyList(),
+                nextCursor = "p3",
+            )
+
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val nextCursorField = FeedViewModel::class.java
+            .getDeclaredField("_nextCursor")
+            .apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val nextCursor = nextCursorField.get(vm) as MutableStateFlow<String?>
+
+        // Initial refresh seeded p2.
+        assertThat(nextCursor.value).isEqualTo("p2")
+
+        vm.loadMore()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertThat(nextCursor.value).isEqualTo("p3")
+    }
+
+    /**
+     * The sentinel can re-fire on recomposition; loadMore must no-op when the
+     * cursor hasn't advanced (avoids a duplicate fetch for the same page).
+     */
+    @Test
+    fun `loadMore no-ops on duplicate fire of the same cursor`() = runTest {
+        coEvery { repository.refreshFeed() } returns
+            com.andrewnguyen.bowpress.core.model.FeedPage(
+                items = emptyList(),
+                nextCursor = "p2",
+            )
+        var loadMoreCalls = 0
+        coEvery { repository.loadMoreFeed("p2") } coAnswers {
+            loadMoreCalls++
+            com.andrewnguyen.bowpress.core.model.FeedPage(
+                items = emptyList(),
+                nextCursor = "p3",
+            )
+        }
+
+        val vm = FeedViewModel(repository, SocialBadgeRefreshBus())
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // First call — fires.
+        vm.loadMore()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertThat(loadMoreCalls).isEqualTo(1)
+
+        // Reset cursor back to p2 to simulate a stale recomposition trying
+        // to re-fire on the SAME cursor we just loaded. The guard must
+        // suppress the duplicate.
+        val nextCursorField = FeedViewModel::class.java
+            .getDeclaredField("_nextCursor")
+            .apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val nextCursor = nextCursorField.get(vm) as MutableStateFlow<String?>
+        nextCursor.value = "p2"
+
+        vm.loadMore()
+        testDispatcher.scheduler.advanceUntilIdle()
+        // Still only one call.
+        assertThat(loadMoreCalls).isEqualTo(1)
+    }
 }

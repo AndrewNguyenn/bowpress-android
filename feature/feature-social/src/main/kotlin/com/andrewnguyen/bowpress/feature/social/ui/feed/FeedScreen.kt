@@ -178,6 +178,11 @@ fun FeedScreen(
                         is FeedItemDestination.Actor -> onActorClick(dest.actorUserId)
                     }
                 }
+                // Note: the pagination trigger lives in a separate `item { }`
+                // sentinel below — NOT inside this row's body — so it remains
+                // a direct LazyColumn child (mirrors iOS commit b849ed5, which
+                // moved the SwiftUI sentinel out of an eager VStack so the
+                // scroll visibility callback fires on viewport entry).
                 // Social Feed V2 §5 — opening the comment thread carries the
                 // §5.1 subject owner so the screen can gate comment deletion
                 // (author OR post owner).
@@ -227,11 +232,19 @@ fun FeedScreen(
                     onMentionTap = onMentionTap,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 )
-                // Trigger loadMore when the last item in the list becomes
-                // visible — the item id is stable, so recompositions from
-                // other state changes don't re-fire the effect.
-                if (item == state.feed.lastOrNull()) {
-                    LaunchedEffect(item.id) {
+            }
+
+            // Pagination sentinel — a direct LazyColumn `item { }` child so the
+            // lazy-layout composition signal fires reliably when the user
+            // scrolls to the end of the feed. Keyed on `state.nextCursor` so
+            // each new cursor re-triggers the effect once and only once on
+            // entry; null cursor (last page) no-ops. Mirrors iOS
+            // `Color.clear.id(nextCursor).onScrollVisibilityChange { … }`
+            // (commit b849ed5).
+            if (state.feed.isNotEmpty() && state.nextCursor != null) {
+                item(key = "feed-sentinel-${state.nextCursor}") {
+                    Box(modifier = Modifier.height(1.dp).fillMaxWidth())
+                    LaunchedEffect(state.nextCursor) {
                         viewModel.loadMore()
                     }
                 }

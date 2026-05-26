@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 data class FeedUiState(
@@ -101,6 +102,25 @@ class FeedViewModel @Inject constructor(
     private val _nextCursor = MutableStateFlow<String?>(null)
     private val _myProfile = MutableStateFlow<SocialProfile?>(null)
 
+    /**
+     * Generation counter that guards [loadMore] against a concurrent [refresh].
+     * Incremented synchronously at the top of every [refresh] (before any
+     * suspending call); [loadMore] captures the value before its fetch and
+     * discards the resulting page if the generation has advanced — that
+     * prevents a stale page-2 from being appended onto a freshly-reloaded
+     * page-1 (duplicate rows + stale `nextCursor`). Mirrors iOS
+     * `SocialTabView.loadGeneration` (commit 0fac113).
+     */
+    private val loadGeneration = AtomicInteger(0)
+
+    /**
+     * The cursor whose [loadMore] is in flight (or has just completed) — used
+     * to suppress a duplicate fetch when the same sentinel re-fires before the
+     * cursor advances. Cleared when the generation counter discards a stale
+     * page so the new generation can re-trigger pagination cleanly.
+     */
+    private var lastLoadedCursor: String? = null
+
     // The five repository flows carry the list data; the local MutableStateFlows
     // must ALSO be combine inputs — `combine` only re-emits when a source flow
     // changes, so reading `.value` inside the lambda would leave those fields
@@ -175,6 +195,11 @@ class FeedViewModel @Inject constructor(
     }
 
     fun refresh() {
+        // Bump the generation BEFORE any suspending call so any [loadMore]
+        // currently awaiting a fetch discards its stale page rather than
+        // appending onto the refreshed page-1.
+        loadGeneration.incrementAndGet()
+        lastLoadedCursor = null
         _nextCursor.value = null
         viewModelScope.launch {
             _isLoading.value = true
@@ -196,18 +221,40 @@ class FeedViewModel @Inject constructor(
 
     /**
      * Load the next page of the activity feed using the current [_nextCursor].
-     * No-ops if there is no cursor (no more pages) or a load is already in
-     * flight. New items appear automatically via the Room `observeAll()` flow.
+     * No-ops if there is no cursor (no more pages), a load is already in
+     * flight, or the same cursor was just loaded (sentinel re-fire). New items
+     * appear automatically via the Room `observeAll()` flow.
+     *
+     * Guarded by [loadGeneration] against a concurrent [refresh]: if the
+     * generation advances during the fetch, the page is dropped and
+     * [lastLoadedCursor] is cleared so the new generation can re-trigger
+     * pagination once the refreshed `nextCursor` lands. Mirrors iOS
+     * `SocialTabView.loadMore` (commit 0fac113).
      */
     fun loadMore() {
         val cursor = _nextCursor.value ?: return
         if (_isLoadingMore.value) return
+        if (cursor == lastLoadedCursor) return
+        lastLoadedCursor = cursor
+        val genAtStart = loadGeneration.get()
         viewModelScope.launch {
             _isLoadingMore.value = true
             runCatching {
                 val page = socialRepository.loadMoreFeed(cursor)
+                // [refresh] fired during the fetch — discard this stale page
+                // and reset [lastLoadedCursor] so pagination can re-trigger
+                // with the new generation's cursor.
+                if (loadGeneration.get() != genAtStart) {
+                    lastLoadedCursor = null
+                    return@runCatching
+                }
                 _nextCursor.value = page.nextCursor
-            }.onFailure { /* silently ignore, user can scroll again */ }
+            }.onFailure {
+                // Same-generation failure — clear the cursor guard so the user
+                // can retry by scrolling again. (A cross-generation failure
+                // also benefits from this reset.)
+                lastLoadedCursor = null
+            }
             _isLoadingMore.value = false
         }
     }
