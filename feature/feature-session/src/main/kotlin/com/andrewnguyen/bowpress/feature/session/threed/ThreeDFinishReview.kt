@@ -71,7 +71,12 @@ fun ThreeDFinishReview(
         )
         FinishSheet(
             mode = mode,
-            bowName = state.session?.let { "Bow" } ?: "—",
+            // Real bow name from the VM-hydrated state. The em-dash fallback
+            // only ever shows if the bow row hasn't loaded yet — which
+            // shouldn't happen at sign-off, but keeps the meta strip
+            // rendered if it does. Mirrors iOS where ThreeDFinishView
+            // passes session.bow?.name straight to FinishSheet.
+            bowName = state.bow?.name ?: "—",
             arrowSummary = null,
             isPosting = false,
             initialTitle = state.session?.title.orEmpty(),
