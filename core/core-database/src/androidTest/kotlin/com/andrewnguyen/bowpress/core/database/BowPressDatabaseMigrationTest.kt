@@ -32,6 +32,11 @@ import org.junit.runner.RunWith
  *   AutoMigration adds the Likes & Comments columns (`subjectId`,
  *   `likeCount`, `likedByMe`, `commentCount`) to `activity_feed` without
  *   data loss.
+ * - [migrate_18_to_19_adds_visibility_join_policy_and_avatar_columns]:
+ *   Verifies the v18→v19 AutoMigration (parity E5 + E8) adds the avatar
+ *   cache-buster columns (`avatarVersion`, `avatarUrl`) to `social_profiles`
+ *   and `activity_feed`, plus `visibility` / `joinPolicy` columns to `clubs`
+ *   and `leagues` with SQL defaults `'PUBLIC'` / `'OPEN'`, without data loss.
  *
  * Schema JSON snapshots under `core-database/schemas/` are exposed to this test as
  * assets via `sourceSets["androidTest"].assets.srcDirs` in `build.gradle.kts`.
@@ -548,6 +553,163 @@ class BowPressDatabaseMigrationTest {
         ).use { cursor ->
             assertThat(cursor.moveToFirst()).isTrue()
             assertThat(cursor.getString(0)).contains("marcus.t")
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate_18_to_19_adds_visibility_join_policy_and_avatar_columns() {
+        val dbName = "migration-18-19-test.db"
+
+        // Create a v18 DB and seed one row in each of the four tables the
+        // v18→v19 AutoMigration touches — clubs + leagues (gain visibility +
+        // joinPolicy with SQL defaults), activity_feed + social_profiles
+        // (gain nullable avatar cache-buster columns). This both confirms
+        // the migration is additive (legacy rows survive) and that the SQL
+        // defaults / nulls land the way the iOS oracle expects.
+        helper.createDatabase(dbName, 18).apply {
+            execSQL(
+                """
+                INSERT INTO social_profiles (
+                    userId, handle, displayName, joinedAt, visibility,
+                    sessionCount, arrowCount, pendingSync
+                ) VALUES (
+                    'u-1', 'andrew.n', 'Andrew N', 1700000000000, 'friends',
+                    0, 0, 0
+                )
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO clubs (
+                    id, name, inviteCode, createdAt, createdBy,
+                    memberCount, myRole, pendingSync
+                ) VALUES (
+                    'club-1', 'Sunday Range', 'CLUB0001', 1700000000000, 'u-1',
+                    1, 'host', 0
+                )
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO leagues (
+                    id, name, hostUserId, leagueType, divisions,
+                    roundJson, scheduleJson, handicapJson, entryRule,
+                    inviteCode, status, createdAt, entryCount, pendingSync
+                ) VALUES (
+                    'lg-1', 'Spring 2026', 'u-1', 'individual', '["CMP"]',
+                    '{"endCount":12,"arrowsPerEnd":5}',
+                    '{"kind":"single","startsAt":"2026-03-01T00:00:00Z","endsAt":"2026-05-30T00:00:00Z"}',
+                    '{"equation":"none","setupWeeks":0}',
+                    'open', 'LG0001', 'upcoming', 1700000000000, 1, 0
+                )
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO activity_feed (
+                    id, kind, sourceKind, actorHandle, actorDisplayName,
+                    title, createdAt, titleIsCustom, isOwn,
+                    subjectId, likeCount, likedByMe, commentCount
+                ) VALUES (
+                    'act-1', 'friend_session', 'friend', 'sara.l', 'Sara Lin',
+                    'logged a session', 1700000000000, 0, 0,
+                    'ss-1', 0, 0, 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        // AutoMigration 18→19 is purely additive: avatar columns (nullable)
+        // on activity_feed and social_profiles; visibility + joinPolicy (NOT
+        // NULL with SQL DEFAULT 'PUBLIC' / 'OPEN') on clubs and leagues.
+        val db = helper.runMigrationsAndValidate(dbName, 19, /* validateDroppedTables = */ true)
+
+        // Clubs: legacy data preserved, defaults applied.
+        db.query(
+            "SELECT name, visibility, joinPolicy FROM clubs WHERE id = 'club-1'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("Sunday Range")
+            assertThat(cursor.getString(1)).isEqualTo("PUBLIC")
+            assertThat(cursor.getString(2)).isEqualTo("OPEN")
+        }
+
+        // Leagues: same default story.
+        db.query(
+            "SELECT name, visibility, joinPolicy FROM leagues WHERE id = 'lg-1'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("Spring 2026")
+            assertThat(cursor.getString(1)).isEqualTo("PUBLIC")
+            assertThat(cursor.getString(2)).isEqualTo("OPEN")
+        }
+
+        // activity_feed: legacy row survives; new nullable avatar columns
+        // default to NULL → UI falls back to the monogram.
+        db.query(
+            "SELECT title, actorAvatarVersion, actorAvatarUrl FROM activity_feed WHERE id = 'act-1'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("logged a session")
+            assertThat(cursor.isNull(1)).isTrue()
+            assertThat(cursor.isNull(2)).isTrue()
+        }
+
+        // social_profiles: same shape — legacy row survives, avatar columns
+        // null. This is the specific cache write SocialRepository.getMyProfile
+        // round-trips through; without these columns the signed-in user's
+        // avatar would flash back to the monogram on every cold launch
+        // (iOS bug b4c41fe).
+        db.query(
+            "SELECT handle, avatarVersion, avatarUrl FROM social_profiles WHERE userId = 'u-1'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("andrew.n")
+            assertThat(cursor.isNull(1)).isTrue()
+            assertThat(cursor.isNull(2)).isTrue()
+        }
+
+        // A fresh PRIVATE / INVITE_ONLY club + a profile with a real
+        // avatarVersion both insert cleanly post-migration.
+        db.execSQL(
+            """
+            INSERT INTO clubs (
+                id, name, inviteCode, createdAt, createdBy,
+                memberCount, myRole, visibility, joinPolicy, pendingSync
+            ) VALUES (
+                'club-2', 'Members Only', 'CLUB0002', 1700000000001, 'u-1',
+                1, 'host', 'PRIVATE', 'INVITE_ONLY', 0
+            )
+            """.trimIndent(),
+        )
+        db.query(
+            "SELECT visibility, joinPolicy FROM clubs WHERE id = 'club-2'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("PRIVATE")
+            assertThat(cursor.getString(1)).isEqualTo("INVITE_ONLY")
+        }
+
+        db.execSQL(
+            """
+            INSERT INTO social_profiles (
+                userId, handle, displayName, joinedAt, visibility,
+                sessionCount, arrowCount, avatarVersion, avatarUrl, pendingSync
+            ) VALUES (
+                'u-2', 'marcus.t', 'Marcus T', 1700000000001, 'friends',
+                0, 0, 4, 'https://cdn.example/u-2.jpg', 0
+            )
+            """.trimIndent(),
+        )
+        db.query(
+            "SELECT avatarVersion, avatarUrl FROM social_profiles WHERE userId = 'u-2'",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getInt(0)).isEqualTo(4)
+            assertThat(cursor.getString(1)).isEqualTo("https://cdn.example/u-2.jpg")
         }
 
         db.close()
