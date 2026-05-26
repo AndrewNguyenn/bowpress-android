@@ -19,6 +19,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlue
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtRed
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtWhite
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtYellow
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 
 /**
  * Visual style of [BPTargetFace].
@@ -48,9 +49,28 @@ enum class BPTargetFaceType { TenRing, SixRing }
  *  - [Outdoor80] — 80cm WA compound inner face (rings 5,6,7,8,9,10,X = 7
  *    zones). Blue is split into two bands.
  *
- * Default [Outdoor80] matches the pre-existing icon.
+ * Vegas is the safe default for callers that don't know their distance —
+ * matches the printed 40cm indoor face the picker icon shows + aligns
+ * with [forDistance(null)] and every iOS feed-card / detail caller.
  */
-enum class BPSixRingStyle { Vegas, Outdoor80 }
+enum class BPSixRingStyle {
+    Vegas, Outdoor80;
+
+    companion object {
+        /**
+         * Pick the visual variant by the session's distance. 50m / 70m
+         * outdoor → [Outdoor80]; everything else (20yd indoor, unknown,
+         * null) → [Vegas]. The single canonical helper for the 4-way
+         * fan-out (setup picker icon, feed card, friend detail, session
+         * detail). Mirrors iOS `socialSixRingStyle(forDistance:)` /
+         * `sixRingStyleForCurrentDistance`.
+         */
+        fun forDistance(distance: ShootingDistance?): BPSixRingStyle = when (distance) {
+            ShootingDistance.METERS_50, ShootingDistance.METERS_70 -> Outdoor80
+            ShootingDistance.YARDS_20, null -> Vegas
+        }
+    }
+}
 
 private data class Ring(
     val ratio: Float,
@@ -79,16 +99,19 @@ private val tenRingRings = listOf(
 
 /**
  * 40cm Vegas inner face — 6 zones (rings 6,7,8,9,10,X), single thin blue
- * band. Ratios match iOS `sixRing` / `.vegas` (commit 65258d8): 20% blue,
- * 40% red, 40% yellow. The blue band is the thin outermost annulus, not the
- * chunky 30% double band the icon was previously drawing.
+ * band. Implements the iOS commit 65258d8 ratio fix (20/40/40 reference)
+ * while preserving the 0.96 outer paper margin every Android icon shares —
+ * so the band widths land at ~17% blue / ~42% red / ~41% yellow rather
+ * than the bare-canvas 20/40/40 of the SVG reference. The blue band is
+ * the thin outermost annulus, not the chunky 30% double band the picker
+ * was previously drawing.
  *
- * In the 200-viewBox SVG reference the radii are r=40 (yellow outer) / 32
- * (red outer) / 16 (blue outer) — i.e. 0.20 yellow → 0.40 red → 0.80 paper —
- * which lands on our 0.96 outer radius as the band edges below:
- *  - 0.96 → 0.80 (16% width) outer blue
- *  - 0.80 → 0.40 (40% width) red
- *  - 0.40 → 0.014 (~40% width) yellow
+ * 200-viewBox SVG reference: r=40 (yellow outer) / 32 (red outer) / 16
+ * (blue outer) → 0.20 / 0.40 / 0.80 if rendered to the canvas edge. With
+ * our 0.96 paper-margin scale they map to:
+ *  - 0.96 → 0.80 outer blue (~17% canvas width)
+ *  - 0.80 → 0.40 red (~42%)
+ *  - 0.40 → 0.014 yellow + X dot (~41%)
  *
  * NB: scoring math (TargetGeometry.SixRing) is unchanged — this is a purely
  * visual ratio fix on the picker icon / SixRing-decorative variant.
@@ -151,7 +174,7 @@ fun BPTargetFace(
     modifier: Modifier = Modifier,
     face: BPTargetFaceType = BPTargetFaceType.TenRing,
     style: BPTargetStyle = BPTargetStyle.WA,
-    sixRingStyle: BPSixRingStyle = BPSixRingStyle.Outdoor80,
+    sixRingStyle: BPSixRingStyle = BPSixRingStyle.Vegas,
     showCrosshair: Boolean = false,
     overlay: (@Composable BoxScope.() -> Unit)? = null,
 ) {

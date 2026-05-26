@@ -54,10 +54,10 @@ fun BPPlottedTarget(
     // §B3 — when the session was a 6-ring at 50/70m the renderer should
     // paint the 80cm WA compound outdoor 7-zone face (split blue + outer
     // ring 5) instead of the Vegas 6-zone card. The variant is picked by
-    // the caller (it knows the session distance); BPPlottedTarget itself
-    // just routes the ring stack. Defaults to the legacy Vegas variant so
+    // the caller (it knows the session distance) — typically via
+    // `BPSixRingStyle.forDistance(distance)`. Defaults to Vegas so
     // existing callers without distance context don't change.
-    sixRingVariant: SixRingVariant = SixRingVariant.Vegas,
+    sixRingStyle: BPSixRingStyle = BPSixRingStyle.Vegas,
 ) {
     val multiSpot = MultiSpotGeometry.preset(layout)
     Canvas(
@@ -71,7 +71,7 @@ fun BPPlottedTarget(
             // Single face — one bullseye, plotX/plotY relative to its centre.
             val center = Offset(size.width / 2f, size.height / 2f)
             val faceRadius = minOf(size.width, size.height) / 2f
-            drawFace(center, faceRadius, faceType, sixRingVariant)
+            drawFace(center, faceRadius, faceType, sixRingStyle)
             arrows.forEach { plot ->
                 val px = plot.plotX ?: return@forEach
                 val py = plot.plotY ?: return@forEach
@@ -90,7 +90,7 @@ fun BPPlottedTarget(
         val spotCentres = multiSpot.centers.map { c ->
             Offset(c.x.toFloat() * size.width, c.y.toFloat() * size.height)
         }
-        spotCentres.forEach { drawFace(it, spotRadius, TargetFaceType.SIX_RING, sixRingVariant) }
+        spotCentres.forEach { drawFace(it, spotRadius, TargetFaceType.SIX_RING, sixRingStyle) }
         // Position-based bucketing — each arrow on its actual spot, drawn at
         // its recentered spot-local offset (localX/localY ∈ −1..1 of the
         // spot radius). Mirrors the live-session scoring path.
@@ -108,25 +108,18 @@ fun BPPlottedTarget(
 }
 
 /**
- * §B3 — visual variant for the [TargetFaceType.SIX_RING] face.
- *  - [Vegas]: 40cm indoor 6-zone, rings 6..X with a single blue band.
- *  - [Outdoor80]: 80cm WA compound outdoor 7-zone, rings 5..X with the
- *    blue band split (the inner-7 of the 122cm WA face).
- *
- * Mirrors iOS `BPTargetFace.SixRingStyle` — selected from session distance
- * by the caller (50m / 70m → Outdoor80, 20yd / unknown → Vegas).
- */
-enum class SixRingVariant { Vegas, Outdoor80 }
-
-/**
  * Ring bands for a face, outer → inner. A 10-ring face has all five colour
  * bands; a 6-ring face is the inner-6 — yellow/red/blue only — so its bands
  * span the full radius. The 6-ring outdoor variant adds an outermost blue
  * sub-band so ring 5 lives at the canvas edge (`rings.first == 1.0`).
+ *
+ * §B3 — the [BPSixRingStyle] argument selects between Vegas (40cm indoor,
+ * single blue band, rings 6..X) and Outdoor80 (80cm WA compound, split blue
+ * band, rings 5..X). Mirrors iOS `BPTargetFace.SixRingStyle`.
  */
 private fun ringBands(
     faceType: TargetFaceType,
-    sixRingVariant: SixRingVariant,
+    sixRingStyle: BPSixRingStyle,
 ): List<Pair<Float, Color>> = when (faceType) {
     TargetFaceType.TEN_RING -> listOf(
         1.0f to AppTgtWhite, 0.9f to AppTgtWhite,
@@ -135,10 +128,10 @@ private fun ringBands(
         0.4f to AppTgtRed, 0.3f to AppTgtRed,
         0.2f to AppTgtYellow, 0.1f to AppTgtYellow,
     )
-    TargetFaceType.SIX_RING -> when (sixRingVariant) {
+    TargetFaceType.SIX_RING -> when (sixRingStyle) {
         // 40cm indoor 6-zone — outer single blue band, then red, then yellow.
         // Rings 6,6,7,8,9,10 outer edges at 1.0, 0.833, 0.667, 0.5, 0.333, 0.167.
-        SixRingVariant.Vegas -> listOf(
+        BPSixRingStyle.Vegas -> listOf(
             1.0f to AppTgtBlue, 0.833f to AppTgtBlue,
             0.667f to AppTgtRed, 0.5f to AppTgtRed,
             0.333f to AppTgtYellow, 0.167f to AppTgtYellow,
@@ -146,7 +139,7 @@ private fun ringBands(
         // 80cm WA compound 7-zone — equal-width 1/6 bands, ring 5's outer
         // edge at 1.0; blue is split into ring 5 (outer) + ring 6 (inner),
         // each one 1/6 wide. Mirrors iOS `sixRingOutdoor` paint stack.
-        SixRingVariant.Outdoor80 -> listOf(
+        BPSixRingStyle.Outdoor80 -> listOf(
             1.0f to AppTgtBlue, 5f / 6f to AppTgtBlue,
             4f / 6f to AppTgtRed, 3f / 6f to AppTgtRed,
             2f / 6f to AppTgtYellow, 1f / 6f to AppTgtYellow,
@@ -159,9 +152,9 @@ private fun DrawScope.drawFace(
     center: Offset,
     radius: Float,
     faceType: TargetFaceType,
-    sixRingVariant: SixRingVariant,
+    sixRingStyle: BPSixRingStyle,
 ) {
-    val bands = ringBands(faceType, sixRingVariant)
+    val bands = ringBands(faceType, sixRingStyle)
     bands.forEach { (edge, color) ->
         drawCircle(color = color, radius = edge * radius, center = center)
     }

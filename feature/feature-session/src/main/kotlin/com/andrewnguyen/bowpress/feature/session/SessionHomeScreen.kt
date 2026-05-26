@@ -631,12 +631,14 @@ private fun faceSizeLabel(face: TargetFaceType, distance: ShootingDistance?): St
 
 /**
  * Picks the visual variant of the six-ring icon so it matches the real face
- * at the picked distance — 40cm Vegas at 20yd (6 zones, single blue band);
- * 80cm compound at 50/70m (7 zones, blue split). Mirrors iOS
- * `sixRingStyleForCurrentDistance`.
+ * at the picked distance — 40cm Vegas at 20yd or unknown (6 zones, single
+ * blue band); 80cm compound at 50/70m (7 zones, blue split). Delegates to
+ * the canonical [BPSixRingStyle.forDistance] so the four SixRing surfaces
+ * (setup icon, feed card, friend detail, session detail) agree on the
+ * Vegas null-default. Mirrors iOS `sixRingStyleForCurrentDistance`.
  */
 private fun sixRingStyleForDistance(distance: ShootingDistance?): BPSixRingStyle =
-    if (distance == ShootingDistance.YARDS_20) BPSixRingStyle.Vegas else BPSixRingStyle.Outdoor80
+    BPSixRingStyle.forDistance(distance)
 
 // ---------------------------------------------------------------------------
 // Target layout field — Triangle / Vertical 3-spot Vegas tiles
