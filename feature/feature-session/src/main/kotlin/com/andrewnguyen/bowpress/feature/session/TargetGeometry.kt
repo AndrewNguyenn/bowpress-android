@@ -271,8 +271,9 @@ sealed class TargetGeometry {
          * are white, 3–4 black, 5–6 blue, 7–8 red, 9–10 yellow. X (11) is
          * painted separately as the centre disc — it doesn't reach this
          * switch. An out-of-range value asserts (DEBUG) and falls back to
-         * yellow so a future variant that adds a new ring trips a loud
-         * failure rather than silently painting an inner colour.
+         * neutral grey in release so the face stays renderable rather
+         * than crashing a user mid-session. Mirrors iOS
+         * `assertionFailure(...) + return .gray`.
          *
          * Drives `ringFillColors` on the geometry-aware face renderers so
          * the 6-zone, 7-zone, and 10-zone faces all paint correctly from
@@ -286,12 +287,16 @@ sealed class TargetGeometry {
             5, 6 -> AppTgtBlue
             7, 8 -> AppTgtRed
             9, 10 -> AppTgtYellow
-            // Loud DEBUG signal so a future variant that adds a new ring
-            // trips a real failure rather than silently painting yellow.
-            // Mirrors iOS `assertionFailure(...)` + neutral grey fallback.
-            else -> error(
-                "TargetGeometry.ringColor: unknown ring $ring — add a case if you've introduced a new face variant",
-            )
+            else -> {
+                // `assert(condition)` is a no-op in release but throws
+                // under -ea / unit-test runs — so a regression trips loud
+                // in tests + DEBUG but a release user gets neutral grey
+                // and a renderable face. Matches iOS `assertionFailure`.
+                assert(false) {
+                    "TargetGeometry.ringColor: unknown ring $ring — add a case if you've introduced a new face variant"
+                }
+                Color.Gray
+            }
         }
 
         private fun zoneFromAngle(angleDegrees: Double): Zone {

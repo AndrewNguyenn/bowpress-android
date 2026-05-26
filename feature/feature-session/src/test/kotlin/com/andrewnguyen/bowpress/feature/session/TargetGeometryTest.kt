@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.session
 
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
 import com.google.common.truth.Truth.assertThat
@@ -310,7 +311,7 @@ class TargetGeometryTest {
     @Test fun `preset sixRing at indoor is Vegas geometry`() {
         // 20yd indoor + null both resolve to the 40cm Vegas 6-zone face.
         // Vegas has outerRingValue 6 and 6 thresholds (X + 5 numeric).
-        val vegas = TargetGeometry.forFace(TargetFaceType.SIX_RING, com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20)
+        val vegas = TargetGeometry.forFace(TargetFaceType.SIX_RING, ShootingDistance.YARDS_20)
         assertThat(vegas.outerRingValue).isEqualTo(6)
         assertThat(vegas.thresholds.size).isEqualTo(6)
 
@@ -322,11 +323,11 @@ class TargetGeometryTest {
     @Test fun `preset sixRing at outdoor is seven-zone geometry`() {
         // 50/70m resolve to the 80cm WA compound outdoor 7-zone face.
         // 7-zone has outerRingValue 5 and 7 thresholds (X + 6 numeric).
-        val fifty = TargetGeometry.forFace(TargetFaceType.SIX_RING, com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50)
+        val fifty = TargetGeometry.forFace(TargetFaceType.SIX_RING, ShootingDistance.METERS_50)
         assertThat(fifty.outerRingValue).isEqualTo(5)
         assertThat(fifty.thresholds.size).isEqualTo(7)
 
-        val seventy = TargetGeometry.forFace(TargetFaceType.SIX_RING, com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70)
+        val seventy = TargetGeometry.forFace(TargetFaceType.SIX_RING, ShootingDistance.METERS_70)
         assertThat(seventy.outerRingValue).isEqualTo(5)
         assertThat(seventy.thresholds.size).isEqualTo(7)
     }
@@ -336,9 +337,9 @@ class TargetGeometryTest {
         // face isn't distance-overloaded the way sixRing is.
         val distances = listOf(
             null,
-            com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20,
-            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50,
-            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70,
+            ShootingDistance.YARDS_20,
+            ShootingDistance.METERS_50,
+            ShootingDistance.METERS_70,
         )
         for (d in distances) {
             val geo = TargetGeometry.forFace(TargetFaceType.TEN_RING, d)

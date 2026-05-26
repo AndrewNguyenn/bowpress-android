@@ -43,8 +43,10 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
+import com.andrewnguyen.bowpress.feature.session.TargetGeometry
 import kotlinx.coroutines.launch
 
 /**
@@ -73,7 +75,7 @@ fun ArrowEditSheet(
     // §B3 — distance routes sixRing to the right keypad ladder: 20yd
     // indoor caps the lowest at ring 6 (Vegas), 50/70m caps the lowest at
     // ring 5 (Outdoor80 7-zone). null defaults to the Vegas ladder.
-    distance: com.andrewnguyen.bowpress.core.model.ShootingDistance? = null,
+    distance: ShootingDistance? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -181,11 +183,10 @@ fun ArrowEditSheet(
 private fun QuickScoreKeypad(
     currentRing: Int,
     faceType: TargetFaceType,
-    distance: com.andrewnguyen.bowpress.core.model.ShootingDistance?,
+    distance: ShootingDistance?,
     onPick: (Int) -> Unit,
 ) {
-    val lowest = com.andrewnguyen.bowpress.feature.session.TargetGeometry
-        .forFace(faceType, distance).outerRingValue
+    val lowest = TargetGeometry.forFace(faceType, distance).outerRingValue
     val ladder = buildList {
         add(11)
         for (r in 10 downTo lowest) add(r)

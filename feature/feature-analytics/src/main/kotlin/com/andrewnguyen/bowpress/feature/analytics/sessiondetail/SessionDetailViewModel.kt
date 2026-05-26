@@ -184,8 +184,13 @@ class SessionDetailViewModel @Inject constructor(
         val innermost = geometry.innermostNumericRing
         val outermost = geometry.outerRingValue
         if (ring !in outermost..innermost) {
-            // Out of range for this face — treat as a miss.
-            return geometry.thresholds.last() to (geometry.thresholds.last() + 0.05)
+            // Out of range for this face — treat as a miss. Park the dot
+            // just past the FULL canvas edge (1.0..1.05), not just past
+            // the outer scoring band — matches the legacy ringBand
+            // behavior, which always landed misses at the canvas edge
+            // regardless of where the outer scoring ring sat (Vegas's
+            // outer ring 6 sits at 0.808, well inside 1.0).
+            return 1.0 to 1.05
         }
         // ring = innermost - (i - 1) ⇒ i = innermost - ring + 1.
         val i = innermost - ring + 1
