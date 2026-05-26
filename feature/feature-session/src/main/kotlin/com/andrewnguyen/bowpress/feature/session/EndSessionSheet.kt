@@ -53,7 +53,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3

@@ -1,6 +1,6 @@
 package com.andrewnguyen.bowpress.feature.session
 
-import android.app.Application
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
@@ -26,6 +26,7 @@ import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.core.model.Zone
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,7 +52,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SessionViewModel @Inject constructor(
-    private val app: Application,
+    @ApplicationContext private val appContext: Context,
     private val bowRepo: BowRepository,
     private val arrowConfigRepo: ArrowConfigRepository,
     private val bowConfigRepo: BowConfigRepository,
@@ -644,7 +645,7 @@ class SessionViewModel @Inject constructor(
         val firstPhotoBytes = extras?.photoData?.firstOrNull()
         if (firstPhotoBytes != null) {
             withContext(Dispatchers.IO) {
-                TargetPhotoStore.save(app, firstPhotoBytes, session.id)
+                TargetPhotoStore.save(appContext, firstPhotoBytes, session.id)
             }
         }
 
