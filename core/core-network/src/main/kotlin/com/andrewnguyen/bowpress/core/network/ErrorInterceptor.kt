@@ -4,7 +4,6 @@ import com.andrewnguyen.bowpress.core.model.Entitlement
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,8 +17,6 @@ import javax.inject.Singleton
  *   410  → [ApiException.VerificationCodeExpired] when body.error == "verification_expired"
  *   429  → [ApiException.RateLimited]
  *   else → [ApiException.Generic]
- *
- * The body is buffered so downstream Retrofit converters still see it unchanged.
  */
 @Singleton
 class ErrorInterceptor @Inject constructor(
@@ -32,10 +29,6 @@ class ErrorInterceptor @Inject constructor(
 
         val peek = response.peekBody(MAX_PEEK_BYTES).string()
         val parsed = runCatching { json.decodeFromString(ErrorBody.serializer(), peek) }.getOrNull()
-
-        val rebuilt = response.newBuilder()
-            .body(peek.toResponseBody(response.body?.contentType()))
-            .build()
 
         val err: ApiException = when (response.code) {
             401 -> when (parsed?.error) {
