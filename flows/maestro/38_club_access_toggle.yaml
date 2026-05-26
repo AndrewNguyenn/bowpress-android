@@ -18,8 +18,8 @@
 # Android (per E8 parity work).
 #
 # Caller passes appId + screenshot prefix via -e:
-#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-club-access     test flows/maestro/27_club_access_toggle.yaml
-#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-club-access test flows/maestro/27_club_access_toggle.yaml
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-club-access     test flows/maestro/38_club_access_toggle.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-club-access test flows/maestro/38_club_access_toggle.yaml
 appId: ${APP_ID}
 tags:
   - parity

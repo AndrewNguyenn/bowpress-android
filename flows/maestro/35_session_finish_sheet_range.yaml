@@ -17,8 +17,8 @@
 # anchor.
 #
 # Caller passes appId + screenshot prefix via -e (same shape as 03/11):
-#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-finish-range     test flows/maestro/24_session_finish_sheet_range.yaml
-#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-finish-range test flows/maestro/24_session_finish_sheet_range.yaml
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-finish-range     test flows/maestro/35_session_finish_sheet_range.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-finish-range test flows/maestro/35_session_finish_sheet_range.yaml
 appId: ${APP_ID}
 tags:
   - parity

@@ -17,8 +17,8 @@
 # "Notifications" which both platforms expose.
 #
 # Caller passes appId + screenshot prefix via -e:
-#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-notifs     test flows/maestro/26_notifications_mark_all_read.yaml
-#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-notifs test flows/maestro/26_notifications_mark_all_read.yaml
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-notifs     test flows/maestro/37_notifications_mark_all_read.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-notifs test flows/maestro/37_notifications_mark_all_read.yaml
 appId: ${APP_ID}
 tags:
   - parity

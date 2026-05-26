@@ -14,8 +14,8 @@
 # from "Sara Lin", "Marcus Okonkwo", and "Priya Varma".
 #
 # Caller passes appId + screenshot prefix via -e:
-#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-friend-profile     test flows/maestro/25_feed_actor_to_friend_profile.yaml
-#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-friend-profile test flows/maestro/25_feed_actor_to_friend_profile.yaml
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-friend-profile     test flows/maestro/36_feed_actor_to_friend_profile.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-friend-profile test flows/maestro/36_feed_actor_to_friend_profile.yaml
 appId: ${APP_ID}
 tags:
   - parity
