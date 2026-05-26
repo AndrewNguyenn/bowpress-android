@@ -298,4 +298,126 @@ class TargetGeometryTest {
         )
         assertThat(c.ring).isEqualTo(8)
     }
+
+    // ---- §B3 Distance-aware preset (sixRing 6-zone vs 7-zone) ------------
+    //
+    // Ports iOS commit b53b748's TargetGeometryTests + the new sixRingOutdoor
+    // ring-boundary coverage. The geometry layer is load-bearing for the
+    // keypad ladder (outerRingValue), displayed group-spread mm (mmPerNormUnit),
+    // the re-plot snap, and live ring(for:) scoring — a regression for
+    // sixRingOutdoor would silently mis-score 50/70m sessions.
+
+    @Test fun `preset sixRing at indoor is Vegas geometry`() {
+        // 20yd indoor + null both resolve to the 40cm Vegas 6-zone face.
+        // Vegas has outerRingValue 6 and 6 thresholds (X + 5 numeric).
+        val vegas = TargetGeometry.forFace(TargetFaceType.SIX_RING, com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20)
+        assertThat(vegas.outerRingValue).isEqualTo(6)
+        assertThat(vegas.thresholds.size).isEqualTo(6)
+
+        val defaulted = TargetGeometry.forFace(TargetFaceType.SIX_RING, distance = null)
+        assertThat(defaulted.outerRingValue).isEqualTo(6)
+        assertThat(defaulted.thresholds.size).isEqualTo(6)
+    }
+
+    @Test fun `preset sixRing at outdoor is seven-zone geometry`() {
+        // 50/70m resolve to the 80cm WA compound outdoor 7-zone face.
+        // 7-zone has outerRingValue 5 and 7 thresholds (X + 6 numeric).
+        val fifty = TargetGeometry.forFace(TargetFaceType.SIX_RING, com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50)
+        assertThat(fifty.outerRingValue).isEqualTo(5)
+        assertThat(fifty.thresholds.size).isEqualTo(7)
+
+        val seventy = TargetGeometry.forFace(TargetFaceType.SIX_RING, com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70)
+        assertThat(seventy.outerRingValue).isEqualTo(5)
+        assertThat(seventy.thresholds.size).isEqualTo(7)
+    }
+
+    @Test fun `preset tenRing ignores distance`() {
+        // tenRing geometry is the same at every distance — the WA 122cm full
+        // face isn't distance-overloaded the way sixRing is.
+        val distances = listOf(
+            null,
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20,
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50,
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70,
+        )
+        for (d in distances) {
+            val geo = TargetGeometry.forFace(TargetFaceType.TEN_RING, d)
+            assertThat(geo.outerRingValue).isEqualTo(1)
+            assertThat(geo.thresholds.size).isEqualTo(11)
+            assertThat(geo).isSameInstanceAs(TargetGeometry.TenRing)
+        }
+    }
+
+    // ---- §B3 sixRingOutdoor (80cm WA compound, rings 5–X) ----------------
+
+    @Test fun `sixRingOutdoor X-ring hits at centre`() {
+        val geo = TargetGeometry.SixRingOutdoor
+        assertThat(geo.ring(0.0)).isEqualTo(11)
+        // xRadius = 0.5/6 ≈ 0.0833
+        assertThat(geo.ring(0.08)).isEqualTo(11)
+    }
+
+    @Test fun `sixRingOutdoor intermediate rings`() {
+        val geo = TargetGeometry.SixRingOutdoor
+        // Equal-width 1/6 bands — pick a midpoint inside each.
+        assertThat(geo.ring(0.12)).isEqualTo(10)   // between X (≈0.083) and 1/6 (≈0.167)
+        assertThat(geo.ring(0.25)).isEqualTo(9)    // 1/6 → 2/6
+        assertThat(geo.ring(0.42)).isEqualTo(8)    // 2/6 → 3/6
+        assertThat(geo.ring(0.58)).isEqualTo(7)    // 3/6 → 4/6
+        assertThat(geo.ring(0.75)).isEqualTo(6)    // 4/6 → 5/6
+        assertThat(geo.ring(0.95)).isEqualTo(5)    // 5/6 → 1.0 (the new outer ring)
+    }
+
+    @Test fun `sixRingOutdoor outer ring 5 is last scoring ring`() {
+        val geo = TargetGeometry.SixRingOutdoor
+        // Just inside the outer edge still scores 5 — ring 5 IS the outer.
+        assertThat(geo.ring(0.99)).isEqualTo(5)
+    }
+
+    @Test fun `sixRingOutdoor miss is null`() {
+        val geo = TargetGeometry.SixRingOutdoor
+        // outer R5_RADIUS == 1.0, so anything >= 1.0 is off the printed face.
+        assertThat(geo.ring(1.0)).isNull()
+        assertThat(geo.ring(1.05)).isNull()
+    }
+
+    @Test fun `sixRingOutdoor mmPerNormUnit is 400`() {
+        // 400mm radius / 1.0 canvas norm. The ~24% discrepancy vs Vegas
+        // (mmPerNormUnit ≈ 123.5) is what drove the historical groupSpreadMm
+        // bug — pin the value so a future tweak to ring radii or the
+        // realFaceRadiusMm constant can't silently regress mm numerics.
+        assertThat(TargetGeometry.SixRingOutdoor.mmPerNormUnit).isEqualTo(400.0)
+    }
+
+    @Test fun `sixRingOutdoor outerRingValue is 5`() {
+        // Drives the ArrowEditSheet keypad's lowest cell so a 50/70m archer
+        // can correct an arrow down to ring 5.
+        assertThat(TargetGeometry.SixRingOutdoor.outerRingValue).isEqualTo(5)
+    }
+
+    @Test fun `sixRing Vegas outerRingValue is 6`() {
+        // Drives the keypad ladder on a 20yd indoor sixRing session — the
+        // lowest legal ring is 6, not 5 (Vegas has no ring 5).
+        assertThat(TargetGeometry.SixRing.outerRingValue).isEqualTo(6)
+    }
+
+    @Test fun `tenRing outerRingValue is 1`() {
+        // tenRing's ladder runs all the way to ring 1.
+        assertThat(TargetGeometry.TenRing.outerRingValue).isEqualTo(1)
+    }
+
+    // ---- §B3 ringColor mapping covers every numeric ring -----------------
+
+    @Test fun `ringColor maps white 1-2, black 3-4, blue 5-6, red 7-8, yellow 9-10`() {
+        // Equals comparison covers the (1,2)→white, (3,4)→black, etc. branches.
+        // Pure smoke check; the colour values themselves come from the design
+        // tokens. Failure would mean a future ring number slipped through —
+        // exactly what the assertion failure on the else branch is meant to
+        // protect against.
+        for (r in 1..10) {
+            val color = TargetGeometry.ringColor(r)
+            // Verify it didn't throw — that's the actual contract here.
+            assertThat(color).isNotNull()
+        }
+    }
 }

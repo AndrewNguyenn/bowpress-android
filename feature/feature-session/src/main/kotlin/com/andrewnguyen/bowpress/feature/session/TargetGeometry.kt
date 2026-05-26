@@ -1,7 +1,14 @@
 package com.andrewnguyen.bowpress.feature.session
 
+import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlack
+import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlue
+import com.andrewnguyen.bowpress.core.designsystem.AppTgtRed
+import com.andrewnguyen.bowpress.core.designsystem.AppTgtWhite
+import com.andrewnguyen.bowpress.core.designsystem.AppTgtYellow
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
+import androidx.compose.ui.graphics.Color
 import kotlin.math.atan2
 import kotlin.math.sqrt
 
@@ -41,6 +48,15 @@ sealed class TargetGeometry {
 
     /** Real millimetres per 1.0 normalised unit — used to size the arrow dot. */
     abstract val mmPerNormUnit: Double
+
+    /**
+     * The face's outer-most scoring ring value. 1 for tenRing, 6 for the
+     * Vegas indoor sixRing, 5 for the 80cm WA compound outdoor sixRing.
+     * Mirrors iOS `TargetGeometry.outerRingValue` — drives the
+     * ArrowEditSheet quick-score keypad's lowest cell so an archer can
+     * correct an arrow to the lowest legal ring for the face they shot.
+     */
+    abstract val outerRingValue: Int
 
     /**
      * Map a normalized distance from centre to a ring. Returns 11 (X) when inside the
@@ -133,7 +149,45 @@ sealed class TargetGeometry {
             R6_RADIUS,
         )
         override val innermostNumericRing: Int = 10
+        override val outerRingValue: Int = 6
         override val mmPerNormUnit: Double = 20.0 / R10_RADIUS  // ≈ 123.5 mm
+    }
+
+    /**
+     * WA 80cm compound outdoor face — the inner-7 zones of the 122cm face
+     * (rings 5..10 + X) printed on a 400mm-radius card. Used at 50m and
+     * 70m: same [TargetFaceType.SIX_RING] enum value as the indoor Vegas
+     * card, but the printed face shows one extra outer (ring 5) band.
+     *
+     * Rings are equal-width — the inner six of the WA full face rescaled
+     * so ring 5's outer edge lands at the canvas edge. Thresholds are
+     * X = 0.5/6, then 1/6, 2/6, 3/6, 4/6, 5/6, 6/6 — ring 5 IS the outer.
+     *
+     * Mirrors iOS `TargetGeometry.sixRingOutdoor` (commit e162ac5).
+     */
+    object SixRingOutdoor : TargetGeometry() {
+        const val X_RADIUS: Double = 0.5 / 6.0       // ≈ 0.0833
+        const val R10_RADIUS: Double = 1.0 / 6.0     // ≈ 0.1667
+        const val R9_RADIUS: Double = 2.0 / 6.0      // ≈ 0.3333
+        const val R8_RADIUS: Double = 3.0 / 6.0      //   0.5000
+        const val R7_RADIUS: Double = 4.0 / 6.0      // ≈ 0.6667
+        const val R6_RADIUS: Double = 5.0 / 6.0      // ≈ 0.8333
+        const val R5_RADIUS: Double = 1.0            //   1.0000 — ring 5 outer edge IS the canvas edge
+
+        override val thresholds: DoubleArray = doubleArrayOf(
+            X_RADIUS,
+            R10_RADIUS,
+            R9_RADIUS,
+            R8_RADIUS,
+            R7_RADIUS,
+            R6_RADIUS,
+            R5_RADIUS,
+        )
+        override val innermostNumericRing: Int = 10
+        override val outerRingValue: Int = 5
+        // 80cm WA compound outdoor face → 400mm radius at 1.0 norm. Pinned
+        // in the unit test — guards groupSpreadMm against silent drift.
+        override val mmPerNormUnit: Double = 400.0
     }
 
     /**
@@ -168,6 +222,7 @@ sealed class TargetGeometry {
             R1_RADIUS,
         )
         override val innermostNumericRing: Int = 10
+        override val outerRingValue: Int = 1
         // Keep the arrow-dot sizing consistent with the 6-ring face so the dot radius
         // in normalised units is independent of which face is rendered. The 10-ring
         // face has a smaller 10-ring (0.10 vs 0.162) so a 5 mm arrow dot looks
@@ -182,10 +237,61 @@ sealed class TargetGeometry {
         /** Zone boundaries (compass bearings, degrees) — iOS lines 45–52. */
         private const val OCTANT_HALF = 22.5
 
-        /** Return the geometry preset that matches [TargetFaceType]. */
-        fun forFace(faceType: TargetFaceType): TargetGeometry = when (faceType) {
-            TargetFaceType.SIX_RING -> SixRing
-            TargetFaceType.TEN_RING -> TenRing
+        /**
+         * Return the geometry preset that matches [TargetFaceType]. Routes
+         * through the distance-aware overload with `distance = null`, so
+         * sixRing stays Vegas — the safe default — for every legacy caller
+         * that doesn't know its distance context. Mirrors iOS
+         * `TargetGeometry.preset(for:)`.
+         */
+        fun forFace(faceType: TargetFaceType): TargetGeometry =
+            forFace(faceType, distance = null)
+
+        /**
+         * §B3 distance-aware preset. `sixRing` is overloaded: at 20yd indoor
+         * it is the 40cm Vegas 6-zone face (rings 6..X); at 50m / 70m
+         * outdoor it is the 80cm WA compound 7-zone face (rings 5..X). At
+         * any other / unknown distance the Vegas geometry is the safe
+         * default — matches the legacy renderer so callers without distance
+         * context don't change. tenRing is distance-invariant.
+         *
+         * Mirrors iOS `TargetGeometry.preset(for:distance:)` (commit e162ac5).
+         */
+        fun forFace(faceType: TargetFaceType, distance: ShootingDistance?): TargetGeometry =
+            when (faceType) {
+                TargetFaceType.TEN_RING -> TenRing
+                TargetFaceType.SIX_RING -> when (distance) {
+                    ShootingDistance.METERS_50, ShootingDistance.METERS_70 -> SixRingOutdoor
+                    ShootingDistance.YARDS_20, null -> SixRing
+                }
+            }
+
+        /**
+         * §B3 — the WA paint colour for a numbered scoring ring. Rings 1–2
+         * are white, 3–4 black, 5–6 blue, 7–8 red, 9–10 yellow. X (11) is
+         * painted separately as the centre disc — it doesn't reach this
+         * switch. An out-of-range value asserts (DEBUG) and falls back to
+         * yellow so a future variant that adds a new ring trips a loud
+         * failure rather than silently painting an inner colour.
+         *
+         * Drives `ringFillColors` on the geometry-aware face renderers so
+         * the 6-zone, 7-zone, and 10-zone faces all paint correctly from
+         * one source.
+         *
+         * Mirrors iOS `TargetFaceCanvas.ringColor(for:)` (commit e162ac5).
+         */
+        fun ringColor(ring: Int): Color = when (ring) {
+            1, 2 -> AppTgtWhite
+            3, 4 -> AppTgtBlack
+            5, 6 -> AppTgtBlue
+            7, 8 -> AppTgtRed
+            9, 10 -> AppTgtYellow
+            // Loud DEBUG signal so a future variant that adds a new ring
+            // trips a real failure rather than silently painting yellow.
+            // Mirrors iOS `assertionFailure(...)` + neutral grey fallback.
+            else -> error(
+                "TargetGeometry.ringColor: unknown ring $ring — add a case if you've introduced a new face variant",
+            )
         }
 
         private fun zoneFromAngle(angleDegrees: Double): Zone {

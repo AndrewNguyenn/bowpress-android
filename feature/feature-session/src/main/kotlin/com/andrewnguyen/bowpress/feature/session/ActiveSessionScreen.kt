@@ -610,6 +610,10 @@ private fun TargetSection(
                 arrowDiameterMm = arrowDiameterMm,
                 faceType = faceType,
                 targetLayout = targetLayout,
+                // §B3 — session distance drives the sixRing variant
+                // (Vegas at 20yd, Outdoor80 at 50/70m). tenRing is
+                // distance-invariant; the geometry layer no-ops it.
+                distance = state.activeSession?.distance,
                 onLensSnapshotChanged = onLensSnapshotChanged,
             )
         }

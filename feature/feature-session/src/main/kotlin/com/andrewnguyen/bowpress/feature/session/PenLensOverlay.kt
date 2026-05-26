@@ -37,6 +37,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlack
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.MultiSpotGeometry
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 
@@ -63,6 +64,10 @@ internal fun buildPenLensSnapshot(
     geometry: TargetGeometry,
     faceType: TargetFaceType,
     targetLayout: TargetLayout = TargetLayout.SINGLE,
+    // §B3 — distance threads into the lens so the magnified face matches
+    // the underlying plotter's geometry (a 50/70m sixRing session sees the
+    // 7-zone face zoomed, not the Vegas 6-zone). Null defaults to Vegas.
+    distance: ShootingDistance? = null,
 ): PenLensSnapshot {
     val radiusPx = faceSizePx / 2f
     val multiSpot = MultiSpotGeometry.preset(targetLayout)
@@ -93,6 +98,7 @@ internal fun buildPenLensSnapshot(
         targetLayout = targetLayout,
         arrows = arrows,
         previewRing = previewRing,
+        distance = distance,
     )
 }
 
@@ -122,6 +128,12 @@ data class PenLensSnapshot(
     val arrows: List<ArrowPlot>,
     /** Ring at the live touch point (1–11 or null for miss). */
     val previewRing: Int?,
+    /**
+     * §B3 — session distance forwards through to the magnified face renderer
+     * so a 50/70m sixRing session sees the 7-zone face zoomed rather than
+     * the Vegas 6-zone. Null keeps the Vegas default.
+     */
+    val distance: ShootingDistance? = null,
 )
 
 /**
@@ -314,30 +326,33 @@ private fun DrawScope.drawLensFace(snapshot: PenLensSnapshot, sizePx: Float) {
     if (multiSpot != null) {
         drawMultiSpotCard(multiSpot, Size(sizePx, sizePx))
     } else {
-        drawSingleLensFace(snapshot.faceType, sizePx)
+        // §B3 — route the lens face through the same distance-aware
+        // geometry the underlying plotter uses, so a 50/70m sixRing
+        // session sees a 7-zone face zoomed (split-blue band + outer ring 5).
+        drawSingleLensFace(TargetGeometry.forFace(snapshot.faceType, snapshot.distance), sizePx)
     }
 }
 
-/** Draw one WA face filling [sizePx], no dividers (the lens is already clear). */
-private fun DrawScope.drawSingleLensFace(faceType: TargetFaceType, sizePx: Float) {
+/**
+ * Draw one WA face filling [sizePx], no dividers (the lens is already clear).
+ * Geometry-driven — walks the geometry's [TargetGeometry.thresholds] painting
+ * each band's outer edge in turn from outer-most to inner-most. Mirrors the
+ * paint order in [drawTargetFace] (TargetPlot.kt).
+ */
+private fun DrawScope.drawSingleLensFace(geometry: TargetGeometry, sizePx: Float) {
     val center = Offset(sizePx / 2f, sizePx / 2f)
     val radius = sizePx / 2f
+    // Paper background fills the outer-most ring boundary.
     drawCircle(color = Color(0xFFF6F8F3), radius = radius, center = center)
-    when (faceType) {
-        TargetFaceType.SIX_RING -> {
-            val g = TargetGeometry.SixRing
-            drawCircle(color = Color(0xFF4EA8C9), radius = (g.R7_RADIUS * radius).toFloat(), center = center)
-            drawCircle(color = Color(0xFFD94B3B), radius = (g.R8_RADIUS * radius).toFloat(), center = center)
-            drawCircle(color = Color(0xFFF0D04A), radius = (g.R10_RADIUS * radius).toFloat(), center = center)
-        }
-        TargetFaceType.TEN_RING -> {
-            val g = TargetGeometry.TenRing
-            drawCircle(color = Color(0xFFF6F8F3), radius = (g.R2_RADIUS * radius).toFloat(), center = center)
-            drawCircle(color = Color(0xFF1F2A26), radius = (g.R4_RADIUS * radius).toFloat(), center = center)
-            drawCircle(color = Color(0xFF4EA8C9), radius = (g.R6_RADIUS * radius).toFloat(), center = center)
-            drawCircle(color = Color(0xFFD94B3B), radius = (g.R8_RADIUS * radius).toFloat(), center = center)
-            drawCircle(color = Color(0xFFF0D04A), radius = (g.R10_RADIUS * radius).toFloat(), center = center)
-        }
+    // Paint outer → inner; skip thresholds[0] (X centre cross, no fill).
+    for (i in geometry.thresholds.size - 1 downTo 1) {
+        val ringEdge = geometry.thresholds[i]
+        val ringNumber = geometry.outerRingValue + (geometry.thresholds.size - 1 - i)
+        drawCircle(
+            color = TargetGeometry.ringColor(ringNumber),
+            radius = (ringEdge * radius).toFloat(),
+            center = center,
+        )
     }
 }
 

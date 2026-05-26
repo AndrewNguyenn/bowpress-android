@@ -301,6 +301,10 @@ fun FriendSessionDetailScreen(
                                     arrows = detail.arrows,
                                     faceType = shotSession.targetFaceType,
                                     layout = shotSession.targetLayout,
+                                    // §B3 — outdoor sixRing at 50/70m shows
+                                    // the 7-zone face; everything else stays
+                                    // on the Vegas 6-zone default.
+                                    sixRingVariant = sixRingVariantForDistance(shotSession.distance),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag(TestTags.SocialSessionTarget),
@@ -447,4 +451,19 @@ private fun SectionEyebrow(label: String) {
         style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
         color = AppInk3,
     )
+}
+
+/**
+ * §B3 — pick the SixRing visual variant by the session's distance. 50m /
+ * 70m → 7-zone Outdoor80; everything else → Vegas. Only consulted on a
+ * sixRing session; tenRing rendering is distance-invariant.
+ */
+private fun sixRingVariantForDistance(
+    distance: com.andrewnguyen.bowpress.core.model.ShootingDistance?,
+): com.andrewnguyen.bowpress.core.designsystem.bp.SixRingVariant = when (distance) {
+    com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50,
+    com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70,
+    -> com.andrewnguyen.bowpress.core.designsystem.bp.SixRingVariant.Outdoor80
+    com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20, null,
+    -> com.andrewnguyen.bowpress.core.designsystem.bp.SixRingVariant.Vegas
 }

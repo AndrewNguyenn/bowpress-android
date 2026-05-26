@@ -108,6 +108,7 @@ class SessionDetailViewModel @Inject constructor(
                     currentX = current.plotX,
                     currentY = current.plotY,
                     faceType = _state.value.faceType,
+                    distance = _state.value.distance,
                 )
             }
             val updated = current.copy(
@@ -134,8 +135,9 @@ class SessionDetailViewModel @Inject constructor(
         currentX: Double?,
         currentY: Double?,
         faceType: TargetFaceType,
+        distance: ShootingDistance?,
     ): Pair<Double, Double> {
-        val (inner, outer) = ringBand(ring, faceType)
+        val (inner, outer) = ringBand(ring, faceType, distance)
         val midRadius = (inner + outer) / 2.0
         val curX = currentX ?: 0.0
         val curY = currentY ?: 1.0 // arbitrary south bearing
@@ -153,32 +155,43 @@ class SessionDetailViewModel @Inject constructor(
      * classification — so a re-score that lands at the midline classifies
      * back to the same ring on the next render.
      */
-    private fun ringBand(ring: Int, faceType: TargetFaceType): Pair<Double, Double> {
-        return when (faceType) {
-            TargetFaceType.SIX_RING -> when (ring) {
-                11 -> 0.0 to 60.0 / 735.0           // X
-                10 -> 60.0 / 735.0 to 119.0 / 735.0 // 10 / 9 divider
-                9 -> 119.0 / 735.0 to 238.0 / 735.0
-                8 -> 238.0 / 735.0 to 357.0 / 735.0
-                7 -> 357.0 / 735.0 to 475.0 / 735.0
-                6 -> 475.0 / 735.0 to 594.0 / 735.0
-                else -> 594.0 / 735.0 to 1.05       // miss — just outside the face
-            }
-            TargetFaceType.TEN_RING -> when (ring) {
-                11 -> 0.0 to 0.05
-                10 -> 0.05 to 0.10
-                9 -> 0.10 to 0.20
-                8 -> 0.20 to 0.30
-                7 -> 0.30 to 0.40
-                6 -> 0.40 to 0.50
-                5 -> 0.50 to 0.60
-                4 -> 0.60 to 0.70
-                3 -> 0.70 to 0.80
-                2 -> 0.80 to 0.90
-                1 -> 0.90 to 1.00
-                else -> 1.00 to 1.05
-            }
+    private fun ringBand(
+        ring: Int,
+        faceType: TargetFaceType,
+        distance: ShootingDistance?,
+    ): Pair<Double, Double> {
+        // §B3 — route through the distance-aware geometry so a 50/70m
+        // sixRing session snaps to the 7-zone (Outdoor80) thresholds and
+        // ring 5 lands at the right midline, instead of being clamped to
+        // the Vegas 6-ring outer edge.
+        val geometry = com.andrewnguyen.bowpress.feature.session.TargetGeometry
+            .forFace(faceType, distance)
+        return ringBandFromGeometry(ring, geometry)
+    }
+
+    /**
+     * Derive the inner/outer band for a numbered scoring ring on a given
+     * geometry. Walks the geometry's [thresholds] (innermost-first: X, then
+     * the inner-most numeric ring, ..., outer-most). The same code path
+     * correctly handles 6-zone, 7-zone, and 10-zone faces from a single
+     * source — mirrors the `band(forRing:)` helper iOS uses (commit b53b748).
+     */
+    private fun ringBandFromGeometry(
+        ring: Int,
+        geometry: com.andrewnguyen.bowpress.feature.session.TargetGeometry,
+    ): Pair<Double, Double> {
+        if (ring >= 11) return 0.0 to geometry.thresholds[0]
+        val innermost = geometry.innermostNumericRing
+        val outermost = geometry.outerRingValue
+        if (ring !in outermost..innermost) {
+            // Out of range for this face — treat as a miss.
+            return geometry.thresholds.last() to (geometry.thresholds.last() + 0.05)
         }
+        // ring = innermost - (i - 1) ⇒ i = innermost - ring + 1.
+        val i = innermost - ring + 1
+        val inner = geometry.thresholds[i - 1]
+        val outer = geometry.thresholds[i]
+        return inner to outer
     }
 
     /** Mirrors iOS `deleteArrow(id:)` — local + remote cleanup. */

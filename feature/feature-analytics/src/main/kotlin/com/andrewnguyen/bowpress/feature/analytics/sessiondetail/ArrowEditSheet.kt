@@ -70,6 +70,10 @@ fun ArrowEditSheet(
     onReplotRing: (ring: Int, zone: Zone) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    // §B3 — distance routes sixRing to the right keypad ladder: 20yd
+    // indoor caps the lowest at ring 6 (Vegas), 50/70m caps the lowest at
+    // ring 5 (Outdoor80 7-zone). null defaults to the Vegas ladder.
+    distance: com.andrewnguyen.bowpress.core.model.ShootingDistance? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -120,6 +124,7 @@ fun ArrowEditSheet(
             QuickScoreKeypad(
                 currentRing = arrow.ring,
                 faceType = faceType,
+                distance = distance,
                 onPick = { newRing ->
                     val newZone = zoneForRing(newRing, arrow.zone)
                     onReplotRing(newRing, newZone)
@@ -164,17 +169,23 @@ fun ArrowEditSheet(
     }
 }
 
-/** Score ladder mirrors iOS `quickScoreOptions`: 11 (X), 10..lowest, then M. */
+/**
+ * Score ladder mirrors iOS `quickScoreOptions`: 11 (X), 10..lowest, then M.
+ *
+ * §B3 — `lowest` is derived from `TargetGeometry.outerRingValue` for the
+ * face + distance combo: 1 for tenRing, 6 for Vegas indoor sixRing, 5 for
+ * the 80cm outdoor sixRing (50m / 70m). Lets an archer correct an arrow
+ * down to ring 5 on an outdoor 7-zone session.
+ */
 @Composable
 private fun QuickScoreKeypad(
     currentRing: Int,
     faceType: TargetFaceType,
+    distance: com.andrewnguyen.bowpress.core.model.ShootingDistance?,
     onPick: (Int) -> Unit,
 ) {
-    val lowest = when (faceType) {
-        TargetFaceType.SIX_RING -> 6
-        TargetFaceType.TEN_RING -> 1
-    }
+    val lowest = com.andrewnguyen.bowpress.feature.session.TargetGeometry
+        .forFace(faceType, distance).outerRingValue
     val ladder = buildList {
         add(11)
         for (r in 10 downTo lowest) add(r)

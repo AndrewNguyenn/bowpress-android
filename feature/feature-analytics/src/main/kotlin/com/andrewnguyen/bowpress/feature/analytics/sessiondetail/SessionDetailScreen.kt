@@ -141,6 +141,7 @@ fun SessionDetailScreen(
             arrow = editing.arrow,
             arrowNumber = editing.number,
             faceType = state.faceType,
+            distance = state.distance,
             onReplotRing = { ring, zone ->
                 // Keypad re-score: pass null plot coords so the VM snaps the
                 // dot to the new ring's midline along the existing bearing.
@@ -215,6 +216,8 @@ private fun SessionDetailContent(
                         arrows = displayedArrows,
                         faceType = state.faceType,
                         layout = state.targetLayout,
+                        // §B3 — 6-ring at 50/70m → Outdoor80 7-zone face.
+                        sixRingVariant = sixRingVariantForDistance(state.distance),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 } else {
@@ -348,4 +351,20 @@ private fun FeelTagRow(tags: List<String>) {
             }
         }
     }
+}
+
+/**
+ * §B3 — pick the SixRing visual variant by session distance: 50m / 70m
+ * outdoor → 7-zone Outdoor80, everything else → Vegas. Mirrors iOS
+ * `sixRingStyleForCurrentDistance`. Only consulted on sixRing sessions;
+ * tenRing rendering is distance-invariant.
+ */
+private fun sixRingVariantForDistance(
+    distance: com.andrewnguyen.bowpress.core.model.ShootingDistance?,
+): com.andrewnguyen.bowpress.core.designsystem.bp.SixRingVariant = when (distance) {
+    com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50,
+    com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70,
+    -> com.andrewnguyen.bowpress.core.designsystem.bp.SixRingVariant.Outdoor80
+    com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20, null,
+    -> com.andrewnguyen.bowpress.core.designsystem.bp.SixRingVariant.Vegas
 }

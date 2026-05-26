@@ -32,6 +32,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppTgtWhite
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtYellow
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.MultiSpotGeometry
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.Zone
@@ -66,9 +67,13 @@ fun TargetPlot(
     arrowDiameterMm: Double = 5.0,
     faceType: TargetFaceType = TargetFaceType.SIX_RING,
     targetLayout: TargetLayout = TargetLayout.SINGLE,
+    // §B3 — session distance picks the sixRing visual + scoring variant.
+    // 50m / 70m → Outdoor80 (7-zone, scores into ring 5); else Vegas
+    // (6-zone, capped at ring 6). null → Vegas default.
+    distance: ShootingDistance? = null,
     onLensSnapshotChanged: (PenLensSnapshot?) -> Unit = {},
 ) {
-    val geometry = TargetGeometry.forFace(faceType)
+    val geometry = TargetGeometry.forFace(faceType, distance)
     val multiSpot = MultiSpotGeometry.preset(targetLayout)
     // dragPreview is the live touch position in the canvas's local pixel
     // space. Cleared on drag end / cancel.
@@ -87,7 +92,7 @@ fun TargetPlot(
             modifier = Modifier
                 .matchParentSize()
                 .testTag(TARGET_PLOT_TEST_TAG)
-                .pointerInput(isEnabled, faceType, targetLayout, arrowDiameterMm) {
+                .pointerInput(isEnabled, faceType, targetLayout, arrowDiameterMm, distance) {
                     if (!isEnabled) return@pointerInput
                     detectDragGestures(
                         onDragStart = { start ->
@@ -102,6 +107,7 @@ fun TargetPlot(
                                     geometry = geometry,
                                     faceType = faceType,
                                     targetLayout = targetLayout,
+                                    distance = distance,
                                 ),
                             )
                         },
@@ -118,6 +124,7 @@ fun TargetPlot(
                                     geometry = geometry,
                                     faceType = faceType,
                                     targetLayout = targetLayout,
+                                    distance = distance,
                                 ),
                             )
                         },
@@ -145,7 +152,7 @@ fun TargetPlot(
             if (multiSpot != null) {
                 drawMultiSpotCard(multiSpot, size)
             } else {
-                drawTargetFace(faceType)
+                drawTargetFace(geometry)
             }
             drawExistingArrows(
                 arrows = arrows,
@@ -210,69 +217,43 @@ internal fun scorePlot(
 
 // ---- Drawing helpers ----
 
-private fun DrawScope.drawTargetFace(faceType: TargetFaceType) {
-    when (faceType) {
-        TargetFaceType.SIX_RING -> drawSixRingFace()
-        TargetFaceType.TEN_RING -> drawTenRingFace()
-    }
-}
-
-/** Inner-6 indoor face — keeps the legacy Android look (blue→red→yellow plus X). */
-private fun DrawScope.drawSixRingFace() {
-    val radiusPx = minOf(size.width, size.height) / 2f
-    val center = Offset(size.width / 2f, size.height / 2f)
-    val g = TargetGeometry.SixRing
-
-    val rings: List<Pair<Float, Color>> = listOf(
-        1.0f to WHITE,
-        g.R7_RADIUS.toFloat() to BLUE,
-        g.R8_RADIUS.toFloat() to RED,
-        g.R10_RADIUS.toFloat() to YELLOW,
-    )
-    for ((normRadius, color) in rings) {
-        drawCircle(color = color, radius = normRadius * radiusPx, center = center)
-    }
-
-    val thresholds = listOf(
-        g.X_RADIUS, g.R10_RADIUS, g.R9_RADIUS, g.R8_RADIUS, g.R7_RADIUS, g.R6_RADIUS,
-    )
-    drawRingDividers(thresholds, radiusPx, center)
-    drawOuterEdge(radiusPx, center)
-    drawXTick(g.X_RADIUS, radiusPx, center)
-}
-
 /**
- * Full WA 10-ring face — ten concentric fills outer→inner alternating the
- * canonical WA colours, plus an X tick at the centre.
+ * Geometry-driven face renderer. Paints the outer-most band first, then each
+ * inner band on top, so only the annular slice of each colour is visible.
+ * Colours come from [TargetGeometry.ringColor], keyed on the ring number
+ * derived from the geometry's [outerRingValue]. The same code path correctly
+ * paints the Vegas 6-zone (rings 6..X), the 80cm 7-zone (rings 5..X), and
+ * the WA 10-zone full face. Mirrors iOS `TargetFaceCanvas.body` after
+ * commit e162ac5.
  */
-private fun DrawScope.drawTenRingFace() {
+private fun DrawScope.drawTargetFace(geometry: TargetGeometry) {
     val radiusPx = minOf(size.width, size.height) / 2f
     val center = Offset(size.width / 2f, size.height / 2f)
-    val g = TargetGeometry.TenRing
 
-    val ringFills: List<Pair<Double, Color>> = listOf(
-        g.R1_RADIUS to WHITE,
-        g.R2_RADIUS to WHITE,
-        g.R3_RADIUS to BLACK,
-        g.R4_RADIUS to BLACK,
-        g.R5_RADIUS to BLUE,
-        g.R6_RADIUS to BLUE,
-        g.R7_RADIUS to RED,
-        g.R8_RADIUS to RED,
-        g.R9_RADIUS to YELLOW,
-        g.R10_RADIUS to YELLOW,
-    )
-    for ((edge, color) in ringFills) {
-        drawCircle(color = color, radius = (edge * radiusPx).toFloat(), center = center)
+    // Paint the outer-most ring as a filled disc, then each inner ring on
+    // top. `thresholds` is innermost-first (X .. outer), so walking it in
+    // reverse yields outer-first which is what the painter wants.
+    // Skip thresholds[0] (the X radius) — X is painted at the centre as
+    // the [drawXTick] cross, not as a coloured disc.
+    val outerThreshold = geometry.thresholds.last()
+    drawCircle(color = WHITE, radius = (outerThreshold * radiusPx).toFloat(), center = center)
+    // Walk outer → inner skipping the X ring at index 0.
+    for (i in geometry.thresholds.size - 1 downTo 1) {
+        val ringEdge = geometry.thresholds[i]
+        // ringEdge corresponds to the outer edge of the (innermostNumericRing - (size-1-i))'th ring.
+        // Equivalently: the band at thresholds[i] paints the colour of ring (outerRingValue + (size-1-i)).
+        // (innermost numeric ring lives at thresholds[1]; outermost ring lives at thresholds[size-1].)
+        val ringNumber = geometry.outerRingValue + (geometry.thresholds.size - 1 - i)
+        drawCircle(
+            color = TargetGeometry.ringColor(ringNumber),
+            radius = (ringEdge * radiusPx).toFloat(),
+            center = center,
+        )
     }
 
-    val thresholds = listOf(
-        g.X_RADIUS, g.R10_RADIUS, g.R9_RADIUS, g.R8_RADIUS, g.R7_RADIUS,
-        g.R6_RADIUS, g.R5_RADIUS, g.R4_RADIUS, g.R3_RADIUS, g.R2_RADIUS, g.R1_RADIUS,
-    )
-    drawRingDividers(thresholds, radiusPx, center)
+    drawRingDividers(geometry.thresholds.toList(), radiusPx, center)
     drawOuterEdge(radiusPx, center)
-    drawXTick(g.X_RADIUS, radiusPx, center)
+    drawXTick(geometry.thresholds[0], radiusPx, center)
 }
 
 private fun DrawScope.drawRingDividers(
