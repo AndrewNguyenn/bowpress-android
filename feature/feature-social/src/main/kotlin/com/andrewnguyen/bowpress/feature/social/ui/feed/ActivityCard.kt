@@ -64,6 +64,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPPlottedTarget
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPSixRingStyle
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
@@ -76,9 +77,12 @@ import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySession
+import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
+import com.andrewnguyen.bowpress.core.model.Zone
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
@@ -515,6 +519,9 @@ private fun ActivityCardBody(
             structuredFaceType = item.session?.targetFaceType,
             face = item.session?.face,
             arrowDiameterMm = item.session?.arrowDiameterMm,
+            // Migration 0038 — a triangle/vertical layout swaps the single
+            // face for the real 3-spot Vegas card. Null → single-face path.
+            targetLayout = item.session?.targetLayout,
         )
         is ActivityPreview.Course -> CourseCardBody(
             score = preview.score,
@@ -550,6 +557,10 @@ private fun ActivityCardBody(
  * free-text [face] heuristic only for pre-migration-0038 sessions. [distance]
  * routes the §B3 6-ring → Vegas-or-outdoor80 visual variant.
  * [arrowDiameterMm] sizes the plot dots from a 6mm reference (§B1).
+ * [targetLayout] (parity, migration 0038) — when triangle/vertical, the body
+ * renders the real 3-spot Vegas card via [BPPlottedTarget] instead of a
+ * single bullseye with the arrows fake-clustered in a triangle. Null /
+ * `SINGLE` keep the existing single-face card.
  */
 @Composable
 private fun RangeSessionBody(
@@ -561,6 +572,7 @@ private fun RangeSessionBody(
     structuredFaceType: TargetFaceType?,
     face: String?,
     arrowDiameterMm: Double?,
+    targetLayout: TargetLayout?,
 ) {
     val ends = endRings.orEmpty()
     // §B2 — structured field is authoritative; fall back to the legacy
@@ -586,24 +598,49 @@ private fun RangeSessionBody(
                 .padding(vertical = 18.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            // The design ships a ~188dp face; the 50/50 column at phone width
-            // can't fit that, so the face renders at TARGET_FACE_SIZE — the
-            // size iOS `ActivityCardRangeBody` settled on. `BPTargetFace` is
-            // fixed-size.
-            BPTargetFace(
-                size = TARGET_FACE_SIZE,
-                face = resolvedFaceType,
-                sixRingStyle = sixRingStyle,
-            ) {
-                // The friend's arrows — the real plotted positions from the
-                // feed payload when present, else a deterministic scatter
-                // within each scoring ring's band.
-                ArrowPlotOverlay(
-                    ends = ends,
-                    plotPoints = plotPoints,
-                    arrowDiameterMm = arrowDiameterMm,
-                    mmPerNormUnit = feedCardMmPerNormUnit(resolvedFaceType, distance),
+            if (targetLayout != null && targetLayout.isMultiSpot) {
+                // 3-spot card — same renderer the detail screen uses, so
+                // a Vegas triangle/vertical session looks the same in the
+                // feed as it does when opened. Arrows come from the real
+                // plotPoints (each bucketed to its nearest spot by
+                // BPPlottedTarget → MultiSpotGeometry.assignArrows); an
+                // empty plotPoints just renders the empty 3-spot face,
+                // which still beats fake-clustering arrows on one bullseye.
+                BPPlottedTarget(
+                    arrows = multiSpotArrows(ends, plotPoints),
+                    // BPPlottedTarget wants the core-model enum, not the
+                    // design-system BPTargetFaceType the single-face path
+                    // uses. The structured field is authoritative; fall
+                    // back to the legacy label heuristic (mirrors iOS
+                    // `targetFaceType ?? TargetFaceType.matching(label:)
+                    // ?? .tenRing`).
+                    faceType = structuredFaceType
+                        ?: TargetFaceType.matching(face)
+                        ?: TargetFaceType.TEN_RING,
+                    layout = targetLayout,
+                    sixRingStyle = sixRingStyle,
+                    modifier = Modifier.size(TARGET_FACE_SIZE),
                 )
+            } else {
+                // The design ships a ~188dp face; the 50/50 column at phone
+                // width can't fit that, so the face renders at
+                // TARGET_FACE_SIZE — the size iOS `ActivityCardRangeBody`
+                // settled on. `BPTargetFace` is fixed-size.
+                BPTargetFace(
+                    size = TARGET_FACE_SIZE,
+                    face = resolvedFaceType,
+                    sixRingStyle = sixRingStyle,
+                ) {
+                    // The friend's arrows — the real plotted positions from the
+                    // feed payload when present, else a deterministic scatter
+                    // within each scoring ring's band.
+                    ArrowPlotOverlay(
+                        ends = ends,
+                        plotPoints = plotPoints,
+                        arrowDiameterMm = arrowDiameterMm,
+                        mmPerNormUnit = feedCardMmPerNormUnit(resolvedFaceType, distance),
+                    )
+                }
             }
         }
         Box(
@@ -1161,6 +1198,41 @@ internal fun feedCardMmPerNormUnit(
         // given physical shaft is the same px size on both faces —
         // matches `TargetGeometry.TenRing.mmPerNormUnit`.
         BPTargetFaceType.TenRing -> 20.0 / (119.0 / 735.0)
+    }
+}
+
+/**
+ * Build the [ArrowPlot] list `BPPlottedTarget` expects from the feed
+ * payload's flat `[x, y]` plot points and per-end ring values. Each plot
+ * is paired with its ring in shot order (`endRings.flatten()[i]`); ring
+ * is carried only so a future renderer can colour X / miss — the
+ * 3-spot renderer itself bucketises by `plotX` / `plotY`, so the
+ * pairing's correctness depends on the API emitting `plotPoints` in
+ * one-to-one shot order with the flattened scorecard. Plot points
+ * with fewer than two coords (a missing arrow) are skipped. Dummy
+ * session / bow / arrow ids are fine — the renderer ignores them.
+ * Mirrors the synthesised `multiSpotPlots` iOS `ActivityCardRangeBody`
+ * builds.
+ */
+internal fun multiSpotArrows(
+    endRings: List<List<Int>>,
+    plotPoints: List<List<Double>>,
+): List<ArrowPlot> {
+    if (plotPoints.isEmpty()) return emptyList()
+    val flatRings = endRings.flatten()
+    return plotPoints.mapIndexedNotNull { i, p ->
+        if (p.size < 2) return@mapIndexedNotNull null
+        ArrowPlot(
+            id = "feed-$i",
+            sessionId = "feed-row",
+            bowConfigId = "",
+            arrowConfigId = "",
+            ring = flatRings.getOrElse(i) { 10 },
+            zone = Zone.CENTER,
+            plotX = p[0],
+            plotY = p[1],
+            shotAt = Instant.EPOCH,
+        )
     }
 }
 

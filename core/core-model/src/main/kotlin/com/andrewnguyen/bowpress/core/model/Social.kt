@@ -1082,6 +1082,12 @@ data class ActivitySession(
     // renderer falls back to [TargetFaceType.matching(face)] in that case.
     // Mirrors iOS commit a588a30 — ActivitySession.targetFaceType.
     val targetFaceType: TargetFaceType? = null,
+    // Migration 0038 — multi-spot layout the session was scored against.
+    // Drives the feed-card body: a triangle/vertical layout renders the
+    // real 3-spot Vegas card instead of a single bullseye with the arrows
+    // bunched in a fake triangle. Null on pre-0038 payloads → single-face
+    // fallback. Mirrors iOS `ActivitySession.targetLayout`.
+    val targetLayout: TargetLayout? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a
