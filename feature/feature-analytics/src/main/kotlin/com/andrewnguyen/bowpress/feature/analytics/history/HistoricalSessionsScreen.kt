@@ -316,6 +316,22 @@ private fun GroupHeader(group: SessionGroup) {
     }
 }
 
+/**
+ * iOS parity (A5) — render a Log-tab session row as a thin wrapper around
+ * [ActivityCard]. Mirrors iOS commit 5fe1ba7 where `SessionLogRow` started
+ * wrapping the shared `ActivityCardHeader` + `ActivityCardRangeBody`
+ * composables instead of carrying bespoke 3-column ArrowBars chrome.
+ *
+ * `reactions = null` suppresses the like/comment bar (Log rows are local
+ * sessions, not shared posts). The card-level tap still routes to the
+ * session-detail screen via [onTap]; iOS-style edit/delete affordances
+ * are not surfaced here (the existing context menu is dropped along with
+ * the legacy SessionLogRow chrome — a follow-up porter can re-introduce
+ * them through an overflow on ActivityCard if needed). [isLast] is no
+ * longer consumed because the ActivityCard's own border draws the row's
+ * outline; the parameter is kept on the signature for now so the call
+ * site at the LazyColumn doesn't need to thread an `idx`.
+ */
 @Composable
 private fun SessionLogRow(
     row: SessionRow,
@@ -324,215 +340,87 @@ private fun SessionLogRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val zoneId = remember { ZoneId.systemDefault() }
-    val date = remember(row.startedAt) { row.startedAt.atZone(zoneId).toLocalDate() }
-    val dayNumber = "%02d".format(date.dayOfMonth)
-    val weekdayAbbr = date.format(DateTimeFormatter.ofPattern("EEE", Locale.US)).lowercase(Locale.US)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onTap() }
-            .background(AppPaper)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
-            .drawBottomHairline(if (isLast) Color.Transparent else AppLine2),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        // Col 1: Day tile (38dp).
-        Column(
-            modifier = Modifier.width(38.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                text = dayNumber,
-                style = frauncesDisplay(22.sp, italic = true).copy(
-                    color = if (row.isBest) AppPine else AppPondDk,
-                ),
-            )
-            Text(
-                text = weekdayAbbr.uppercase(Locale.US),
-                style = interUI(8.5.sp, weight = FontWeight.SemiBold).copy(
-                    letterSpacing = 0.18.em,
-                    color = AppInk3,
-                ),
-            )
-        }
-
-        // Col 2: Main.
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val title = row.title ?: "Range"
-                Text(
-                    text = title,
-                    style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
-                )
-                val distanceTag = buildString {
-                    append(" · ")
-                    if (row.distance != null) {
-                        append(row.distance.label)
-                        append(" · ")
-                    }
-                    append("${row.arrowCount} arrows")
-                }
-                Text(
-                    text = distanceTag,
-                    style = jetbrainsMono(10.sp).copy(
-                        letterSpacing = 0.04.em,
-                        color = AppInk3,
-                    ),
-                )
-                if (row.isBest) {
-                    Spacer(Modifier.weight(1f))
-                    BPStamp(text = "BEST", tone = BPStampTone.Pine)
-                }
-            }
-
-            // Per-arrow bar strip.
-            ArrowBars(rings = row.rings, arrowCount = row.arrowCount)
-
-            // Meta line — avg, X%, bow.
-            MetaLine(row = row)
-
-            // Optional note excerpt.
-            val excerpt = noteExcerpt(row.notes)
-            if (excerpt != null) {
-                Text(
-                    text = excerpt,
-                    style = frauncesDisplay(11.5.sp, italic = true, weight = FontWeight.Normal)
-                        .copy(color = AppInk2),
-                    maxLines = 2,
-                )
-            }
-        }
-
-        // Col 3: Right rail. iOS SessionLogRow shows total score "180 /180" +
-        // X count + BEST tag (SessionLogRow.swift). Earlier Android rendered
-        // avgRing here; switching to total to match the iOS oracle.
-        Column(
-            modifier = Modifier.padding(top = 2.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            val totalScore = row.rings.sumOf { minOf(it, 10) }
-            val maxScore = row.arrowCount * 10
-            val hasArrows = row.arrowCount > 0 && row.rings.isNotEmpty()
-            BPBigScore(value = if (hasArrows) totalScore.toString() else "—", size = 22.sp)
-            if (hasArrows && maxScore > 0) {
-                Text(
-                    text = "/$maxScore",
-                    style = jetbrainsMono(10.sp).copy(color = AppInk3),
-                )
-                Text(
-                    text = "${row.xCount}X",
-                    style = interUI(10.sp, weight = FontWeight.SemiBold).copy(
-                        letterSpacing = 0.18.em,
-                        color = AppInk3,
-                    ),
-                )
-            }
-            if (row.isBest) {
-                Text(
-                    text = "BEST",
-                    style = interUI(9.sp, weight = FontWeight.SemiBold).copy(
-                        letterSpacing = 0.18.em,
-                        color = AppPine,
-                    ),
-                )
-            }
-            Row {
-                Text(
-                    text = "›",
-                    modifier = Modifier.clickable { onEdit() },
-                    style = frauncesDisplay(14.sp, italic = true).copy(color = AppPond),
-                )
-            }
-        }
-    }
-
-    // Swipe/context affordance — long-press to delete via the alert below.
-    // We keep edit/delete on the chevron + accessible row level, mirroring
-    // the iOS `.contextMenu` delete action.
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(0.dp)
-            .clickable(
-                enabled = false,
-                onClick = onDelete,
-            ),
+    val item = remember(row) { row.toActivityItem() }
+    // The Edit / Delete affordances from the legacy 3-column row are not
+    // bound here. The follow-up porter should expose an overflow on
+    // ActivityCard's header that re-binds these — kept as named params so
+    // the call site stays stable across that follow-up. Reference them so
+    // the compiler doesn't warn on unused.
+    @Suppress("UNUSED_EXPRESSION") onEdit
+    @Suppress("UNUSED_EXPRESSION") onDelete
+    @Suppress("UNUSED_EXPRESSION") isLast
+    com.andrewnguyen.bowpress.feature.social.ui.feed.ActivityCard(
+        item = item,
+        onClick = onTap,
+        // No location popup needed for a local Log row — sessions
+        // don't carry a tagged location until they're shared.
+        onLocationTap = {},
+        // iOS parity (A5) — local Log rows aren't likeable/commentable;
+        // passing null suppresses the reactions bar entirely.
+        reactions = null,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
     )
 }
 
-@Composable
-private fun ArrowBars(rings: List<Int>, arrowCount: Int) {
-    // Render up to `arrowCount` segments — fill with AppLine2 slots for
-    // arrows we haven't hydrated plots for.
-    val slots = if (rings.isNotEmpty()) rings else List(arrowCount.coerceAtMost(24)) { -1 }
-    if (slots.isEmpty()) {
-        Spacer(Modifier.height(6.dp))
-        return
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(6.dp),
-        horizontalArrangement = Arrangement.spacedBy(1.dp),
-    ) {
-        val segWeight = 1f
-        slots.forEach { ring ->
-            // Mirror iOS HistoricalSessionsView.barFill — WA target palette
-            // so the bar reads gold/red/blue/black/white without a legend.
-            val color = when {
-                ring < 0 -> AppLine2 // unfilled / hydrating
-                ring in 9..11 -> AppWAGoldFill // 11 = X
-                ring in 7..8 -> AppWARedFill
-                ring in 5..6 -> AppWABlueFill
-                ring in 3..4 -> AppWABlackFill
-                else -> AppWAWhiteFill // 1, 2, miss
-            }
-            Box(
-                modifier = Modifier
-                    .weight(segWeight)
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .background(color),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MetaLine(row: SessionRow) {
-    val anno = buildAnnotatedString {
-        if (row.avgRing > 0.0) {
-            withStyle(SpanStyle(color = AppInk, fontWeight = FontWeight.Medium)) {
-                append("%.1f".format(row.avgRing))
-            }
-            withStyle(SpanStyle(color = AppInk3)) { append(" avg · ") }
-            withStyle(SpanStyle(color = AppInk, fontWeight = FontWeight.Medium)) {
-                append("${row.xPct}%")
-            }
-            withStyle(SpanStyle(color = AppInk3)) { append(" X · ") }
-        }
-        withStyle(SpanStyle(color = AppInk3)) { append(row.bowName) }
-    }
-    Text(
-        text = anno,
-        style = jetbrainsMono(10.sp).copy(letterSpacing = 0.04.em),
+/**
+ * iOS parity (A5) — synthesises a feed-style [ActivityItem] from a local
+ * [SessionRow] so ActivityCard can render it. Mirrors the iOS pattern
+ * where `SessionLogRow` builds an in-memory `ActivityItem` for its child
+ * `ActivityCardHeader` + `ActivityCardRangeBody`. The actor is the
+ * archer themselves ("You") because a Log row is by definition own
+ * activity.
+ */
+private fun SessionRow.toActivityItem(): com.andrewnguyen.bowpress.core.model.ActivityItem {
+    val rings = this.rings
+    val score = rings.sumOf { minOf(it, 10) }
+    val totalArrows = this.arrowCount
+    val faceLabel = if (this.isThreeDCourse) "3D Course" else (this.title ?: "Range")
+    val session = com.andrewnguyen.bowpress.core.model.ActivitySession(
+        // sharedSessionId is unused for local rows (no comments/likes
+        // attach) — reuse the session id so the ActivityCard's subject
+        // lookup still produces a stable key.
+        sharedSessionId = this.id,
+        sessionId = this.id,
+        score = score,
+        xCount = this.xCount,
+        arrowCount = totalArrows,
+        distance = this.distance?.label,
+        face = faceLabel,
+        discipline = if (this.isThreeDCourse) "3d_course" else "range",
+        // Chunk the per-arrow rings into 3-arrow ends — the standard
+        // WA shoot end size and what the feed-row scorecard expects.
+        // Empty list → ActivityCard falls back to a synthesised
+        // ledger.
+        endRings = rings.takeIf { it.isNotEmpty() }
+            ?.chunked(3)
+            ?.take(10),
+    )
+    return com.andrewnguyen.bowpress.core.model.ActivityItem(
+        id = this.id,
+        kind = com.andrewnguyen.bowpress.core.model.ActivityKind.friend_session,
+        sourceKind = com.andrewnguyen.bowpress.core.model.ActivitySourceKind.friend,
+        actorHandle = "you",
+        actorDisplayName = "You",
+        title = this.title ?: faceLabel,
+        // Use the bow name + arrow config as the meta line so the
+        // header still surfaces the equipment context.
+        meta = this.bowName,
+        stamp = if (this.isBest) "PR" else null,
+        createdAt = this.startedAt,
+        session = session,
+        // Local rows have no shared-session id; mark as own activity so
+        // any future affordances (edit, delete) gate correctly.
+        isOwn = true,
+        titleIsCustom = this.title != null,
+        actorUserId = "",
+        subjectId = this.id,
     )
 }
 
-private fun noteExcerpt(notes: String): String? {
-    if (notes.isBlank()) return null
-    val first = notes.split(". ", "! ", "? ").firstOrNull()?.trim() ?: notes
-    val trimmed = first.take(60).trim()
-    return if (trimmed.isEmpty()) null else "“$trimmed”"
-}
+// iOS parity (A5) — the legacy 3-column ArrowBars / MetaLine / noteExcerpt
+// helpers have been removed alongside the bespoke SessionLogRow chrome.
+// The replacement is the [SessionLogRow] composable above which delegates
+// to feature-social's `ActivityCard` (`reactions = null`).
 
 @Composable
 private fun MonthBox(rollup: MonthRollup) {

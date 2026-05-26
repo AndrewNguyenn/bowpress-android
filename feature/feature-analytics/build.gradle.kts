@@ -29,6 +29,9 @@ dependencies {
     implementation(project(":core:core-navigation"))
     // The 3D-course Log detail reuses the 3D map + station components.
     implementation(project(":feature:feature-session"))
+    // iOS parity (A5) — Log tab rows render through feature-social's
+    // ActivityCard so the Log + Feed share one card register.
+    implementation(project(":feature:feature-social"))
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)

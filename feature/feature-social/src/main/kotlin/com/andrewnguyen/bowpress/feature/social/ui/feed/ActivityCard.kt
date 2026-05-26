@@ -109,14 +109,37 @@ private val TARGET_FACE_SIZE = 168.dp
  * body from [activityPreview]. [photoLoader] backs the photo body for a
  * photographed session — null when the caller has none (e.g. previews).
  */
+/**
+ * iOS parity (A5) — the dependencies the reactions footer needs (toggle
+ * like, open comments, who-am-I for the optimistic kudos stack). Passed
+ * to [ActivityCard] as a bundle so the bar can be suppressed wholesale
+ * by passing `reactions = null`.
+ *
+ * Mirrors iOS `Reactions` (5fe1ba7) — the Log tab passes nil so its rows
+ * render without the like/comment bar (local sessions aren't likeable);
+ * the Feed tab passes a real `Reactions` value.
+ */
+data class Reactions(
+    val onToggleLike: suspend (String, Boolean) -> ToggleLikeResponse,
+    val onOpenComments: (String) -> Unit,
+    /**
+     * The signed-in caller as an actor — used to put the caller's own
+     * avatar into the kudos stack on an optimistic self-like. Null when
+     * unknown (e.g. previews); the stack then just bumps the count.
+     */
+    val selfActor: ActivityActor? = null,
+)
+
 @Composable
 fun ActivityCard(
     item: ActivityItem,
     onClick: () -> Unit,
     onLocationTap: (SessionLocation) -> Unit,
-    onToggleLike: suspend (String, Boolean) -> ToggleLikeResponse,
-    onOpenComments: (String) -> Unit,
     modifier: Modifier = Modifier,
+    // iOS parity (A5) — when non-null, the like/comment bar renders;
+    // when null, it's suppressed entirely (the Log tab reuses the
+    // header + body chrome but doesn't carry reactions on local rows).
+    reactions: Reactions? = null,
     photoLoader: SessionPhotoLoader? = null,
     // Tapping a §4 photo-strip cell — the card emits which session's photos to
     // open and at which index. The full-screen viewer is owned by the feed
@@ -125,14 +148,15 @@ fun ActivityCard(
     // the card scrolls off-screen, dismissing it mid-look. No-op default so
     // previews / non-photo callers need not wire it.
     onOpenPhotoViewer: (sharedSessionId: String, photos: List<com.andrewnguyen.bowpress.core.model.ActivityPhoto>, startIndex: Int) -> Unit = { _, _, _ -> },
-    // The signed-in caller as an actor — used to put the caller's own avatar
-    // into the kudos stack on an optimistic self-like (M4). Null when unknown
-    // (e.g. previews); the kudos stack then just bumps the count.
-    selfActor: ActivityActor? = null,
     // Mentions contract §3.2 — tapping an `@handle` in the post title opens
     // that archer's profile. No-op default so previews / non-mention callers
     // need not wire it.
     onMentionTap: (handle: String) -> Unit = {},
+    // iOS parity (E2 / placeholder) — tapping the actor name or avatar opens
+    // the actor's profile. Wired by porter-profile-social; null today so the
+    // signature stays stable while the porter lands the eyebrow / actor-tap
+    // body implementation. Don't fill in the call sites without coordinating.
+    @Suppress("UNUSED_PARAMETER") onActorClick: ((String) -> Unit)? = null,
 ) {
     val preview = activityPreview(item)
     Column(
@@ -173,20 +197,20 @@ fun ActivityCard(
                 },
             )
         }
-        // The reactions bar shows ONLY on a session card — actual shooting
-        // activity (a range session or a 3D course; both carry `item.session`).
-        // Club / league / config-change / milestone rows are not likeable or
-        // commentable, matching the design handoff's non-session card, which
-        // has no reactions block. The card stays tappable for navigation
-        // regardless — only the kudos row is gated.
-        if (item.session != null) {
+        // The reactions bar shows ONLY on a session card AND only when a
+        // caller supplies a [Reactions] bundle. iOS parity (A5): the Log
+        // tab reuses ActivityCard but never carries reactions on its local
+        // rows (`reactions = null`). The Feed tab passes a real Reactions.
+        // Club / league / config-change / milestone rows still skip the
+        // bar regardless because they aren't likeable / commentable.
+        if (item.session != null && reactions != null) {
             // Reactions bar — top hairline, then the borderless action row.
             HorizontalDivider(color = AppLine2, thickness = 1.dp)
             ReactionsBar(
                 item = item,
-                onToggleLike = onToggleLike,
-                onOpenComments = onOpenComments,
-                selfActor = selfActor,
+                onToggleLike = reactions.onToggleLike,
+                onOpenComments = reactions.onOpenComments,
+                selfActor = reactions.selfActor,
             )
         }
     }

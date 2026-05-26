@@ -227,8 +227,21 @@ fun FeedScreen(
                     item = item,
                     onClick = { openItem(item) },
                     onLocationTap = { location -> mapLocation = location },
-                    onToggleLike = viewModel::toggleLike,
-                    onOpenComments = openComments,
+                    // iOS parity (A5) — reactions bundle. Feed rows are
+                    // likeable + commentable; Log rows pass null instead.
+                    reactions = Reactions(
+                        onToggleLike = viewModel::toggleLike,
+                        onOpenComments = openComments,
+                        // The signed-in caller, so an optimistic self-like puts
+                        // the caller's own avatar into the kudos stack (M4).
+                        selfActor = state.myProfile?.let { p ->
+                            com.andrewnguyen.bowpress.core.model.ActivityActor(
+                                userId = p.userId,
+                                handle = p.handle,
+                                displayName = p.displayName,
+                            )
+                        },
+                    ),
                     photoLoader = viewModel.photoLoader,
                     // §4 — a photo-strip cell tap raises the screen-level
                     // viewer; the card itself never hosts it.
@@ -239,16 +252,8 @@ fun FeedScreen(
                             startIndex = startIndex,
                         )
                     },
-                    // The signed-in caller, so an optimistic self-like puts
-                    // the caller's own avatar into the kudos stack (M4).
-                    selfActor = state.myProfile?.let { p ->
-                        com.andrewnguyen.bowpress.core.model.ActivityActor(
-                            userId = p.userId,
-                            handle = p.handle,
-                            displayName = p.displayName,
-                        )
-                    },
                     onMentionTap = onMentionTap,
+                    onActorClick = onActorClick,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 )
             }
