@@ -46,6 +46,7 @@ data class CommentsContext(
     val likedByMe: Boolean = false,
     val likers: List<ActivityActor> = emptyList(),
     // Parity E5 — owner avatar URL + version for the context strip avatar.
+    val authorUserId: String? = null,
     val authorAvatarUrl: String? = null,
     val authorAvatarVersion: Int? = null,
 )
@@ -533,6 +534,7 @@ private fun SharedSessionDetail.toContext(): CommentsContext {
         likeCount = likeCount,
         likedByMe = likedByMe,
         likers = likers,
+        authorUserId = s.userId,
         authorAvatarUrl = ownerAvatarUrl,
         authorAvatarVersion = ownerAvatarVersion,
     )

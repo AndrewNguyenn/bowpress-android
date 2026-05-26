@@ -136,6 +136,10 @@ dependencies {
     implementation(project(":feature:feature-settings"))
     implementation(project(":feature:feature-social"))
 
+    // Coil ImageLoader override — registered on BowPressApplication so avatar
+    // requests carry the Bearer token via the existing AuthInterceptor.
+    implementation(libs.coil.compose)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 

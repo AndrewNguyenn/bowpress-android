@@ -140,6 +140,7 @@ fun FriendSessionDetailScreen(
                         } else null
                         SocialAvatarImage(
                             displayName = d.ownerDisplayName,
+                            userId = d.sharedSession.userId,
                             avatarUrl = d.ownerAvatarUrl,
                             avatarVersion = d.ownerAvatarVersion,
                             size = 22,

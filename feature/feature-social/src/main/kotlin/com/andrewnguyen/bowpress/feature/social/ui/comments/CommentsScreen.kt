@@ -270,6 +270,7 @@ private fun ContextStrip(ctx: CommentsContext) {
     ) {
         SocialAvatarImage(
             displayName = ctx.authorDisplayName,
+            userId = ctx.authorUserId,
             avatarUrl = ctx.authorAvatarUrl,
             avatarVersion = ctx.authorAvatarVersion,
             size = 36,
@@ -510,6 +511,7 @@ private fun CommentRow(
     ) {
         SocialAvatarImage(
             displayName = comment.authorDisplayName,
+            userId = comment.userId,
             avatarUrl = comment.authorAvatarUrl,
             avatarVersion = comment.authorAvatarVersion,
             size = if (isReply) 22 else 26,

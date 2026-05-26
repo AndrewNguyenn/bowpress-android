@@ -48,6 +48,7 @@ import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 private fun KudosAvatar(actor: ActivityActor) {
     SocialAvatarImage(
         displayName = actor.displayName,
+        userId = actor.userId,
         avatarUrl = actor.avatarUrl,
         avatarVersion = actor.avatarVersion,
         size = 22,

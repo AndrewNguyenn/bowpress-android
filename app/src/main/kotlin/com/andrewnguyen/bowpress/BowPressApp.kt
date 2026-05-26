@@ -19,9 +19,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
+import com.andrewnguyen.bowpress.core.designsystem.LocalAvatarUrl
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
 import com.andrewnguyen.bowpress.core.designsystem.splash.HydrationSplashScreen
+import com.andrewnguyen.bowpress.core.network.AvatarUrlResolver
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import androidx.compose.ui.platform.LocalContext
 import com.andrewnguyen.bowpress.feature.auth.AuthRoutes
 import com.andrewnguyen.bowpress.feature.auth.authNavGraph
 import com.andrewnguyen.bowpress.feature.subscription.ReadOnlyGate
@@ -51,6 +58,7 @@ fun BowPressApp(
     val themePreference by viewModel.themePreference.collectAsStateWithLifecycle()
     val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
     val navController = rememberNavController()
+    val appContext = LocalContext.current.applicationContext
 
     // Splash dismissal state — flipped once both gates align, or the safety
     // timeout fires. The `AnimatedVisibility` below wraps the flip in a
@@ -69,9 +77,18 @@ fun BowPressApp(
         preference = themePreference,
         onPreferenceChange = viewModel::setThemePreference,
     ) {
+    val avatarResolver = remember {
+        EntryPointAccessors.fromApplication(
+            appContext,
+            AvatarUrlResolverEntryPoint::class.java,
+        ).avatarUrlResolver()
+    }
     CompositionLocalProvider(
         LocalUnitSystem provides unitSystem,
         LocalUnitSystemSetter provides viewModel::setUnitSystem,
+        LocalAvatarUrl provides { userId, version ->
+            avatarResolver.urlFor(userId, version)
+        },
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
@@ -121,4 +138,14 @@ fun BowPressApp(
         }
     }
     }
+}
+
+/**
+ * Hilt can't inject into a `@Composable` function directly, so reach into the
+ * SingletonComponent through an entry point to grab the resolver Singleton.
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface AvatarUrlResolverEntryPoint {
+    fun avatarUrlResolver(): AvatarUrlResolver
 }

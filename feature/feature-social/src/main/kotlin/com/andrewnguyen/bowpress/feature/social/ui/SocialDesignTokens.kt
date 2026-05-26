@@ -95,11 +95,19 @@ fun SocialAvatar(
 }
 
 /**
- * Parity E5 — avatar that renders an uploaded profile picture when
- * [avatarUrl] is non-null, with `?v=<avatarVersion>` appended so a fresh
- * upload invalidates Coil's cache; falls back to initials otherwise. The
- * square chrome (border + paper-2 ground) is preserved across both render
- * paths so the kudos/feed/comments avatars stay visually consistent.
+ * Parity E5 — avatar that renders an uploaded profile picture when one is
+ * available, falling back to initials otherwise. The square chrome (border +
+ * paper-2 ground) is preserved across both render paths so the kudos / feed
+ * / comments avatars stay visually consistent.
+ *
+ * Two URL sources, checked in order:
+ *  1. [avatarUrl] — an absolute URL the API already provided (rare).
+ *  2. [userId] + [avatarVersion] — the API only ever sends `avatarVersion`,
+ *     so we reconstruct `{baseUrl}/social/avatars/{userId}?v={n}` via the
+ *     `LocalAvatarUrl` resolver. iOS does the same.
+ *
+ * `?v=<avatarVersion>` is appended in either case so a fresh upload busts
+ * Coil's cache.
  *
  * Optional [borderTint] overrides the default pond-dk frame (used by the
  * feed card's pine border for milestone posts).
@@ -107,12 +115,14 @@ fun SocialAvatar(
 @Composable
 fun SocialAvatarImage(
     displayName: String,
+    userId: String?,
     avatarUrl: String?,
     avatarVersion: Int?,
     size: Int = 32,
     borderTint: androidx.compose.ui.graphics.Color = AppPondDk,
     modifier: Modifier = Modifier,
 ) {
+    val resolver = com.andrewnguyen.bowpress.core.designsystem.LocalAvatarUrl.current
     Box(
         modifier = modifier
             .size(size.dp)
@@ -120,8 +130,8 @@ fun SocialAvatarImage(
             .background(AppPaper2),
         contentAlignment = Alignment.Center,
     ) {
-        val cacheBustedUrl = remember(avatarUrl, avatarVersion) {
-            avatarUrl?.let { url ->
+        val cacheBustedUrl = remember(avatarUrl, avatarVersion, userId, resolver) {
+            val absolute = avatarUrl?.let { url ->
                 if (avatarVersion != null) {
                     val sep = if (url.contains('?')) '&' else '?'
                     "$url${sep}v=$avatarVersion"
@@ -129,6 +139,7 @@ fun SocialAvatarImage(
                     url
                 }
             }
+            absolute ?: resolver(userId, avatarVersion)
         }
         if (cacheBustedUrl != null) {
             coil.compose.AsyncImage(

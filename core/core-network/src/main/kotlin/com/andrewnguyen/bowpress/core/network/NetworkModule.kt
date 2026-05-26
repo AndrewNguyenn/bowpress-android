@@ -12,6 +12,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -75,6 +76,26 @@ object NetworkModule {
         .addInterceptor(authInterceptor)
         .addInterceptor(errorInterceptor)
         .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    /**
+     * Coil ImageLoader uses this client instead of the Retrofit one so avatar
+     * GETs ride through `AuthInterceptor` (Bearer attached) but skip
+     * `ErrorInterceptor` (which would otherwise throw typed `ApiException`
+     * + JSON-parse the body on every 404 / 401 image response — wasted work
+     * and confusing debug-log noise). HTTP body logging is also dropped
+     * because raw image bytes in logcat are useless.
+     */
+    @Provides
+    @Singleton
+    @Named("avatarImage")
+    fun provideAvatarImageOkHttpClient(
+        authInterceptor: AuthInterceptor,
+    ): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(authInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)

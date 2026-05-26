@@ -316,6 +316,7 @@ private fun ActivityCardHeader(
         // ?v=<avatarVersion> as a cache-buster; fall back to initials otherwise.
         SocialAvatarImage(
             displayName = item.actorDisplayName,
+            userId = item.actorUserId.takeIf { it.isNotBlank() },
             avatarUrl = item.actorAvatarUrl,
             avatarVersion = item.actorAvatarVersion,
             size = 32,
