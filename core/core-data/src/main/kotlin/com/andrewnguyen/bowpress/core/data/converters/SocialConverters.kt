@@ -65,6 +65,8 @@ fun SocialProfileEntity.toDto(): SocialProfile = SocialProfile(
     sessionCount = sessionCount,
     arrowCount = arrowCount,
     division = division?.let { runCatching { Division.valueOf(it) }.getOrNull() },
+    avatarVersion = avatarVersion,
+    avatarUrl = avatarUrl,
 )
 
 // Social writes are online-first in v1 — entities use the default
@@ -79,6 +81,8 @@ fun SocialProfile.toEntity(): SocialProfileEntity = SocialProfileEntity(
     sessionCount = sessionCount,
     arrowCount = arrowCount,
     division = division?.name,
+    avatarVersion = avatarVersion,
+    avatarUrl = avatarUrl,
 )
 
 // ── Friendship ─────────────────────────────────────────────────────────────

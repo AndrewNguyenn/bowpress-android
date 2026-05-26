@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 19,
-    "identityHash": "65952291311d8593fbbb1a35d298e0a5",
+    "identityHash": "234d5166e82b44415be03dcd9a73c9b1",
     "entities": [
       {
         "tableName": "bows",
@@ -934,7 +934,7 @@
       },
       {
         "tableName": "social_profiles",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `handle` TEXT NOT NULL, `displayName` TEXT NOT NULL, `joinedAt` INTEGER NOT NULL, `visibility` TEXT NOT NULL, `bowSummary` TEXT, `sessionCount` INTEGER NOT NULL, `arrowCount` INTEGER NOT NULL, `division` TEXT, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `handle` TEXT NOT NULL, `displayName` TEXT NOT NULL, `joinedAt` INTEGER NOT NULL, `visibility` TEXT NOT NULL, `bowSummary` TEXT, `sessionCount` INTEGER NOT NULL, `arrowCount` INTEGER NOT NULL, `division` TEXT, `avatarVersion` INTEGER, `avatarUrl` TEXT, `pendingSync` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
         "fields": [
           {
             "fieldPath": "userId",
@@ -987,6 +987,18 @@
           {
             "fieldPath": "division",
             "columnName": "division",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "avatarVersion",
+            "columnName": "avatarVersion",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "avatarUrl",
+            "columnName": "avatarUrl",
             "affinity": "TEXT",
             "notNull": false
           },
@@ -1798,7 +1810,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '65952291311d8593fbbb1a35d298e0a5')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '234d5166e82b44415be03dcd9a73c9b1')"
     ]
   }
 }

@@ -18,6 +18,14 @@ data class SocialProfileEntity(
     val sessionCount: Int = 0,
     val arrowCount: Int = 0,
     val division: String? = null,    // Division.name or null
+    // Avatar cache-buster columns — added v19 (parity E5). Without these, the
+    // cache writes through `SocialRepository.getMyProfile()` /
+    // `observeMyProfile()` silently drop the avatar fields and the local
+    // copy of the signed-in user's profile flashes back to the monogram on
+    // every cold launch (iOS bug b4c41fe was the same shape). Nullable so
+    // the v18→v19 AutoMigration stays purely additive.
+    val avatarVersion: Int? = null,
+    val avatarUrl: String? = null,
     // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
