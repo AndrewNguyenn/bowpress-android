@@ -112,6 +112,18 @@ data class SessionSummary(
     val arrowCount: Int = 0,
     @Serializable(with = InstantSerializer::class)
     val endedAt: Instant? = null,
+    /**
+     * Normalised (-1..1) arrow impact coordinates the profile screen's plot
+     * strip overlays on the mini face. Default empty so a payload without
+     * plots still decodes. Parity B5 / E1.
+     */
+    val plots: List<SessionPlot> = emptyList(),
+    /**
+     * Shaft outside diameter in mm — drives the plot-strip dot size so a 9mm
+     * Black Eagle reads visibly fatter than a 4mm X10. Null falls back to a
+     * 6mm reference. Parity B1.
+     */
+    val arrowDiameterMm: Double? = null,
 )
 
 /**
@@ -129,12 +141,66 @@ data class Stat30d(
     val arrowCount: Int = 0,
 )
 
+/**
+ * Lightweight archer reference used by the profile screen's mutual-friends
+ * strip — enough to render a monogram + division tone without a second fetch.
+ *
+ * Parity E1 (iOS commit 82b38fd).
+ */
+@Serializable
+data class MutualArcher(
+    val userId: String,
+    val handle: String,
+    val displayName: String,
+    val division: Division? = null,
+    val avatarVersion: Int? = null,
+)
+
+/**
+ * Optional plot point on a [SessionSummary] — the API may emit normalised
+ * (-1..1) impact coordinates so the friend-profile plot-strip mini-faces
+ * render the archer's actual arrow placement (parity B5 / E1).
+ */
+@Serializable
+data class SessionPlot(
+    val x: Double,
+    val y: Double,
+)
+
+/**
+ * Rolling 7-day summary backing the "This week" block on a friend profile.
+ *
+ * `dailyAvg` is exactly 7 entries, oldest → today; entries are null for
+ * days with no arrows so the chart can render a gap. Mirrors iOS
+ * `ThisWeekStat` (parity E1).
+ */
+@Serializable
+data class ThisWeekStat(
+    val arrowCount: Int = 0,
+    val sessionCount: Int = 0,
+    val avgArrowScore: Double? = null,
+    /** Total seconds on the line, null when no session has a usable range. */
+    val timeSeconds: Int? = null,
+    /** Seven entries oldest → today; nulls on days with zero arrows. */
+    val dailyAvg: List<Double?> = emptyList(),
+    val peak: Double? = null,
+)
+
 /** Full friend profile page. Mirrors API §2 `FriendProfile`. */
 @Serializable
 data class FriendProfile(
     val profile: SocialProfile,
     val recentSessions: List<SessionSummary> = emptyList(),
     val stat30d: Stat30d = Stat30d(),
+    /**
+     * Total accepted-friend count for the friend. Defaulted so a server
+     * that hasn't shipped the field yet still decodes.
+     */
+    val friendCount: Int = 0,
+    /** Mutual friends — small list, render up to ~6 in the strip. */
+    val mutuals: List<MutualArcher> = emptyList(),
+    /** This-week chart block. Defaulted to empty so partial payloads decode. */
+    val thisWeek: ThisWeekStat = ThisWeekStat(),
 )
 
 /** Head-to-head compare view. Mirrors API §2 `CompareView`. */
