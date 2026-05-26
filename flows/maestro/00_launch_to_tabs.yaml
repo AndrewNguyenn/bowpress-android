@@ -5,6 +5,11 @@
 # boot to the same scaffold. Maps to iOS XCUITest's ScreenshotTests.swift
 # baseline ("tab bar never appeared (hydration splash stuck?)").
 #
+# Tab order (post-A1 Feed-home parity): Feed · Log · Session · Analytics
+# · Equipment. Settings is no longer a top-level tab — it's reached via
+# the avatar pill in the Feed top-nav. The bottom-bar labels render
+# uppercase, so the assertions match that case.
+#
 # Prerequisites:
 #   - iOS:     DEBUG build auto-signs in; main tab bar should appear
 #              within 20s after splash clears.
@@ -28,6 +33,21 @@ tags:
 # accessibilityIdentifier (only Android Compose does). Adding the iOS
 # identifier for symmetry is tracked in BLOCKERS — until then text is the
 # common signal on both platforms.
-- assertVisible: "Analytics"
-- assertVisible: "Equipment"
-- assertVisible: "Settings"
+#
+# Feed is the home tab (post-A1 parity), so it should be visible as soon
+# as the splash clears. The remaining four tabs are always present on the
+# bottom bar regardless of which is selected.
+#
+# Tab-bar labels render in different cases per platform (iOS uses title
+# case via tabItem `Label`, Android uppercases in the bottom bar). Use
+# regex with the case-insensitive flag so one assertion covers both.
+- assertVisible:
+    text: "(?i)^feed$"
+- assertVisible:
+    text: "(?i)^log$"
+- assertVisible:
+    text: "(?i)^session$"
+- assertVisible:
+    text: "(?i)^analytics$"
+- assertVisible:
+    text: "(?i)^equipment$"
