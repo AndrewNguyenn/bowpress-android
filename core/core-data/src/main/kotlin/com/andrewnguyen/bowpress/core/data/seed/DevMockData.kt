@@ -1560,8 +1560,15 @@ internal object DevMockData {
     //
     // A populated bell for the offline DEBUG build — a mix of unread (paper-2
     // tint + ink rule) and read rows across the filter categories.
+    //
+    // F3 — the mock list is MUTABLE so the offline-fallback path through
+    // SocialRepository.getPendingCount() (which reads
+    // `DevMockData.notificationList.unread` when the API is unreachable) sees
+    // mark-all-read / dismiss applied. Without this the tab badge stuck at the
+    // seed unread count even after the notification screen showed everything
+    // as read. Mirrors iOS commit 46cce3e (DevSocialMockStore mutators).
 
-    val notifications: List<SocialNotification> = listOf(
+    private val seedNotifications: List<SocialNotification> = listOf(
         SocialNotification(
             id = "ntf_1", type = "like", actorUserId = "u_sarah",
             actorHandle = "sarah.n", actorDisplayName = "Sara Lin",
@@ -1607,8 +1614,68 @@ internal object DevMockData {
         ),
     )
 
-    val notificationList: NotificationList =
-        NotificationList(items = notifications, unread = notifications.count { !it.read })
+    /**
+     * Mutable backing list — apply()'d by [markAllNotificationsRead] /
+     * [markNotificationRead] / [dismissNotification] / [dismissAllNotifications]
+     * so the offline fallback through [notificationList] reflects user actions.
+     * Synchronized to keep the DEBUG path safe across concurrent UI mutations
+     * and the badge re-read.
+     */
+    private val notificationLock = Any()
+
+    @Volatile
+    private var mutableNotifications: List<SocialNotification> = seedNotifications
+
+    val notifications: List<SocialNotification>
+        get() = synchronized(notificationLock) { mutableNotifications }
+
+    val notificationList: NotificationList
+        get() = synchronized(notificationLock) {
+            NotificationList(
+                items = mutableNotifications,
+                unread = mutableNotifications.count { !it.read },
+            )
+        }
+
+    /** Mark every mock notification read — flips `unread` to 0. */
+    fun markAllNotificationsRead() {
+        synchronized(notificationLock) {
+            mutableNotifications = mutableNotifications.map { it.copy(read = true) }
+        }
+    }
+
+    /** Mark a single mock notification read by id. No-op if absent. */
+    fun markNotificationRead(id: String) {
+        synchronized(notificationLock) {
+            mutableNotifications = mutableNotifications.map {
+                if (it.id == id) it.copy(read = true) else it
+            }
+        }
+    }
+
+    /** Dismiss a single mock notification by id. No-op if absent. */
+    fun dismissNotification(id: String) {
+        synchronized(notificationLock) {
+            mutableNotifications = mutableNotifications.filterNot { it.id == id }
+        }
+    }
+
+    /** Clear the mock notification list — the "clear all" action. */
+    fun dismissAllNotifications() {
+        synchronized(notificationLock) {
+            mutableNotifications = emptyList()
+        }
+    }
+
+    /**
+     * Test-only — reset the mutable mock list back to its seed snapshot so
+     * each test starts from a clean state.
+     */
+    internal fun resetNotificationsForTests() {
+        synchronized(notificationLock) {
+            mutableNotifications = seedNotifications
+        }
+    }
 
     // --- Mutes / blocks (§14) ---------------------------------------------
     //

@@ -464,17 +464,43 @@ class SocialRepository @Inject constructor(
         runCatching { api.getNotifications() }
             .getOrElse { e -> if (isDebugBuild) DevMockData.notificationList else throw e }
 
-    /** Mark every notification read — clears the bell. */
-    suspend fun markAllNotificationsRead() = api.markAllNotificationsRead()
+    /**
+     * Mark every notification read — clears the bell. F3 — also apply the
+     * mutation to the DEBUG mock list (BEFORE the network call) so when
+     * `getPendingCount()` later falls back to [DevMockData.notificationList]
+     * because the API is unreachable, the count reflects the user's action.
+     * Without this the tab badge stuck at the seed unread count even after
+     * the notification screen rendered everything as read. Mirrors iOS commit
+     * 46cce3e (DevSocialMockStore mutators).
+     *
+     * Release builds are untouched — the mock-mutation branch is dead. The
+     * API call's exception still propagates to the caller in DEBUG so
+     * [NotificationCenterViewModel.commit] can reload on a real backend
+     * failure; the mock mutation is just a harmless side-effect that gets
+     * overwritten by the next `getNotifications()` when the backend is up.
+     */
+    suspend fun markAllNotificationsRead() {
+        if (isDebugBuild) DevMockData.markAllNotificationsRead()
+        api.markAllNotificationsRead()
+    }
 
-    /** Mark one notification read (on tap-through). */
-    suspend fun markNotificationRead(id: String) = api.markNotificationRead(id)
+    /** Mark one notification read (on tap-through). See [markAllNotificationsRead]. */
+    suspend fun markNotificationRead(id: String) {
+        if (isDebugBuild) DevMockData.markNotificationRead(id)
+        api.markNotificationRead(id)
+    }
 
-    /** Dismiss one notification — swipe-to-dismiss. */
-    suspend fun dismissNotification(id: String) = api.dismissNotification(id)
+    /** Dismiss one notification — swipe-to-dismiss. See [markAllNotificationsRead]. */
+    suspend fun dismissNotification(id: String) {
+        if (isDebugBuild) DevMockData.dismissNotification(id)
+        api.dismissNotification(id)
+    }
 
-    /** Dismiss every notification — the "clear all" action. */
-    suspend fun dismissAllNotifications() = api.dismissAllNotifications()
+    /** Dismiss every notification — the "clear all" action. See [markAllNotificationsRead]. */
+    suspend fun dismissAllNotifications() {
+        if (isDebugBuild) DevMockData.dismissAllNotifications()
+        api.dismissAllNotifications()
+    }
 
     // ── Mute / block (§14) ──────────────────────────────────────────────────────
     //
