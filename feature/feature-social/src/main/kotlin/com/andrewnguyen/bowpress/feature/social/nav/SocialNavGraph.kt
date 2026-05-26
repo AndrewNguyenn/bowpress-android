@@ -229,6 +229,14 @@ fun NavGraphBuilder.socialNavGraph(
         ClubHomeScreen(
             clubId = clubId,
             onBack = { navController.popBackStack() },
+            // Parity E2 — tap a leaderboard row to drill into the archer.
+            onOpenArcher = { userId ->
+                navController.navigate(SocialRoutes.friendProfile(userId))
+            },
+            // Parity E10 — tap a member-activity row to drill into the session.
+            onOpenSession = { sharedSessionId ->
+                navController.navigate(SocialRoutes.sessionDetail(sharedSessionId))
+            },
         )
     }
 
@@ -255,6 +263,10 @@ fun NavGraphBuilder.socialNavGraph(
             leagueId = leagueId,
             onBack = { navController.popBackStack() },
             onAdminClick = { id -> navController.navigate(SocialRoutes.leagueAdmin(id)) },
+            // Parity E2 — tap a standings row to drill into the archer.
+            onOpenArcher = { userId ->
+                navController.navigate(SocialRoutes.friendProfile(userId))
+            },
         )
     }
 

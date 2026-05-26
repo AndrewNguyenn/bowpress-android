@@ -204,6 +204,17 @@ fun FriendSessionDetailScreen(
                         runningTotalThrough(detail.stations, focusedCourseStation)
                     }
                     LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+                        // Parity E10 — dedicated location strip ABOVE the
+                        // stat header, showing the tagged range / place.
+                        // iOS commit 9c85a30. Renders only when the session
+                        // has a `location`.
+                        detail.sharedSession.location?.let { loc ->
+                            item {
+                                Spacer(Modifier.height(14.dp))
+                                LocationStrip(name = loc.name)
+                            }
+                        }
+
                         // Header — stat summary always shown (survives a deleted session).
                         item {
                             Spacer(Modifier.height(14.dp))
@@ -415,7 +426,17 @@ private fun SessionStatHeader(shared: SharedSession) {
             Spacer(Modifier.height(4.dp))
         }
         Row(verticalAlignment = Alignment.Bottom) {
-            Text("${shared.score}", style = frauncesDisplay(34.sp), color = AppPondDk)
+            // Parity E10 — hero score stays on one line on long values
+            // (iOS commits 6aa63fa + 734c6f6). maxLines/softWrap=false
+            // keeps the score itself from breaking; the surrounding row
+            // already gives the X·arrows label enough room to wrap.
+            Text(
+                "${shared.score}",
+                style = frauncesDisplay(34.sp),
+                color = AppPondDk,
+                maxLines = 1,
+                softWrap = false,
+            )
             Spacer(Modifier.width(8.dp))
             Text(
                 "${shared.xCount}X · ${shared.arrowCount} arrows",
@@ -432,12 +453,43 @@ private fun SessionStatHeader(shared: SharedSession) {
                 color = AppMaple,
             )
         }
-        shared.location?.let { loc ->
-            Spacer(Modifier.height(4.dp))
+        // Location moved to the dedicated [LocationStrip] above this header
+        // (parity E10). Intentionally not rendered here to avoid duplication.
+    }
+}
+
+/**
+ * Parity E10 — slim location strip rendered ABOVE the session stat header
+ * (iOS commit 9c85a30). Shows the tagged range / place at the top of the
+ * friend-session detail.
+ */
+@Composable
+private fun LocationStrip(name: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, AppLine)
+            .background(AppPaper)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "◇",
+            style = frauncesDisplay(14.sp, italic = true),
+            color = AppPondDk,
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
             Text(
-                "◇ ${loc.name}",
-                style = jetbrainsMono(9.5.sp),
+                "LOCATION",
+                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
                 color = AppInk3,
+            )
+            Text(
+                name,
+                style = frauncesDisplay(14.sp, italic = true),
+                color = AppInk,
+                maxLines = 1,
             )
         }
     }
