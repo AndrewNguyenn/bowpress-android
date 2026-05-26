@@ -1,0 +1,113 @@
+# Maestro flow: host-only club access toggles persist across navigation.
+#
+# Parity E8 — ClubHomeScreen renders a host-only "ACCESS" section with two
+# AccessToggleRows: Visibility (PUBLIC ↔ PRIVATE) and Join Policy (OPEN ↔
+# INVITE-ONLY). Non-hosts never see this block. This flow proves:
+#   1. The hosted mock club ("Riverside Archers", DevMockData.kt:1089) is
+#      reachable via the Feed → Clubs pill (navCard.Clubs) → club row.
+#   2. The ACCESS section is visible to the host with both rows.
+#   3. Tapping "MAKE PRIVATE" flips Visibility; tapping "INVITE-ONLY"
+#      flips Join Policy. After both flips the row titles update.
+#   4. Navigating back to Clubs and re-entering the club shows the
+#      toggles still in their new state (state survives the nav round
+#      trip).
+#
+# iOS oracle: ClubHomeView.swift.
+# DRAFT — AccessToggleRow doesn't carry stable testTags yet; the flow
+# drives by the CTA button labels which render identically on iOS +
+# Android (per E8 parity work).
+#
+# Caller passes appId + screenshot prefix via -e:
+#   iOS:     maestro -e APP_ID=com.andrewnguyen.bowpress       -e SCREENSHOT_PREFIX=/tmp/ios-club-access     test flows/maestro/27_club_access_toggle.yaml
+#   Android: maestro --device emulator-5554 -e APP_ID=com.andrewnguyen.bowpress.debug -e SCREENSHOT_PREFIX=/tmp/android-club-access test flows/maestro/27_club_access_toggle.yaml
+appId: ${APP_ID}
+tags:
+  - parity
+  - clubs
+  - draft
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    notVisible:
+        id: "hydration_splash"
+    timeout: 20000
+
+# Feed → Clubs pill.
+- tapOn: "Feed"
+- waitForAnimationToEnd:
+    timeout: 4000
+- extendedWaitUntil:
+    visible:
+        id: "social_feed_root"
+    timeout: 8000
+- tapOn:
+    id: "navCard.Clubs"
+- waitForAnimationToEnd:
+    timeout: 4000
+- extendedWaitUntil:
+    visible:
+        id: "social_clubs_root"
+    timeout: 6000
+- takeScreenshot: ${SCREENSHOT_PREFIX}_01_clubs_index
+
+# Open the hosted mock club.
+- tapOn: "Riverside Archers"
+- waitForAnimationToEnd:
+    timeout: 4000
+
+# Host-only ACCESS section + initial states (PUBLIC + OPEN).
+- assertVisible: "Riverside Archers"
+- scrollUntilVisible:
+    element:
+        text: "ACCESS"
+    direction: DOWN
+    timeout: 6000
+- assertVisible: "ACCESS"
+- assertVisible:
+    text: "Visibility · Public"
+- assertVisible:
+    text: "Join Policy · Open"
+- assertVisible: "MAKE PRIVATE"
+- assertVisible: "INVITE-ONLY"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_02_access_initial
+
+# Flip Visibility → Private.
+- tapOn: "MAKE PRIVATE"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    text: "Visibility · Private"
+- assertVisible: "MAKE PUBLIC"
+
+# Flip Join Policy → Invite-only.
+- tapOn: "INVITE-ONLY"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    text: "Join Policy · Invite-only"
+- assertVisible: "OPEN"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_03_access_flipped
+
+# Round-trip: back to clubs, re-enter, assert state survived.
+- tapOn:
+    text: ".*Clubs"
+- waitForAnimationToEnd:
+    timeout: 3000
+- extendedWaitUntil:
+    visible:
+        id: "social_clubs_root"
+    timeout: 6000
+- tapOn: "Riverside Archers"
+- waitForAnimationToEnd:
+    timeout: 4000
+- scrollUntilVisible:
+    element:
+        text: "ACCESS"
+    direction: DOWN
+    timeout: 6000
+- assertVisible:
+    text: "Visibility · Private"
+- assertVisible:
+    text: "Join Policy · Invite-only"
+- takeScreenshot: ${SCREENSHOT_PREFIX}_04_access_persisted

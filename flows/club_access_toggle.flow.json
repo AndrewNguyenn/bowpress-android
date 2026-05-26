@@ -1,0 +1,18 @@
+{
+  "name": "club_access_toggle",
+  "description": "Host-only club access toggles (parity E8). From the Feed → Clubs pill → ClubHomeScreen of the hosted 'Riverside Archers' mock club, archer flips Visibility (Public → Private) and Join Policy (Open → Invite-only) via the ACCESS section's host-only buttons, then re-enters the club and asserts the toggles persisted. iOS oracle: ClubHomeView.swift (E8 host-only block). Status DRAFT: the access toggle rows don't carry stable testTags yet — flow drives by the CTA button labels ('MAKE PRIVATE' / 'INVITE-ONLY' / 'MAKE PUBLIC' / 'OPEN') which render identically across platforms.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Feed" },
+    { "type": "wait", "tag": "social_feed_root", "timeout": 8 },
+    { "type": "tap", "tag": "navCard.Clubs" },
+    { "type": "wait", "tag": "social_clubs_root", "timeout": 6 }
+  ]
+}
