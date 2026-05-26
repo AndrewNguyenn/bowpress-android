@@ -258,20 +258,19 @@ internal fun singleFaceDotRadiusPx(
 /**
  * Real-world millimetres at normalised face-radius 1.0 — the divisor that
  * turns an `arrowDiameterMm` value into a face-radius fraction. Vegas
- * indoor = 20/(119/735) ≈ 123.5mm and Outdoor80 = 400mm both match
- * `TargetGeometry.SixRing.mmPerNormUnit` / `SixRingOutdoor.mmPerNormUnit`
- * exactly. TenRing reuses Vegas's value rather than the printed 122cm
- * face's 610mm — matches Android's existing
- * `TargetGeometry.TenRing.mmPerNormUnit = SixRing.mmPerNormUnit` choice
- * (see TargetGeometry comment: dot radius stays consistent across faces).
- * This is the one place where Android's plot-dot convention diverges from
- * iOS (iOS uses the physical 610mm radius for TenRing), but no caller of
- * `BPPlottedTarget` renders a single TenRing face in production today.
+ * indoor = 20/(119/735) ≈ 123.5mm, Outdoor80 = 400mm, TenRing = 610mm.
+ * Mirrors iOS `TargetGeometry.mmPerNormUnit` for each face exactly.
  *
- * Kept here rather than depending on `feature-session/TargetGeometry` so
- * core-designsystem stays free of a feature dep. If a future contributor
- * changes a value in TargetGeometry, the corresponding entry below has
- * to move in lockstep.
+ * TenRing previously reused Vegas's 123.5mm here on the rationale that
+ * "no caller renders a single 10-ring face in production today" — that
+ * stopped being true once friend-detail screens started rendering
+ * single-spot 122cm-face sessions (e.g. a 20yd 10-ring practice round
+ * uploaded from iOS). Using 123.5 there made the dot ~5x wider than
+ * iOS, since a 5mm shaft was being measured against a 247mm-diameter
+ * face instead of the actual 1220mm. The scoring layer
+ * `TargetGeometry.TenRing.mmPerNormUnit` keeps its existing Vegas-aligned
+ * value — that's a separate consideration (dot-vs-ring overlap on the
+ * own session view); only the visual renderer needs the physical scale.
  */
 private fun singleFaceMmPerNormUnit(
     faceType: TargetFaceType,
@@ -281,10 +280,7 @@ private fun singleFaceMmPerNormUnit(
         BPSixRingStyle.Vegas -> VEGAS_MM_PER_NORM_UNIT
         BPSixRingStyle.Outdoor80 -> OUTDOOR_80_MM_PER_NORM_UNIT
     }
-    // Intentional: TenRing reuses Vegas's mmPerNormUnit so a given shaft
-    // renders the same physical dot on either face — matches the live
-    // scoring geometry's choice and keeps own-vs-friend visuals consistent.
-    TargetFaceType.TEN_RING -> VEGAS_MM_PER_NORM_UNIT
+    TargetFaceType.TEN_RING -> TEN_RING_MM_PER_NORM_UNIT
 }
 
 /**
@@ -303,5 +299,9 @@ private val VEGAS_MM_PER_NORM_UNIT: Float = (20.0 / (119.0 / 735.0)).toFloat()
 
 /** 80cm WA compound outdoor: 400mm at radius 1.0. */
 private const val OUTDOOR_80_MM_PER_NORM_UNIT: Float = 400f
+
+/** 122cm WA full face: 610mm at radius 1.0. Mirrors iOS
+ *  `TargetGeometry.tenRing.realFaceRadiusMm = 610`. */
+private const val TEN_RING_MM_PER_NORM_UNIT: Float = 610f
 
 private val DIVIDER = Color(0x66000000)

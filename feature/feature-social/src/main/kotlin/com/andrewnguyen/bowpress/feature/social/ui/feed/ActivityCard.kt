@@ -1221,14 +1221,15 @@ internal fun feedCardArrowDotRadiusPx(
 
 /**
  * §B3 — feed-card mmPerNormUnit for a (resolved face, distance string)
- * pair. Pure parity table — keeps feature-social free of any
- * `TargetGeometry` import. Values match the geometry layer:
+ * pair. Values mirror iOS `TargetGeometry.mmPerNormUnit` so the visual
+ * dot scales physically with the printed face the archer shot:
  *  - SixRing, 50m/70m → Outdoor80 → 400mm
- *  - SixRing, anything else → Vegas → 20 / R10_RADIUS ≈ 123.53mm
- *  - TenRing → same as Vegas (≈123.53mm)
+ *  - SixRing, anything else → Vegas 40cm → 20 / R10_RADIUS ≈ 123.53mm
+ *  - TenRing → 122cm WA full face → 610mm
  *
- * If you change a face's mmPerNormUnit in `TargetGeometry`, change it
- * here too.
+ * TenRing previously reused Vegas's 123.5mm here — that made dots ~5x
+ * wider than iOS on a single 10-ring face (the 20yd practice round
+ * case). 610mm matches iOS's `tenRing.realFaceRadiusMm`.
  */
 internal fun feedCardMmPerNormUnit(
     face: BPTargetFaceType,
@@ -1244,10 +1245,8 @@ internal fun feedCardMmPerNormUnit(
             com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20, null,
             -> 20.0 / (119.0 / 735.0)
         }
-        // TenRing reuses the Vegas mmPerNormUnit so an arrow dot at a
-        // given physical shaft is the same px size on both faces —
-        // matches `TargetGeometry.TenRing.mmPerNormUnit`.
-        BPTargetFaceType.TenRing -> 20.0 / (119.0 / 735.0)
+        // 122cm WA full face → 610mm radius.
+        BPTargetFaceType.TenRing -> 610.0
     }
 }
 

@@ -75,24 +75,19 @@ class BPPlottedTargetDotSizingTest {
     }
 
     @Test
-    fun `single-face TenRing reuses Vegas mmPerNormUnit`() {
-        // Intentional Android-vs-iOS divergence — see
-        // `BPPlottedTarget.singleFaceMmPerNormUnit` doc: TenRing shares
-        // Vegas's normaliser so the dot reads at the same physical size
-        // regardless of face type. Pin so a future refactor doesn't
-        // silently swap in the iOS 610mm value.
-        val rVegas = singleFaceDotRadiusPx(
-            faceRadiusPx = 84f, shaftMm = 6f,
-            faceType = TargetFaceType.SIX_RING,
-            sixRingStyle = BPSixRingStyle.Vegas,
-            minDotRadiusPx = 0f,
-        )
+    fun `single-face TenRing uses the 122cm WA face's 610mm normaliser`() {
+        // iOS parity — `TargetGeometry.tenRing.realFaceRadiusMm = 610`
+        // (the physical 122cm full face). A 6mm shaft on an 84px-radius
+        // face renders 6/610 * 84 ≈ 0.826px. The earlier Android
+        // convention shared Vegas's ≈123.5mm here, which made every
+        // 10-ring dot ~5x bigger than iOS once a real session started
+        // hitting this path.
         val rTenRing = singleFaceDotRadiusPx(
             faceRadiusPx = 84f, shaftMm = 6f,
             faceType = TargetFaceType.TEN_RING,
             sixRingStyle = BPSixRingStyle.Vegas, // ignored for TEN_RING
             minDotRadiusPx = 0f,
         )
-        assertThat(rTenRing).isWithin(0.001f).of(rVegas)
+        assertThat(rTenRing).isWithin(0.001f).of(6f / 610f * 84f)
     }
 }
