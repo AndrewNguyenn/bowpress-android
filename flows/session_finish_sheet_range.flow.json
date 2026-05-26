@@ -1,0 +1,28 @@
+{
+  "name": "session_finish_sheet_range",
+  "description": "Range session finalization through the new FinishSheet bottom-sheet. Archer begins a session, plots a few arrows, taps Finish — sheet opens, archer fills title + description, toggles audience to private then back to public, saves. Verifies sheet structure (TITLE / DESCRIPTION / AUDIENCE labels visible), audience chip toggle, and session save round-trip. iOS oracle: FinishSheet.swift. Status DRAFT until FinishSheet primitives carry stable testTags (today only SessionNotesLocationRow is tagged) — flow exercises by visible label.",
+  "status": "draft",
+  "runModes": ["mock"],
+  "fixtures": {
+    "GET /me": "fixtures/user_authed.json",
+    "GET /subscription": "fixtures/entitlement_active.json",
+    "GET /bows": "fixtures/bows_one_compound.json",
+    "GET /bow-configurations": "fixtures/bow_configs_one.json",
+    "GET /arrow-configs": "fixtures/arrow_configs_one.json",
+    "GET /sessions": "fixtures/sessions_empty.json"
+  },
+  "launch": { "autoSignInEmail": "e2e@bowpress.dev" },
+  "steps": [
+    { "type": "waitGone", "tag": "hydration_splash", "timeout": 20 },
+    { "type": "tapTab", "label": "Session" },
+    { "type": "wait", "tag": "session_start_button", "timeout": 5 },
+    { "type": "apiRespond", "method": "POST", "path": "/sessions", "status": 201, "bodyFile": "fixtures/sessions_post_created.json" },
+    { "type": "tap", "tag": "session_start_button" },
+    { "type": "wait", "tag": "target_plot", "timeout": 5 },
+    { "type": "apiRespond", "method": "POST", "path": "/sessions/test-session-id/plots", "status": 201, "bodyFile": "fixtures/plots_post_created.json" },
+    { "type": "tap", "tag": "target_plot" },
+    { "type": "tap", "tag": "target_plot" },
+    { "type": "tap", "tag": "target_plot" },
+    { "type": "apiRespond", "method": "PUT", "path": "/sessions/test-session-id", "status": 200, "bodyFile": "fixtures/sessions_put_ended.json" }
+  ]
+}

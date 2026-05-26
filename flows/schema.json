@@ -75,7 +75,7 @@
           "required": ["type", "label"],
           "properties": {
             "type": { "const": "tapTab" },
-            "label": { "enum": ["Home", "Analytics", "Log", "Session", "Equipment", "Settings"] }
+            "label": { "enum": ["Home", "Feed", "Analytics", "Log", "Session", "Equipment", "Settings"] }
           },
           "additionalProperties": false
         },
