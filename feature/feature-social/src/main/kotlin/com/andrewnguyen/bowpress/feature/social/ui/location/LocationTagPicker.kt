@@ -118,6 +118,15 @@ fun LocationTagPicker(
         // next pan, which is an explicit "pick a new place" and re-arms
         // auto-naming. Mirrors iOS `userEditedName`.
         var userEditedName by remember { mutableStateOf(false) }
+        // Parity E6 — when the archer picks a search result, we move the
+        // map programmatically AND set the name to the picked label. The
+        // snapshotFlow collector below normally clears `userEditedName` on
+        // every centre change so a deliberate pan re-arms auto-naming, but
+        // that race-clobbers the picked label when the debounced geocode
+        // returns ~450ms later. This one-shot suppress is consumed by the
+        // collector and skips both the re-arm and the geocode for the next
+        // centre change only.
+        var suppressNextGeocode by remember { mutableStateOf(false) }
 
         // Reverse-geocode the centre after the map settles from a pan/zoom.
         // Drop the initial value so opening the picker on an existing tag
@@ -128,6 +137,12 @@ fun LocationTagPicker(
             snapshotFlow { mapState.center }
                 .drop(1)
                 .onEach {
+                    // A search-result pick re-arms nothing — consume the
+                    // suppress flag and let the picked name stand.
+                    if (suppressNextGeocode) {
+                        suppressNextGeocode = false
+                        return@onEach
+                    }
                     // A deliberate pan re-arms auto-naming.
                     userEditedName = false
                 }
@@ -258,6 +273,12 @@ fun LocationTagPicker(
                             isSearching = isSearching,
                             query = searchQuery,
                             onPick = { hit ->
+                                // Order matters: set the suppress flag BEFORE
+                                // moveTo so the snapshotFlow collector observes
+                                // it on the next centre change. userEditedName
+                                // doubles as the late-debounce guard if the
+                                // geocode ran already.
+                                suppressNextGeocode = true
                                 userEditedName = true
                                 placeName = hit.primary
                                 searchQuery = ""
