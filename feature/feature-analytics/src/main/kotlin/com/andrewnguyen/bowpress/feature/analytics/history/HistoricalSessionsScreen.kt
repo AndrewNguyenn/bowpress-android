@@ -662,17 +662,6 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-private fun Modifier.drawBottomHairline(color: Color): Modifier = this.drawBehind {
-    if (color.alpha > 0f) {
-        drawLine(
-            color = color,
-            start = Offset(0f, size.height),
-            end = Offset(size.width, size.height),
-            strokeWidth = 1f,
-        )
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun HistoricalSessionsPreview() {

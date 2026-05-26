@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -627,8 +626,3 @@ private fun InsightCell(metric: FeedSummaryUi.InsightMetric, modifier: Modifier 
         )
     }
 }
-
-// Suppress an unused-warning for an internal symbol that the porter has
-// kept for parity with the iOS reference but doesn't currently need.
-@Suppress("unused")
-private val _accentReference: Color = AppInk
