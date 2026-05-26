@@ -67,10 +67,10 @@ class ErrorInterceptor @Inject constructor(
         // when it later tries to surface the HttpException. OkHttp requires that we
         // close exactly one of the two (rebuilt is what travels downstream).
         response.close()
-        // We throw rather than return so the Retrofit call-adapter surfaces the typed
-        // exception directly to `suspend fun` callers. OkHttp interceptors are allowed
-        // to throw IOException; ApiException extends RuntimeException, which propagates
-        // through the call stack on a coroutine dispatcher as expected.
+        // ApiException extends IOException so OkHttp's AsyncCall.run treats this as
+        // a normal interceptor failure (delivered to the Retrofit callback → the
+        // suspend-fun continuation) rather than a worker-thread fatal. See
+        // ApiExceptions.kt for the full rationale.
         throw err
     }
 

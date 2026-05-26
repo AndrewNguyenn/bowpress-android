@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.core.network
 
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import kotlinx.serialization.Serializable
+import java.io.IOException
 
 /**
  * Parsed body for a backend error response. Every controller returns `{ "error": "..." }`
@@ -18,12 +19,22 @@ data class ErrorBody(
  * Typed exceptions surfaced by [ErrorInterceptor]. Network code throws these; feature
  * view-models catch and map to UI state. Mirrors the discrimination iOS does inline
  * in `APIClient.ensureSuccess` + `AuthError`.
+ *
+ * Extends [IOException] (not RuntimeException) because instances are thrown from
+ * inside an OkHttp [okhttp3.Interceptor]. OkHttp's `RealCall.AsyncCall.run` routes
+ * IOExceptions from the chain into the Retrofit callback (and onward to the
+ * suspend-fun continuation) cleanly. A non-IOException Throwable is *also* delivered
+ * to the callback, but is then re-thrown to the OkHttp Dispatcher worker thread,
+ * which kills the process via Android's default uncaught-exception handler — that
+ * was the crash this hierarchy used to cause for every non-2xx response on minified
+ * release builds. Don't change the supertype without re-reading OkHttp's
+ * `AsyncCall.run`.
  */
 sealed class ApiException(
     val status: Int,
     message: String?,
     cause: Throwable? = null,
-) : RuntimeException(message, cause) {
+) : IOException(message, cause) {
 
     /** 401 — token is missing, expired, or rejected. Caller should clear session. */
     class Unauthorized(message: String? = null) : ApiException(401, message ?: "Unauthorized")
