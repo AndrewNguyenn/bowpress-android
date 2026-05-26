@@ -100,6 +100,14 @@ fun MySessionEditSheet(
     var showLocationPicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
+    // D1 — FIFO crop queue between the system picker and onAddPhotos. Each
+    // picked uri is enqueued; PhotoCropperHost drains them through uCrop one
+    // at a time, then the cropped uri flows on to the caller. Mirrors iOS's
+    // PhotoCropperSheet + `currentCrop` re-presentation pattern.
+    var cropQueue by remember { mutableStateOf<List<com.andrewnguyen.bowpress.feature.social.ui.photo.PendingCropImage>>(emptyList()) }
+    var currentCrop by remember { mutableStateOf<com.andrewnguyen.bowpress.feature.social.ui.photo.PendingCropImage?>(null) }
+    var croppedUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
+
     // How many more photos the §4 cap allows. Bounds the picker so the archer
     // can't pick more than will fit; PickMultipleVisualMedia needs maxItems ≥ 2.
     val remainingSlots = (MAX_PHOTOS - photos.size).coerceAtLeast(0)
@@ -114,8 +122,41 @@ fun MySessionEditSheet(
             )
         },
     ) { uris ->
-        if (uris.isNotEmpty()) onAddPhotos(uris)
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        val incoming = uris.map {
+            com.andrewnguyen.bowpress.feature.social.ui.photo.PendingCropImage(source = it)
+        }
+        cropQueue = cropQueue + incoming
+        if (currentCrop == null) {
+            currentCrop = cropQueue.first()
+            cropQueue = cropQueue.drop(1)
+        }
     }
+
+    // PhotoCropperHost — fires uCrop on `currentCrop` flips, queues cropped
+    // Uris until the queue drains, then hands the whole batch to onAddPhotos.
+    com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperHost(
+        launch = com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperLaunch(
+            image = currentCrop,
+            mode = com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropMode.Free,
+        ),
+        onResult = { uri ->
+            currentCrop = null
+            if (uri != null) {
+                croppedUris = croppedUris + uri
+            }
+            val next = cropQueue.firstOrNull()
+            if (next != null) {
+                cropQueue = cropQueue.drop(1)
+                currentCrop = next
+            } else if (croppedUris.isNotEmpty()) {
+                // Queue drained — flush the batch.
+                val toUpload = croppedUris
+                croppedUris = emptyList()
+                onAddPhotos(toUpload)
+            }
+        },
+    )
 
     Dialog(
         onDismissRequest = onDismiss,
