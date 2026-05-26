@@ -87,7 +87,13 @@ internal object MockAnalyticsWave2 {
     const val MOCK_CURRENT_AVG: Double = 10.4
     const val MOCK_CURRENT_X_PCT: Double = 72.0
     const val MOCK_CURRENT_SESSIONS: Int = 5
+    // §B7 — realistic mm-scale group sigma. Pre-multi-spot the value was a
+    // unitless 3.2 that rendered as `3.2″` next to a `at 50m` subtitle —
+    // physically implausible (a 3.2-inch arrow group at 50m is sub-MOA).
+    // 9.0mm matches the iOS fix (commit b342f6a) — a believable group for
+    // a compound at 50m.
     const val MOCK_GROUP_SIGMA: Double = 3.2
+    const val MOCK_GROUP_SIGMA_MM: Double = 9.0
 
     const val MOCK_PREVIOUS_AVG: Double = 9.8
     const val MOCK_PREVIOUS_X_PCT: Double = 58.0
@@ -120,6 +126,9 @@ internal object MockAnalyticsWave2 {
         avgArrowScore = MOCK_CURRENT_AVG,
         xPercentage = MOCK_CURRENT_X_PCT,
         groupSigma = overview.groupSigma ?: MOCK_GROUP_SIGMA,
+        // §B7 — also force the mm-scale field so the DEBUG dashboard renders
+        // the new `mm` suffix instead of the wrong-units `″`.
+        groupSigmaMm = overview.groupSigmaMm ?: MOCK_GROUP_SIGMA_MM,
         sparkline = overview.sparkline ?: sparklinePoints(overview.period),
         datasetSummary = overview.datasetSummary ?: datasetSummary(firstBow, firstArrow),
     )

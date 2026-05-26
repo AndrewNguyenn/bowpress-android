@@ -431,18 +431,25 @@ private fun StatGrid(
                 label = "Group ⌀",
                 modifier = Modifier.weight(1f),
                 mainContent = {
-                    val sigma = overview.groupSigma
+                    // §B7 — prefer the real-mm `groupSigmaMm` (spot-scale: 90mm
+                    // Vegas / 610mm single-spot) over the legacy unitless
+                    // `groupSigma`. Suffix flips from the wrong-units `″` to
+                    // `mm` whenever the new field is present.
+                    val sigmaMm = overview.groupSigmaMm
+                    val sigmaLegacy = overview.groupSigma
+                    val sigmaValue: Double? = sigmaMm ?: sigmaLegacy
                     val sigmaText = when {
-                        sigma == null || sigma == 0.0 -> "—"
-                        else -> "%.1f".format(sigma)
+                        sigmaValue == null || sigmaValue == 0.0 -> "—"
+                        else -> "%.1f".format(sigmaValue)
                     }
+                    val sigmaUnit = if (sigmaMm != null) "mm" else "″"
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = sigmaText,
                             style = frauncesDisplay(28.sp, italic = true).copy(color = AppInk),
                         )
                         Text(
-                            text = "″",
+                            text = sigmaUnit,
                             style = frauncesDisplay(15.sp, italic = true).copy(color = AppInk),
                         )
                     }
@@ -451,15 +458,33 @@ private fun StatGrid(
                         style = interUI(10.sp).copy(color = AppInk3),
                     )
                     Spacer(Modifier.height(4.dp))
+                    // §B7 — when the dataset dropped arrows (a mixed
+                    // single-spot + multi-spot window), surface
+                    // `<used> / of <total> logged` so the discrepancy with
+                    // the headline tally is explained. Else fall back to
+                    // the bare "<n> arrows logged" line.
                     val arrows = overview.datasetSummary?.arrows ?: estimatedArrows(overview.sessionCount)
-                    Text(
-                        text = "$arrows",
-                        style = frauncesDisplay(17.sp, italic = true).copy(color = AppInk),
-                    )
-                    Text(
-                        text = "arrows logged",
-                        style = interUI(10.sp).copy(color = AppInk3),
-                    )
+                    val dropped = overview.datasetSummary?.droppedArrows ?: 0
+                    if (dropped > 0) {
+                        val used = (arrows - dropped).coerceAtLeast(0)
+                        Text(
+                            text = "$used",
+                            style = frauncesDisplay(17.sp, italic = true).copy(color = AppInk),
+                        )
+                        Text(
+                            text = "of $arrows logged",
+                            style = interUI(10.sp).copy(color = AppInk3),
+                        )
+                    } else {
+                        Text(
+                            text = "$arrows",
+                            style = frauncesDisplay(17.sp, italic = true).copy(color = AppInk),
+                        )
+                        Text(
+                            text = "arrows logged",
+                            style = interUI(10.sp).copy(color = AppInk3),
+                        )
+                    }
                 },
             )
         }

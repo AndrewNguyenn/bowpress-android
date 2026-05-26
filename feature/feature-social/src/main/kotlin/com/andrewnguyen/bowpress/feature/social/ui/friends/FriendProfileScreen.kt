@@ -197,9 +197,13 @@ fun FriendProfileScreen(
                     Spacer(modifier = Modifier.width(1.dp).background(AppLine2))
                     StatBlock(label = "X rate", value = fp.stat30d.xRate?.let { "${(it * 100).toInt()}%" } ?: "—", unit = "of arrows", modifier = Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(1.dp).background(AppLine2))
+                    // §B7 — render `groupSigmaMm` directly in millimetres
+                    // (no inch conversion). Mirrors iOS commit b342f6a:
+                    // the API ships real physical mm at the dominant-bucket
+                    // spot scale, so the suffix is `mm`, never `″`.
                     StatBlock(
                         label = "Group ∅",
-                        value = fp.stat30d.groupSigmaMm?.let { String.format("%.1f″", it / 25.4) } ?: "—",
+                        value = fp.stat30d.groupSigmaMm?.let { String.format("%.1fmm", it) } ?: "—",
                         unit = "at 50m",
                         modifier = Modifier.weight(1f),
                     )

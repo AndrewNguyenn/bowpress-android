@@ -179,11 +179,15 @@ fun CompareScreen(
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 cv.me.groupSigmaMm?.let { myG ->
                     cv.them.groupSigmaMm?.let { theirG ->
+                        // §B7 — render real-mm group sigma directly (no
+                        // inch conversion). Mirrors iOS commit b342f6a:
+                        // when `groupSigmaMm` is present the suffix is `mm`,
+                        // never `″`.
                         CompareRow(
                             label = "Group σ",
                             subLabel = "tighter = better",
-                            myValue = String.format("%.1f″", myG / 25.4),
-                            theirValue = String.format("%.1f″", theirG / 25.4),
+                            myValue = String.format("%.1fmm", myG),
+                            theirValue = String.format("%.1fmm", theirG),
                             myWins = myG <= theirG, // lower = tighter = better
                         )
                     }
