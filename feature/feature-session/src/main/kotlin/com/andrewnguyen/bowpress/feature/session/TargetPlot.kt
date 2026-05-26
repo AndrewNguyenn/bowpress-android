@@ -30,6 +30,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlue
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtRed
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtWhite
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtYellow
+import com.andrewnguyen.bowpress.core.designsystem.bp.drawVegasSixRingSpot
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.MultiSpotGeometry
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
@@ -300,36 +301,18 @@ private fun DrawScope.drawXTick(xRadius: Double, radiusPx: Float, center: Offset
 }
 
 /**
- * Draw a 40cm Vegas 3-spot card — paper background + three concentric 6-ring
- * spots. Mirrors iOS `MultiSpotFaceCanvas`. Shared with the Pen lens so a
- * multi-spot session shows the actual card shape under the magnifier too.
+ * Draw a 40cm Vegas 3-spot card — three concentric 6-ring spots via the
+ * canonical [drawVegasSixRingSpot] helper. Mirrors iOS `MultiSpotFaceCanvas`.
+ * Shared with the Pen lens so a multi-spot session shows the actual card
+ * shape under the magnifier too.
  */
 internal fun DrawScope.drawMultiSpotCard(geometry: MultiSpotGeometry, canvas: Size) {
     val minEdge = minOf(canvas.width, canvas.height)
+    val r = geometry.radiusNorm.toFloat() * minEdge
     for (center in geometry.centers) {
         val cx = center.x.toFloat() * canvas.width
         val cy = center.y.toFloat() * canvas.height
-        val r = geometry.radiusNorm.toFloat() * minEdge
-        // Concentric rings — blue (6) → red (7/8) → yellow (9/10) → X.
-        val bands = listOf(1.00f to BLUE, 0.80f to RED, 0.40f to YELLOW)
-        for ((frac, color) in bands) {
-            drawCircle(color = color, radius = r * frac, center = Offset(cx, cy))
-        }
-        // Ink hairlines — 0.075 is the X-ring boundary, the rest the 10/9/8/7/6
-        // band boundaries.
-        val dividers = listOf(0.075f, 0.20f, 0.40f, 0.60f, 0.80f, 1.00f)
-        for (frac in dividers) {
-            drawCircle(
-                color = Color(0xFF333333),
-                radius = r * frac,
-                center = Offset(cx, cy),
-                style = Stroke(width = 0.9f),
-            )
-        }
-        // X-ring tick — thin cross at dead centre.
-        val tick = r * 0.03f
-        drawLine(Color(0x80333333), Offset(cx - tick, cy), Offset(cx + tick, cy), 0.8f)
-        drawLine(Color(0x80333333), Offset(cx, cy - tick), Offset(cx, cy + tick), 0.8f)
+        drawVegasSixRingSpot(Offset(cx, cy), r)
     }
 }
 
@@ -444,10 +427,6 @@ private fun ringDotTextColor(ring: Int): Color = when (ring) {
 }
 
 private val WHITE = Color(0xFFFFFDF7)
-private val BLACK = Color(0xFF1B1B1B)
-private val YELLOW = Color(0xFFFFEE33)
-private val RED = Color(0xFFE04738)
-private val BLUE = Color(0xFF00BAE3)
 
 /** Accent color the task brief calls out. Exposed so screens can re-use it if needed. */
 @Suppress("unused")

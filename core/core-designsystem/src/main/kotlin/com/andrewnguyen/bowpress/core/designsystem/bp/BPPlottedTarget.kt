@@ -142,18 +142,11 @@ fun BPPlottedTarget(
 
 /**
  * Ring bands for a face, outer → inner. A 10-ring face has all five colour
- * bands; a 6-ring face is the inner-6 — yellow/red/blue only — so its bands
- * span the full radius. The 6-ring outdoor variant adds an outermost blue
- * sub-band so ring 5 lives at the canvas edge (`rings.first == 1.0`).
- *
- * §B3 — the [BPSixRingStyle] argument selects between Vegas (40cm indoor,
- * single blue band, rings 6..X) and Outdoor80 (80cm WA compound, split blue
- * band, rings 5..X). Mirrors iOS `BPTargetFace.SixRingStyle`.
+ * bands; the Outdoor80 6-ring face adds an outermost blue sub-band so ring
+ * 5 lives at the canvas edge (`rings.first == 1.0`). Vegas SixRing is
+ * handled separately by [drawVegasSixRingSpot] — see [drawFace].
  */
-private fun ringBands(
-    faceType: TargetFaceType,
-    sixRingStyle: BPSixRingStyle,
-): List<Pair<Float, Color>> = when (faceType) {
+private fun ringBands(faceType: TargetFaceType): List<Pair<Float, Color>> = when (faceType) {
     TargetFaceType.TEN_RING -> listOf(
         1.0f to AppTgtWhite, 0.9f to AppTgtWhite,
         0.8f to AppTgtBlack, 0.7f to AppTgtBlack,
@@ -161,32 +154,15 @@ private fun ringBands(
         0.4f to AppTgtRed, 0.3f to AppTgtRed,
         0.2f to AppTgtYellow, 0.1f to AppTgtYellow,
     )
-    TargetFaceType.SIX_RING -> when (sixRingStyle) {
-        // 40cm Vegas indoor 6-zone — ONE thin blue ring (6), TWO red rings
-        // (7,8), THREE yellow zones (9,10,X). Ring outer edges sit at
-        // 1.0, 0.833, 0.667, 0.5, 0.333, 0.167 (each 1/6 of the face
-        // radius). Bands are layered outside-in: the colour at index i is
-        // visible from `edges[i+1]` to `edges[i]`, so the colour change
-        // points (not every entry) define the visible bands. The earlier
-        // 1/3-each layout (blue 0.667→1.0, red 0.333→0.667, yellow
-        // 0→0.333) mis-painted rings 7 and 9 as blue and red.
-        BPSixRingStyle.Vegas -> listOf(
-            1.0f to AppTgtBlue,     // ring 6 — blue fills 0.833→1.0
-            0.833f to AppTgtRed,    // colour flip — red from here in
-            0.667f to AppTgtRed,    // hairline between rings 7 and 8
-            0.5f to AppTgtYellow,   // colour flip — yellow from here in
-            0.333f to AppTgtYellow, // hairline between rings 9 and 10
-            0.167f to AppTgtYellow, // hairline at the X ring outer
-        )
-        // 80cm WA compound 7-zone — equal-width 1/6 bands, ring 5's outer
-        // edge at 1.0; blue is split into ring 5 (outer) + ring 6 (inner),
-        // each one 1/6 wide. Mirrors iOS `sixRingOutdoor` paint stack.
-        BPSixRingStyle.Outdoor80 -> listOf(
-            1.0f to AppTgtBlue, 5f / 6f to AppTgtBlue,
-            4f / 6f to AppTgtRed, 3f / 6f to AppTgtRed,
-            2f / 6f to AppTgtYellow, 1f / 6f to AppTgtYellow,
-        )
-    }
+    // Vegas is rendered via [drawVegasSixRingSpot]; this branch is only
+    // reached for Outdoor80. 80cm WA compound 7-zone — equal-width 1/6
+    // bands, ring 5's outer edge at 1.0; blue is split into ring 5 (outer)
+    // + ring 6 (inner), each 1/6 wide. Mirrors iOS `sixRingOutdoor`.
+    TargetFaceType.SIX_RING -> listOf(
+        1.0f to AppTgtBlue, 5f / 6f to AppTgtBlue,
+        4f / 6f to AppTgtRed, 3f / 6f to AppTgtRed,
+        2f / 6f to AppTgtYellow, 1f / 6f to AppTgtYellow,
+    )
 }
 
 /** Draw one WA face centred at [center] with the given [radius]. */
@@ -196,7 +172,11 @@ private fun DrawScope.drawFace(
     faceType: TargetFaceType,
     sixRingStyle: BPSixRingStyle,
 ) {
-    val bands = ringBands(faceType, sixRingStyle)
+    if (faceType == TargetFaceType.SIX_RING && sixRingStyle == BPSixRingStyle.Vegas) {
+        drawVegasSixRingSpot(center, radius)
+        return
+    }
+    val bands = ringBands(faceType)
     bands.forEach { (edge, color) ->
         drawCircle(color = color, radius = edge * radius, center = center)
     }
