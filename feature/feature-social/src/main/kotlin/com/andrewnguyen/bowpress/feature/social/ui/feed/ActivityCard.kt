@@ -64,6 +64,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
+import com.andrewnguyen.bowpress.core.designsystem.bp.BPSixRingStyle
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFaceType
 import com.andrewnguyen.bowpress.core.designsystem.bp.ringTint
@@ -76,6 +77,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivitySession
 import com.andrewnguyen.bowpress.core.model.SessionLocation
+import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
@@ -456,7 +458,13 @@ private fun ActivityCardBody(
             maxScore = (item.session?.arrowCount ?: 0) * 10,
             endRings = preview.endRings,
             plotPoints = item.session?.plotPoints.orEmpty(),
+            // §B2 — prefer the structured TargetFaceType the session was
+            // scored against; fall back to the free-text label heuristic
+            // only when the structured field is missing (pre-migration
+            // 0038 sessions). Mirrors iOS commit a588a30.
+            structuredFaceType = item.session?.targetFaceType,
             face = item.session?.face,
+            arrowDiameterMm = item.session?.arrowDiameterMm,
         )
         is ActivityPreview.Course -> CourseCardBody(
             score = preview.score,
@@ -486,6 +494,12 @@ private fun ActivityCardBody(
  * The 50/50 body for a range session — two equal columns on a paper-2 ground
  * split by a 1dp vertical hairline. Left: the WA target with the friend's
  * arrows plotted. Right: range eyebrow → hero score → per-end ledger.
+ *
+ * [structuredFaceType] is the authoritative `shooting_sessions.target_face_type`
+ * (§B2): we render the face from this value when present, falling back to the
+ * free-text [face] heuristic only for pre-migration-0038 sessions. [distance]
+ * routes the §B3 6-ring → Vegas-or-outdoor80 visual variant.
+ * [arrowDiameterMm] sizes the plot dots from a 6mm reference (§B1).
  */
 @Composable
 private fun RangeSessionBody(
@@ -494,9 +508,17 @@ private fun RangeSessionBody(
     maxScore: Int,
     endRings: List<List<Int>>?,
     plotPoints: List<List<Double>>,
+    structuredFaceType: TargetFaceType?,
     face: String?,
+    arrowDiameterMm: Double?,
 ) {
     val ends = endRings.orEmpty()
+    // §B2 — structured field is authoritative; fall back to the legacy
+    // face-label heuristic for pre-migration sessions.
+    val resolvedFaceType = resolvedBPFaceType(structuredFaceType, face)
+    // §B3 — 6-ring at 50/70m → outdoor80 7-zone variant; everything else
+    // (20yd or unknown) → Vegas 6-zone. tenRing is distance-invariant.
+    val sixRingStyle = sixRingVisualStyleForFeed(distance)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -520,12 +542,13 @@ private fun RangeSessionBody(
             // fixed-size.
             BPTargetFace(
                 size = TARGET_FACE_SIZE,
-                face = faceTypeFor(face),
+                face = resolvedFaceType,
+                sixRingStyle = sixRingStyle,
             ) {
                 // The friend's arrows — the real plotted positions from the
                 // feed payload when present, else a deterministic scatter
                 // within each scoring ring's band.
-                ArrowPlotOverlay(ends, plotPoints)
+                ArrowPlotOverlay(ends, plotPoints, arrowDiameterMm)
             }
         }
         Box(
@@ -679,9 +702,18 @@ private fun rangeEyebrow(distance: String?) = buildAnnotatedString {
  * within its scoring ring's radius band, seeded by `(endIndex, arrowIndex)`.
  * The same session always plots the same picture; mirrors iOS
  * `ActivityCard.ArrowScatter`.
+ *
+ * Dot radius (§B1): scaled from a 6mm shaft reference at 4% of face radius —
+ * a 9mm Black Eagle reads ~1.5×, a 4mm X10 ~0.67× — clamped to a 2px floor
+ * so a thumbnail-size feed card stays readable. Mirrors iOS
+ * `TargetArrowDotsOverlay` (commits dfb2de9 / d2ac25d / 4389944 / ef72fed).
  */
 @Composable
-private fun ArrowPlotOverlay(ends: List<List<Int>>, plotPoints: List<List<Double>>) {
+private fun ArrowPlotOverlay(
+    ends: List<List<Int>>,
+    plotPoints: List<List<Double>>,
+    arrowDiameterMm: Double?,
+) {
     // Prefer the real plotted positions from the feed; fall back to the
     // deterministic synthesised scatter when the payload carries no x/y.
     val arrows = remember(ends, plotPoints) {
@@ -694,16 +726,11 @@ private fun ArrowPlotOverlay(ends: List<List<Int>>, plotPoints: List<List<Double
     Canvas(modifier = Modifier.size(TARGET_FACE_SIZE)) {
         val faceRadius = size.minDimension / 2f
         val center = Offset(size.width / 2f, size.height / 2f)
-        // F2 — feed-card dot floor (parity with iOS commit 3591f97, which
-        // sets minDotSize=5pt on the small feed-card surface). The base
-        // `0.032 * faceRadius` formula yields ~2.7dp at TARGET_FACE_SIZE
-        // (168dp), already above the 2dp visibility floor — but coercing
-        // explicitly here keeps a 1-arrow / few-arrow session legible if
-        // porter-target-face (B1) later switches to a smaller shaft-derived
-        // formula. NOTE: floor lives only at the feed-card thumbnail; detail
-        // screens own their own scaling.
-        val minDotPx = 2.dp.toPx()
-        val dotRadius = (0.032f * faceRadius).coerceAtLeast(minDotPx)
+        val dotRadius = feedCardArrowDotRadiusPx(
+            faceRadiusPx = faceRadius,
+            arrowDiameterMm = arrowDiameterMm,
+            density = density,
+        )
         arrows.forEach { arrow ->
             val at = Offset(
                 center.x + arrow.x * faceRadius,
@@ -951,15 +978,99 @@ private fun ReactionAction(
  * Picks a target-face shape from a shared session's free-text `face` label —
  * a 6-ring / Vegas / 3-spot face reads as [BPTargetFaceType.SixRing],
  * everything else [BPTargetFaceType.TenRing]. Mirrors iOS
- * `ActivityPreviewBand.faceType(for:)`.
+ * `ActivityPreviewBand.faceType(for:)`. Kept exported for tests + any
+ * legacy caller that has no access to the structured field.
  */
 internal fun faceTypeFor(face: String?): BPTargetFaceType {
     val f = (face ?: "").lowercase()
-    return if (f.contains("6") || f.contains("spot") || f.contains("vegas")) {
-        BPTargetFaceType.SixRing
-    } else {
-        BPTargetFaceType.TenRing
+    // Check "10" before "6" so a "60cm" / "WA 60" label doesn't misfire as
+    // sixRing. Mirrors iOS `TargetFaceType.inferring(from:)` precedence.
+    return when {
+        f.contains("10") -> BPTargetFaceType.TenRing
+        f.contains("6") || f.contains("spot") || f.contains("vegas") ->
+            BPTargetFaceType.SixRing
+        else -> BPTargetFaceType.TenRing
     }
+}
+
+/**
+ * §B2 — resolve the [BPTargetFaceType] for a feed-card render, preferring
+ * the structured `targetFaceType` enum field over the free-text `face`
+ * label. Mirrors iOS commits a588a30 / 2ec95c2: the authoritative
+ * `shooting_sessions.target_face_type` value wins; the heuristic only
+ * fires when the structured field is missing (pre-migration 0038).
+ */
+internal fun resolvedBPFaceType(
+    structured: TargetFaceType?,
+    face: String?,
+): BPTargetFaceType = when (structured) {
+    TargetFaceType.SIX_RING -> BPTargetFaceType.SixRing
+    TargetFaceType.TEN_RING -> BPTargetFaceType.TenRing
+    null -> faceTypeFor(face)
+}
+
+/**
+ * §B3 — pick the SixRing visual variant for a feed card by the session's
+ * distance string. 50m/70m → outdoor80 7-zone; everything else (20yd or
+ * unknown) → Vegas 6-zone (the safe default — matches the printed indoor
+ * card). Mirrors iOS `socialSixRingStyle(forDistance:)` (commit d5884e3).
+ *
+ * tenRing is distance-invariant; this is only consulted when the resolved
+ * face is sixRing.
+ */
+internal fun sixRingVisualStyleForFeed(distance: String?): BPSixRingStyle {
+    val d = distance?.trim()?.lowercase() ?: return BPSixRingStyle.Vegas
+    return if (d == "50m" || d == "70m") BPSixRingStyle.Outdoor80 else BPSixRingStyle.Vegas
+}
+
+/**
+ * §B1 — scale arrow-plot dot radius from a 6mm shaft reference. The
+ * formula is `faceRadius * 0.04 * (shaftMm / 6.0)` so a 6mm reference
+ * shaft renders at exactly 4% of face radius; a 9mm Black Eagle reads
+ * ~1.5×, a 4mm X10 ~0.67×. On the small feed card we clamp to a 2dp
+ * floor so a thumbnail-size card stays readable even with a thin shaft.
+ * Mirrors iOS `TargetArrowDotsOverlay` feed-card path
+ * (commits dfb2de9 / d2ac25d / 4389944 / ef72fed).
+ */
+internal fun feedCardArrowDotRadiusPx(
+    faceRadiusPx: Float,
+    arrowDiameterMm: Double?,
+    density: Float,
+): Float {
+    val shaftMm = arrowDiameterMm ?: 6.0
+    val rawPx = (faceRadiusPx * 0.04f * (shaftMm.toFloat() / 6f))
+    val floorPx = 2f * density   // 2dp minimum for thumbnail legibility
+    return rawPx.coerceAtLeast(floorPx)
+}
+
+/**
+ * §B1 — like [feedCardArrowDotRadiusPx], but for the larger detail-screen
+ * overlay where the dots are enlarged (no thumbnail floor). The brief
+ * marks this surface "no floor". Kept here next to its smaller sibling so
+ * the 6mm-reference formula stays in one place.
+ */
+internal fun detailArrowDotRadiusPx(
+    faceRadiusPx: Float,
+    arrowDiameterMm: Double?,
+): Float {
+    val shaftMm = arrowDiameterMm ?: 6.0
+    return faceRadiusPx * 0.04f * (shaftMm.toFloat() / 6f)
+}
+
+/**
+ * §B1 — medium variant for the profile plot-strip thumbnails. Floors at
+ * 1dp so a strip-sized card with a thin shaft still renders something
+ * visible without dominating like the detail surface does.
+ */
+internal fun profilePlotStripArrowDotRadiusPx(
+    faceRadiusPx: Float,
+    arrowDiameterMm: Double?,
+    density: Float,
+): Float {
+    val shaftMm = arrowDiameterMm ?: 6.0
+    val rawPx = (faceRadiusPx * 0.04f * (shaftMm.toFloat() / 6f))
+    val floorPx = 1f * density
+    return rawPx.coerceAtLeast(floorPx)
 }
 
 /** Compact relative time — "2h", "3d", "2w". Mirrors iOS `relativeStamp`. */

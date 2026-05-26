@@ -1003,6 +1003,13 @@ data class ActivitySession(
     // (shaftMm / 6.0). Null → fall back to a 6mm reference. Mirrors iOS
     // commits dfb2de9 / d2ac25d / 4389944 / f8e7675.
     val arrowDiameterMm: Double? = null,
+    // Structured target face type (parity B2) — the authoritative
+    // `shooting_sessions.target_face_type` value the session was scored
+    // against. Preferred over the free-text [face] label for rendering the
+    // feed-card target face. Null for pre-migration-0038 sessions; the
+    // renderer falls back to [TargetFaceType.matching(face)] in that case.
+    // Mirrors iOS commit a588a30 — ActivitySession.targetFaceType.
+    val targetFaceType: TargetFaceType? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a
