@@ -48,9 +48,6 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.HandleSuggestion
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -59,9 +56,10 @@ import kotlinx.coroutines.launch
  * league (§11). Live, debounced (250ms) substring fuzzy search on handle OR
  * display name (iOS commit c6b7084 / `InviteArcherSheet.swift`).
  *
- * Replaces the exact-handle-only [InviteByHandleDialog] for the host-only
- * invite flow. The invite-code path stays for shareable links; this is the
- * targeted, push-able invitation.
+ * Replaces the exact-handle-only dialog this codebase used to ship for
+ * the host-only invite flow (deleted with parity E8). The invite-code
+ * path stays for shareable links; this is the targeted, push-able
+ * invitation.
  *
  * [onSearch] returns substring matches, [onInvite] sends the invitation
  * for a specific handle. Both are suspend lambdas so the screen-level
@@ -86,13 +84,12 @@ fun InviteArcherSheet(
     /** Handles successfully invited this session — flips the row to SENT. */
     var sentHandles by remember { mutableStateOf(setOf<String>()) }
     var status by remember { mutableStateOf<String?>(null) }
-    /** Cancellable debounce — every keystroke kicks the previous task. */
-    var searchJob: Job? by remember { mutableStateOf(null) }
 
-    // Drive a new debounced search whenever the query changes. Mirrors iOS's
-    // `scheduleSearch(for:)` from InviteArcherSheet.swift.
+    // Drive a new debounced search whenever the query changes. LaunchedEffect
+    // already cancels the previous coroutine on a key change, so the delay
+    // below acts as the debounce window — no manual Job tracking needed.
+    // Mirrors iOS's `scheduleSearch(for:)` from InviteArcherSheet.swift.
     LaunchedEffect(query) {
-        searchJob?.cancel()
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
             results = emptyList()
@@ -101,18 +98,16 @@ fun InviteArcherSheet(
             return@LaunchedEffect
         }
         isSearching = true
-        searchJob = scope.launch {
-            delay(SEARCH_DEBOUNCE_MS)
-            runCatching { onSearch(trimmed) }
-                .onSuccess { hits ->
-                    results = hits
-                    isSearching = false
-                }
-                .onFailure {
-                    results = emptyList()
-                    isSearching = false
-                }
-        }
+        delay(SEARCH_DEBOUNCE_MS)
+        runCatching { onSearch(trimmed) }
+            .onSuccess { hits ->
+                results = hits
+                isSearching = false
+            }
+            .onFailure {
+                results = emptyList()
+                isSearching = false
+            }
     }
 
     ModalBottomSheet(

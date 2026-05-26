@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,8 +33,6 @@ import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
-import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
-import com.andrewnguyen.bowpress.core.designsystem.AppPond
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
@@ -148,7 +145,9 @@ fun LocationSoftPromptSheet(
 /**
  * Convenience overload — creates the system-permission launcher itself so a
  * call site only has to wire `archerName` + dismiss. Fires
- * `ACCESS_FINE_LOCATION` on Allow.
+ * `ACCESS_FINE_LOCATION` on Allow. The launcher callback is the only path
+ * that flips `onResolved()` on the allow side so we don't dismiss the
+ * sheet (and re-arm the prefs flag race) before the OS dialog returns.
  */
 @Composable
 fun LocationSoftPromptSheet(
@@ -157,15 +156,10 @@ fun LocationSoftPromptSheet(
 ) {
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { _ ->
-        onResolved()
-    }
+    ) { _ -> onResolved() }
     LocationSoftPromptSheet(
         archerName = archerName,
-        onAllow = {
-            launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            onResolved()
-        },
+        onAllow = { launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
         onDismiss = onResolved,
     )
 }

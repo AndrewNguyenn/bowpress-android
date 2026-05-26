@@ -3,7 +3,6 @@ package com.andrewnguyen.bowpress.feature.social.ui.location
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Geocoder
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -550,6 +549,20 @@ private fun SearchResults(
     query: String,
     onPick: (PlaceHit) -> Unit,
 ) {
+    // Parity E6 — defends Samsung One UI users (and bare emulators) from a
+    // silently dead control by surfacing the unavailable-on-this-device
+    // case explicitly. iOS uses MKLocalSearchCompleter which is always
+    // present; Android's Geocoder is optional per spec.
+    if (!isGeocoderAvailable()) {
+        Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+            Text(
+                "Search isn't available on this device — drag the map to pick a spot manually.",
+                style = frauncesDisplay(13.sp, italic = true),
+                color = AppInk3,
+            )
+        }
+        return
+    }
     if (isSearching && results.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
             Text(
@@ -589,6 +602,14 @@ private fun SearchResults(
 }
 
 /**
+ * Parity E6 — true when the device actually has a working Geocoder
+ * implementation. Samsung One UI builds and the bare AOSP emulator
+ * sometimes ship a stub that returns nothing. We surface this in the UI
+ * so the search field doesn't read as a silently broken control.
+ */
+internal fun isGeocoderAvailable(): Boolean = Geocoder.isPresent()
+
+/**
  * Parity E6 — best-effort place search via Android's [Geocoder]. Skips the
  * Google Places API to avoid a key dependency; the geocoder takes a free-form
  * string and returns ranked address candidates around the given anchor when
@@ -599,6 +620,10 @@ private suspend fun searchPlaces(
     query: String,
     near: GeoPoint,
 ): List<PlaceHit> = withContext(Dispatchers.IO) {
+    // Short-circuit on devices without a real Geocoder so a typed query
+    // doesn't spin a loader for nothing. The caller still shows an
+    // explanatory line based on [isGeocoderAvailable].
+    if (!Geocoder.isPresent()) return@withContext emptyList()
     runCatching {
         @Suppress("DEPRECATION")
         val results = Geocoder(context, Locale.getDefault())

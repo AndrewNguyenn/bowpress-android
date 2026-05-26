@@ -6,7 +6,9 @@ import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.ClubAnnouncement
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
+import com.andrewnguyen.bowpress.core.model.ClubJoinPolicy
 import com.andrewnguyen.bowpress.core.model.ClubMember
+import com.andrewnguyen.bowpress.core.model.ClubVisibility
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -137,8 +139,8 @@ class ClubViewModel @Inject constructor(
      */
     fun updateClubAccess(
         id: String,
-        visibility: com.andrewnguyen.bowpress.core.model.ClubVisibility? = null,
-        joinPolicy: com.andrewnguyen.bowpress.core.model.ClubJoinPolicy? = null,
+        visibility: ClubVisibility? = null,
+        joinPolicy: ClubJoinPolicy? = null,
     ) {
         viewModelScope.launch {
             runCatching {

@@ -5,17 +5,20 @@ import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AttachmentKind
+import com.andrewnguyen.bowpress.core.model.ClubVisibility
 import com.andrewnguyen.bowpress.core.model.CreateLeagueBody
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.HandicapConfig
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueAttachment
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
+import com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy
 import com.andrewnguyen.bowpress.core.model.LeagueSchedule
 import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.LeagueType
+import com.andrewnguyen.bowpress.core.model.LeagueVisibility
 import com.andrewnguyen.bowpress.core.model.RoundDef
 import com.andrewnguyen.bowpress.core.model.SubmitScoreBody
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -65,10 +68,8 @@ data class LeagueComposerState(
      * Parity E8 — visibility + joinPolicy toggles in the composer (default to
      * PUBLIC / OPEN, matching the API decoder).
      */
-    val visibility: com.andrewnguyen.bowpress.core.model.LeagueVisibility =
-        com.andrewnguyen.bowpress.core.model.ClubVisibility.PUBLIC,
-    val joinPolicy: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy =
-        com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy.OPEN,
+    val visibility: LeagueVisibility = ClubVisibility.PUBLIC,
+    val joinPolicy: LeagueJoinPolicy = LeagueJoinPolicy.OPEN,
     val isSaving: Boolean = false,
     val error: String? = null,
 )
@@ -137,8 +138,8 @@ class LeagueViewModel @Inject constructor(
      */
     fun updateLeagueAccess(
         leagueId: String,
-        visibility: com.andrewnguyen.bowpress.core.model.LeagueVisibility? = null,
-        joinPolicy: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy? = null,
+        visibility: LeagueVisibility? = null,
+        joinPolicy: LeagueJoinPolicy? = null,
     ) {
         viewModelScope.launch {
             runCatching {
@@ -260,10 +261,10 @@ class LeagueViewModel @Inject constructor(
     fun updateComposerTotalWeeks(weeks: Int) { _composerState.update { it.copy(totalWeeks = weeks) } }
     fun updateComposerEntryRule(rule: LeagueEntryRule) { _composerState.update { it.copy(entryRule = rule) } }
     fun updateComposerHandicap(config: HandicapConfig) { _composerState.update { it.copy(handicapConfig = config) } }
-    fun updateComposerVisibility(v: com.andrewnguyen.bowpress.core.model.LeagueVisibility) {
+    fun updateComposerVisibility(v: LeagueVisibility) {
         _composerState.update { it.copy(visibility = v) }
     }
-    fun updateComposerJoinPolicy(p: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy) {
+    fun updateComposerJoinPolicy(p: LeagueJoinPolicy) {
         _composerState.update { it.copy(joinPolicy = p) }
     }
 

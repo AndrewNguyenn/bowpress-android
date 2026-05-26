@@ -55,7 +55,6 @@ import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.Scorecard
 import com.andrewnguyen.bowpress.core.model.SessionType
 import com.andrewnguyen.bowpress.core.model.SharedSession
-import com.andrewnguyen.bowpress.core.model.SharedSessionDetail
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
@@ -206,14 +205,17 @@ fun FriendSessionDetailScreen(
                     LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
                         // Parity E10 — dedicated location strip ABOVE the
                         // stat header, showing the tagged range / place.
-                        // iOS commit 9c85a30. Renders only when the session
-                        // has a `location`.
-                        detail.sharedSession.location?.let { loc ->
-                            item {
-                                Spacer(Modifier.height(14.dp))
-                                LocationStrip(name = loc.name)
+                        // iOS commit 9c85a30. Guards both null AND blank so
+                        // a stub `SessionLocation("", lat, lng)` doesn't
+                        // render an empty strip.
+                        detail.sharedSession.location
+                            ?.takeIf { it.name.isNotBlank() }
+                            ?.let { loc ->
+                                item {
+                                    Spacer(Modifier.height(14.dp))
+                                    LocationStrip(name = loc.name)
+                                }
                             }
-                        }
 
                         // Header — stat summary always shown (survives a deleted session).
                         item {

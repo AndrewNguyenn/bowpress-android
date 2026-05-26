@@ -29,7 +29,9 @@ import com.andrewnguyen.bowpress.core.model.AttachmentKind
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.ClubAnnouncement
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
+import com.andrewnguyen.bowpress.core.model.ClubJoinPolicy
 import com.andrewnguyen.bowpress.core.model.ClubMember
+import com.andrewnguyen.bowpress.core.model.ClubVisibility
 import com.andrewnguyen.bowpress.core.model.CompareView
 import com.andrewnguyen.bowpress.core.model.CreateAnnouncementBody
 import com.andrewnguyen.bowpress.core.model.CreateAttachmentBody
@@ -45,8 +47,10 @@ import com.andrewnguyen.bowpress.core.model.JoinLeagueBody
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.core.model.LeagueAttachment
+import com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
+import com.andrewnguyen.bowpress.core.model.LeagueVisibility
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.NotificationList
 import com.andrewnguyen.bowpress.core.model.SendFriendRequestBody
@@ -284,8 +288,8 @@ class SocialRepository @Inject constructor(
         name: String? = null,
         description: String? = null,
         notes: String? = null,
-        visibility: com.andrewnguyen.bowpress.core.model.ClubVisibility? = null,
-        joinPolicy: com.andrewnguyen.bowpress.core.model.ClubJoinPolicy? = null,
+        visibility: ClubVisibility? = null,
+        joinPolicy: ClubJoinPolicy? = null,
     ): Club {
         val result = api.updateClub(
             id,
@@ -301,8 +305,8 @@ class SocialRepository @Inject constructor(
      */
     suspend fun updateClubAccess(
         id: String,
-        visibility: com.andrewnguyen.bowpress.core.model.ClubVisibility? = null,
-        joinPolicy: com.andrewnguyen.bowpress.core.model.ClubJoinPolicy? = null,
+        visibility: ClubVisibility? = null,
+        joinPolicy: ClubJoinPolicy? = null,
     ): Club = updateClub(id, visibility = visibility, joinPolicy = joinPolicy)
 
     suspend fun deleteClub(id: String) {
@@ -365,8 +369,8 @@ class SocialRepository @Inject constructor(
      */
     suspend fun updateLeagueAccess(
         id: String,
-        visibility: com.andrewnguyen.bowpress.core.model.LeagueVisibility? = null,
-        joinPolicy: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy? = null,
+        visibility: LeagueVisibility? = null,
+        joinPolicy: LeagueJoinPolicy? = null,
     ): League = updateLeague(
         id,
         UpdateLeagueBody(visibility = visibility, joinPolicy = joinPolicy),

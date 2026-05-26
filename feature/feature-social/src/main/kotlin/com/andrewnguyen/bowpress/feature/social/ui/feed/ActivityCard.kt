@@ -79,8 +79,8 @@ import com.andrewnguyen.bowpress.core.model.ActivitySession
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
+import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
-import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
 import com.andrewnguyen.bowpress.feature.social.ui.session.FeedPhotoGallery
 import com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader
@@ -304,7 +304,7 @@ private fun ActivityCardHeader(
         // 32dp avatar — pond/pine border, paper-2 ground, italic Fraunces initials.
         // Parity E5 — when the API ships an avatarUrl, render the URL with
         // ?v=<avatarVersion> as a cache-buster; fall back to initials otherwise.
-        com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage(
+        SocialAvatarImage(
             displayName = item.actorDisplayName,
             avatarUrl = item.actorAvatarUrl,
             avatarVersion = item.actorAvatarVersion,
