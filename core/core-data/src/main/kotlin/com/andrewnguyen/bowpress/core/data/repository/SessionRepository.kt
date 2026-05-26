@@ -83,6 +83,19 @@ class SessionRepository @Inject constructor(
     }
 
     /**
+     * Set / clear the session's user-facing title — written by the C1 finish
+     * sheet so the log row + session detail surface whatever the archer typed
+     * before they signed the session off. Local-first; remote sync is
+     * enqueued via [SyncService] (no dedicated title endpoint today; the
+     * title round-trips through the session payload's next sync).
+     */
+    suspend fun setTitle(sessionId: String, title: String?) {
+        val existing = dao.findById(sessionId) ?: return
+        dao.upsert(existing.copy(title = title?.takeIf { it.isNotBlank() }, pendingSync = true))
+        syncService.enqueueSync()
+    }
+
+    /**
      * Pull remote and upsert, but **skip rows that have local pending edits**.
      * iOS Fix #4: a cold-launch hydration after force-quit was blowing away
      * the local `endedAt`/notes/feelTags on a just-finished session because

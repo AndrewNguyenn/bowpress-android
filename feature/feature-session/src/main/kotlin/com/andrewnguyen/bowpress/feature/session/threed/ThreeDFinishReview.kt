@@ -22,6 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
@@ -31,6 +35,8 @@ import com.andrewnguyen.bowpress.core.designsystem.bp.BPNavHeader
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPPrimaryButton
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
+import com.andrewnguyen.bowpress.feature.session.FinishMode
+import com.andrewnguyen.bowpress.feature.session.FinishSheet
 
 /**
  * Course sign-off review — the walked map as the hero, the round's totals,
@@ -43,7 +49,45 @@ fun ThreeDFinishReview(
     breadcrumb: List<GeoPoint>,
     onSign: () -> Unit,
     onBack: () -> Unit,
+    /**
+     * Optional extras-driven sign-off — when non-null, tapping "Sign &
+     * return" opens the C1 finish sheet (title + description + range +
+     * photos + audience) instead of the legacy [onSign] fire-and-forget.
+     * Both callbacks are wired so a caller can pass null to keep the
+     * pre-C1 surface (tests, previews).
+     */
+    onSignWithExtras: ((com.andrewnguyen.bowpress.feature.session.FinishExtras) -> Unit)? = null,
 ) {
+    // C1 — when the caller wires `onSignWithExtras`, route the Sign tap
+    // through the FinishSheet so the archer can caption + audience-toggle
+    // the course before it lands in Log + Feed.
+    var showFinishSheet by remember { mutableStateOf(false) }
+    if (showFinishSheet && onSignWithExtras != null) {
+        val mode = FinishMode.Course(
+            totalScore = state.totalScore,
+            killCount = state.killCount,
+            stationCount = state.stations.size,
+            averagePerTarget = state.averageScore,
+        )
+        FinishSheet(
+            mode = mode,
+            bowName = state.session?.let { "Bow" } ?: "—",
+            arrowSummary = null,
+            isPosting = false,
+            initialTitle = state.session?.title.orEmpty(),
+            initialDescription = state.session?.notes.orEmpty(),
+            initialLocation = null,
+            onFinish = { extras ->
+                showFinishSheet = false
+                onSignWithExtras(extras)
+            },
+            onDiscard = {
+                showFinishSheet = false
+                onBack()
+            },
+            onClose = { showFinishSheet = false },
+        )
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -89,7 +133,13 @@ fun ThreeDFinishReview(
             BPPrimaryButton(
                 title = "Sign & return to Log",
                 subtitle = "COURSE FINISHED",
-                onClick = onSign,
+                onClick = {
+                    if (onSignWithExtras != null) {
+                        showFinishSheet = true
+                    } else {
+                        onSign()
+                    }
+                },
             )
             Box(
                 Modifier

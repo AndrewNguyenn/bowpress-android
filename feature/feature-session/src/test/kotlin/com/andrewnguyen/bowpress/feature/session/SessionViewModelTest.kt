@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.session
 
+import android.app.Application
 import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowConfigRepository
 import com.andrewnguyen.bowpress.core.data.repository.BowRepository
@@ -77,6 +78,7 @@ class SessionViewModelTest {
             every { lastTargetLayout } returns flowOf(TargetLayout.SINGLE)
         }
         return SessionViewModel(
+            app = mockk<Application>(relaxed = true),
             bowRepo = bowRepo,
             arrowConfigRepo = arrowConfigRepo,
             bowConfigRepo = mockk<BowConfigRepository>(relaxed = true),
@@ -180,6 +182,7 @@ class SessionViewModelTest {
             every { lastTargetLayout } returns flowOf(TargetLayout.SINGLE)
         }
         val vm = SessionViewModel(
+            app = mockk<Application>(relaxed = true),
             bowRepo = bowRepo,
             arrowConfigRepo = arrowConfigRepo,
             bowConfigRepo = mockk<BowConfigRepository>(relaxed = true),
@@ -307,6 +310,7 @@ class SessionViewModelTest {
             }
         }
         val vm = SessionViewModel(
+            app = mockk<Application>(relaxed = true),
             bowRepo = mockk<BowRepository>(relaxed = true) {
                 every { observeBows() } returns flowOf(emptyList())
             },
@@ -405,6 +409,7 @@ class SessionViewModelTest {
                 }
             }
             val vm = SessionViewModel(
+                app = mockk<Application>(relaxed = true),
                 bowRepo = mockk<BowRepository>(relaxed = true) {
                     every { observeBows() } returns flowOf(emptyList())
                 },

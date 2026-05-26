@@ -64,6 +64,16 @@ data class SessionUiState(
     val currentArrows: List<ArrowPlot> = emptyList(),
     // Completed ends for the active session, in endNumber order.
     val completedEnds: List<SessionEnd> = emptyList(),
+
+    /**
+     * Non-null when the most recent C1 finish-sheet share landed the initial
+     * POST but had at least one best-effort step fail (description PATCH or
+     * one of the photo uploads). The Snackbar surface at the MainScaffold
+     * level renders this string and clears it via
+     * [SessionViewModel.consumeSharePartialFailure] once the archer dismisses.
+     * Mirrors iOS `SessionViewModel.lastSharePartialFailure`.
+     */
+    val lastSharePartialFailure: String? = null,
 ) {
     val isSessionActive: Boolean get() = activeSession != null
     val hasPendingConfigChange: Boolean

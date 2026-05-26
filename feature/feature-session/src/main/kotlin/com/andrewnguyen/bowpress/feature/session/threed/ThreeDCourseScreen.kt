@@ -108,6 +108,10 @@ fun ThreeDCourseScreen(
             breadcrumb = breadcrumb,
             onSign = { viewModel.finishCourse() },
             onBack = { finishing = false },
+            // C1 — extras-driven sign-off (title + description + range +
+            // photos + audience). The view model's finishCourse(extras)
+            // overload handles the share / partial-failure surfacing.
+            onSignWithExtras = { extras -> viewModel.finishCourse(extras) },
         )
         return
     }

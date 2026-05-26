@@ -5,10 +5,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.CourseStationRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
+import com.andrewnguyen.bowpress.core.data.social.SocialSessionSharer
+import com.andrewnguyen.bowpress.core.designsystem.photo.TargetPhotoStore
 import com.andrewnguyen.bowpress.core.model.CourseStation
 import com.andrewnguyen.bowpress.core.model.SessionType
+import com.andrewnguyen.bowpress.core.model.ShareSessionBody
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.SocialVisibility
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
+import com.andrewnguyen.bowpress.feature.session.FinishAudience
+import com.andrewnguyen.bowpress.feature.session.FinishExtras
+import com.andrewnguyen.bowpress.feature.session.ShareOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,6 +39,14 @@ data class ThreeDCourseUiState(
     val stations: List<CourseStation> = emptyList(),
     val elevationGrid: ElevationGrid? = null,
     val autoEnded: AutoEndReason? = null,
+    /**
+     * Non-null when the most recent C1 finish-sheet share landed the initial
+     * POST but had at least one best-effort step fail. The MainScaffold-level
+     * Snackbar renders this string and clears it via
+     * [ThreeDCourseViewModel.consumeSharePartialFailure]. Mirrors iOS
+     * `ThreeDCourseViewModel.lastSharePartialFailure`.
+     */
+    val lastSharePartialFailure: String? = null,
 ) {
     val isCourseActive: Boolean get() = session != null
     val scoringSystem: ThreeDScoringSystem get() = session?.scoringSystem ?: ThreeDScoringSystem.ASA
@@ -67,6 +82,7 @@ class ThreeDCourseViewModel @Inject constructor(
     @ApplicationContext private val appContext: android.content.Context,
     private val sessionRepo: SessionRepository,
     private val courseStationRepo: CourseStationRepository,
+    private val socialSessionSharer: SocialSessionSharer,
 ) : ViewModel() {
 
     val locationTracker = CourseLocationTracker(appContext)
@@ -226,6 +242,84 @@ class ThreeDCourseViewModel @Inject constructor(
         viewModelScope.launch {
             sessionRepo.endSession(session.id, Instant.now(), notes)
         }
+    }
+
+    /**
+     * C1 finish-sheet entry point — applies title + description + location +
+     * photos, runs the course-aware share (or skips on private audience), and
+     * publishes any partial-failure hint through [ThreeDCourseUiState.lastSharePartialFailure].
+     *
+     * 3D scoring doesn't fit the range model's `min(ring, 10)` / `ring == 11
+     * ↔ X` rules — an ASA 14 would silently cap to 10, and an IBO 11 (the
+     * inner X) would be double-counted as score+X. We pass `totalScore` /
+     * `stations.count` / xCount=0 through directly so the post reflects what
+     * the archer actually saw on the review screen. Mirrors iOS
+     * `ThreeDCourseViewModel.finishCourse(extras:)` +
+     * `SessionViewModel.shareCompletedCourse(...)`.
+     */
+    fun finishCourse(extras: FinishExtras) {
+        val session = _uiState.value.session ?: return
+        val state = _uiState.value
+        // Snapshot the totals up front so a stale reactive emission can't
+        // change the numbers between the share POST and any retry. iOS does
+        // the same with shareSnapshot / shareArrows.
+        val totalScore = state.totalScore
+        val stationCount = state.stations.size
+        viewModelScope.launch {
+            // First photo doubles as the session's local target-paper image
+            // — the Log thumbnail listens to TargetPhotoStore so the
+            // historical row keeps a recognisable thumbnail. Done before the
+            // end-session call so by the time onSessionEnded fires, the file
+            // exists. Mirrors iOS FinishSheet.
+            extras.photoData.firstOrNull()?.let { bytes ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    TargetPhotoStore.save(appContext, bytes, session.id)
+                }
+            }
+            // Persist title + notes (description) + endedAt — same writes
+            // the legacy alert path did, just with the extras values.
+            val notes = extras.description.trim()
+            val trimmedTitle = extras.title.trim().takeIf { it.isNotBlank() }
+            runCatching { sessionRepo.setTitle(session.id, trimmedTitle) }
+            sessionRepo.endSession(session.id, Instant.now(), notes)
+
+            // Audience gate. Private → skip the share entirely; the session
+            // still lands in the archer's log, nobody else sees it.
+            if (extras.audience.shouldShare) {
+                _uiState.update { it.copy(lastSharePartialFailure = null) }
+                val outcome = socialSessionSharer.shareWithExtras(
+                    sessionId = session.id,
+                    score = totalScore,
+                    // xCount=0 for 3D — the scoring systems treat the inner
+                    // ring as a value (ASA 14 / IBO 11 / WA3D 10) rather than
+                    // a separate X tally, so adding it here would double-
+                    // count.
+                    xCount = 0,
+                    arrowCount = stationCount,
+                    distance = null,
+                    face = null,
+                    title = trimmedTitle ?: session.title,
+                    shotAt = session.startedAt,
+                    location = extras.location,
+                    description = notes,
+                    photoData = extras.photoData,
+                )
+                if (outcome != null && outcome.hasPartialFailure) {
+                    val asOutcome = ShareOutcome(
+                        sharedSessionId = outcome.sharedSessionId,
+                        descriptionSucceeded = outcome.descriptionSucceeded,
+                        photosUploaded = outcome.photosUploaded,
+                        photosAttempted = outcome.photosAttempted,
+                    )
+                    _uiState.update { it.copy(lastSharePartialFailure = asOutcome.partialFailureMessage) }
+                }
+            }
+        }
+    }
+
+    /** Clear the partial-share failure hint once the user has seen it. */
+    fun consumeSharePartialFailure() {
+        _uiState.update { it.copy(lastSharePartialFailure = null) }
     }
 
     /** Abandon the course — delete the session row and its stations. */

@@ -16,9 +16,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -82,6 +88,7 @@ fun MainScaffold(
     uiState: AppUiState,
     onSignedOut: () -> Unit,
     onSocialTabSelected: () -> Unit = {},
+    appStateViewModel: AppStateViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -99,8 +106,28 @@ fun MainScaffold(
         )
     }
 
+    // C1 — partial-share failure hint surface. The SessionViewModel that
+    // fired the share may be torn down by the time the archer lands back on
+    // Log; the message rides through [AppSnackbarBus] and is dispatched as
+    // a non-blocking Snackbar here.
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.pendingSnackbar) {
+        val msg = uiState.pendingSnackbar ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(msg)
+        appStateViewModel.consumePendingSnackbar()
+    }
+
     Scaffold(
         containerColor = AppPaper,
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = AppInk3,
+                    contentColor = AppPaper,
+                )
+            }
+        },
         bottomBar = {
             // 1dp AppLine top border drawn above the bar — matches the
             // analytics-japanese.html tab frame. We do it via a Column so

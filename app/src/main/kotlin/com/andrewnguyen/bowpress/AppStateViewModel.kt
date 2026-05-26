@@ -13,6 +13,7 @@ import com.andrewnguyen.bowpress.core.data.seed.DevMockDataSeeder
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.ElevationGridCache
 import com.andrewnguyen.bowpress.core.designsystem.coursemap.MockTerrain
 import com.andrewnguyen.bowpress.core.data.sync.AnalyticsRefreshBus
+import com.andrewnguyen.bowpress.core.data.sync.AppSnackbarBus
 import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.Entitlement
 import com.andrewnguyen.bowpress.core.model.UnitSystem
@@ -49,6 +50,7 @@ class AppStateViewModel @Inject constructor(
     private val devMockDataSeeder: DevMockDataSeeder,
     private val socialRepository: SocialRepository,
     private val socialBadgeRefreshBus: SocialBadgeRefreshBus,
+    private val appSnackbarBus: AppSnackbarBus,
 ) : ViewModel() {
 
     init {
@@ -137,6 +139,11 @@ class AppStateViewModel @Inject constructor(
         viewModelScope.launch { unitPreferencesRepository.setUnitSystem(system) }
     }
 
+    /** Clear the app-wide Snackbar hint once the host has shown it. */
+    fun consumePendingSnackbar() {
+        _uiState.value = _uiState.value.copy(pendingSnackbar = null)
+    }
+
     fun setThemePreference(preference: ThemePreference) {
         viewModelScope.launch { themePreferencesRepository.setThemePreference(preference) }
     }
@@ -171,6 +178,13 @@ class AppStateViewModel @Inject constructor(
         // friend request, social push arrival) re-fetch the pending count.
         socialBadgeRefreshBus.events
             .onEach { refreshSocialPendingCount() }
+            .launchIn(viewModelScope)
+
+        // C1 partial-share hints — surfaced as the MainScaffold Snackbar.
+        appSnackbarBus.events
+            .onEach { msg ->
+                _uiState.value = _uiState.value.copy(pendingSnackbar = msg)
+            }
             .launchIn(viewModelScope)
 
         if (userRepository.isSignedIn) hydrate()
@@ -241,4 +255,10 @@ data class AppUiState(
     val unreadSuggestionCount: Int,
     /** Social-tab badge count — incoming friend requests + pending invitations. */
     val socialPendingCount: Int = 0,
+    /**
+     * Latest app-wide non-blocking hint, or null when nothing pending —
+     * surfaced as a Snackbar at the MainScaffold level. Currently driven
+     * by [AppSnackbarBus] for the C1 partial-share failure hint.
+     */
+    val pendingSnackbar: String? = null,
 )

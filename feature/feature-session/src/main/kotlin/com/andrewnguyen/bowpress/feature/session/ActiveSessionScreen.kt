@@ -246,15 +246,38 @@ fun ActiveSessionScreen(
     }
 
     if (showEndSheet) {
-        EndSessionSheet(
-            onDismiss = { showEndSheet = false },
-            onFinish = { notes, feelTags, location ->
+        val arrows = state.currentArrows.filterNot { it.excluded }
+        val score = arrows.sumOf { it.ring.coerceAtMost(10) }
+        val xCount = arrows.count { it.ring == 11 }
+        val mode = FinishMode.Range(
+            score = score,
+            xCount = xCount,
+            arrowCount = arrows.size,
+            endCount = state.completedEnds.size + if (state.currentEndArrows.isNotEmpty()) 1 else 0,
+        )
+        FinishSheet(
+            mode = mode,
+            bowName = state.selectedBow?.name ?: "—",
+            arrowSummary = state.activeArrowConfig?.label,
+            isPosting = state.isLoading,
+            initialTitle = active.title.orEmpty(),
+            initialDescription = active.notes,
+            initialLocation = null,
+            onFinish = { extras ->
                 scope.launch {
-                    viewModel.endSession(notes, feelTags, location)
+                    viewModel.endSession(extras = extras)
                     showEndSheet = false
                     onSessionEnded()
                 }
             },
+            onDiscard = {
+                scope.launch {
+                    viewModel.discardActiveSession()
+                    showEndSheet = false
+                    onSessionEnded()
+                }
+            },
+            onClose = { showEndSheet = false },
         )
     }
 

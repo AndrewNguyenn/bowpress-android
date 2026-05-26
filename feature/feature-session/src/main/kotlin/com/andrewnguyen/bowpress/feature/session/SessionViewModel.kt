@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.session
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.ArrowConfigRepository
@@ -10,6 +11,7 @@ import com.andrewnguyen.bowpress.core.data.repository.SessionEndRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.repository.SessionSetupPreferencesRepository
 import com.andrewnguyen.bowpress.core.data.social.SocialSessionSharer
+import com.andrewnguyen.bowpress.core.designsystem.photo.TargetPhotoStore
 import com.andrewnguyen.bowpress.core.model.ArrowConfiguration
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Bow
@@ -24,6 +26,7 @@ import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.ThreeDScoringSystem
 import com.andrewnguyen.bowpress.core.model.Zone
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +36,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -47,6 +51,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SessionViewModel @Inject constructor(
+    private val app: Application,
     private val bowRepo: BowRepository,
     private val arrowConfigRepo: ArrowConfigRepository,
     private val bowConfigRepo: BowConfigRepository,
@@ -562,14 +567,22 @@ class SessionViewModel @Inject constructor(
     }
 
     /**
-     * Finalize the active session. [location] is the §18 Instagram-style
-     * location tag captured in the end-session sheet — it rides through to the
-     * feed share. Null when the archer left the session untagged.
+     * Finalize the active session — legacy entry point that the in-session
+     * notes sheet still calls. [extras] is null on this path so the share
+     * goes out with no description / photos / audience override; visibility
+     * is whatever the archer's profile says.
+     *
+     * The C1 finish sheet calls [endSession] with a non-null [extras] —
+     * description maps to `session.notes`, title is persisted via
+     * [SessionRepository.setTitle], audience gates the share, and the first
+     * photo doubles as the session's local target-paper image so the Log
+     * thumbnail still works.
      */
     suspend fun endSession(
-        notes: String,
-        feelTags: List<String>,
+        notes: String = "",
+        feelTags: List<String> = emptyList(),
         location: SessionLocation? = null,
+        extras: FinishExtras? = null,
     ) {
         val state = _uiState.value
         val session = state.activeSession ?: return
@@ -588,16 +601,41 @@ class SessionViewModel @Inject constructor(
         // snapshot: a no-op when the last end was already finished, and not
         // subject to the `completingEnd` re-entry guard (no second state read).
         completeEndWith(session, trailingEnd, trailingEndNumber)
+
+        // Resolve the writes that the extras path drives. The legacy path
+        // (extras == null) keeps the old semantics: notes / feelTags from
+        // the existing notes sheet, no title write.
+        val effectiveNotes = extras?.description ?: notes
+        val effectiveFeelTags = if (extras != null) emptyList() else feelTags
+        val effectiveLocation = extras?.location ?: location
+
+        // First finish-sheet photo also lands in the local target-photo store
+        // so the historical-session row + session-detail thumbnail keep
+        // working (those read from TargetPhotoStore). Mirrors iOS — done
+        // before the share so by the time `onSessionEnded` listeners ask
+        // `TargetPhotoStore.hasPhoto(sessionId)`, the file exists.
+        val firstPhotoBytes = extras?.photoData?.firstOrNull()
+        if (firstPhotoBytes != null) {
+            withContext(Dispatchers.IO) {
+                TargetPhotoStore.save(app, firstPhotoBytes, session.id)
+            }
+        }
+
         sessionRepo.endSession(
             sessionId = session.id,
             endedAt = Instant.now(),
-            notes = notes,
+            notes = effectiveNotes,
         )
         // Persist feel tags onto the session itself — that is where the
         // analytics engine reads them from (ShootingSession.feelTags). The
         // session notes were just written by endSession() above; pass them
         // through unchanged so updateSession doesn't blank them.
-        runCatching { sessionRepo.updateSession(session.id, notes, feelTags) }
+        runCatching { sessionRepo.updateSession(session.id, effectiveNotes, effectiveFeelTags) }
+        // Title write — extras-only path. The legacy notes sheet doesn't
+        // expose a title field so we leave the existing title untouched.
+        if (extras != null) {
+            runCatching { sessionRepo.setTitle(session.id, extras.title.trim().takeIf { it.isNotBlank() }) }
+        }
         _uiState.update {
             it.copy(
                 isLoading = false,
@@ -611,10 +649,16 @@ class SessionViewModel @Inject constructor(
                 userOverrodeFace = false,
             )
         }
-        // §15 — publish the saved session to friends' feeds. Fire-and-forget:
-        // SocialSessionSharer self-gates on visibility and never throws, so a
-        // share failure can't affect the already-persisted save above.
-        shareSessionToFeed(session, arrows, location)
+
+        // §15 — publish the saved session to friends' feeds. The legacy
+        // alert path uses the visibility-gated fire-and-forget share. The
+        // C1 extras path adds the description PATCH + photo uploads, and
+        // bubbles partial failures via [lastSharePartialFailure].
+        if (extras == null) {
+            shareSessionToFeed(session, arrows, effectiveLocation)
+        } else if (extras.audience.shouldShare) {
+            shareSessionWithExtras(session, arrows, extras, effectiveLocation)
+        }
     }
 
     /**
@@ -640,6 +684,79 @@ class SessionViewModel @Inject constructor(
                 title = session.title?.takeIf { it.isNotBlank() },
                 shotAt = session.startedAt,
                 location = location,
+            )
+        }
+    }
+
+    /**
+     * C1 extras-bearing share — POSTs the share, then best-effort PATCHes
+     * the description and uploads the photo gallery sequentially so the
+     * server-side display order matches the archer's pick order. Partial
+     * failures surface through [lastSharePartialFailure] so the UI can
+     * render the iOS-equivalent "Posted, but..." Snackbar.
+     */
+    private fun shareSessionWithExtras(
+        session: ShootingSession,
+        arrows: List<ArrowPlot>,
+        extras: FinishExtras,
+        location: SessionLocation?,
+    ) {
+        val scored = arrows.filterNot { it.excluded }
+        val score = scored.sumOf { it.ring }
+        val xCount = scored.count { it.ring == 11 }
+        val arrowCount = scored.size
+        // Reset the partial-failure hint at the top of every share path so a
+        // stale message from a previous post can't haunt a fresh clean one.
+        _uiState.update { it.copy(lastSharePartialFailure = null) }
+        viewModelScope.launch {
+            val outcome = socialSessionSharer.shareWithExtras(
+                sessionId = session.id,
+                score = score,
+                xCount = xCount,
+                arrowCount = arrowCount,
+                distance = session.distance?.label,
+                face = session.targetFaceType.label,
+                title = extras.title.trim().takeIf { it.isNotBlank() } ?: session.title,
+                shotAt = session.startedAt,
+                location = location,
+                description = extras.description,
+                photoData = extras.photoData,
+            )
+            if (outcome != null && outcome.hasPartialFailure) {
+                val asOutcome = ShareOutcome(
+                    sharedSessionId = outcome.sharedSessionId,
+                    descriptionSucceeded = outcome.descriptionSucceeded,
+                    photosUploaded = outcome.photosUploaded,
+                    photosAttempted = outcome.photosAttempted,
+                )
+                _uiState.update { it.copy(lastSharePartialFailure = asOutcome.partialFailureMessage) }
+            }
+        }
+    }
+
+    /** Clear the partial-share failure hint once the user has seen it. */
+    fun consumeSharePartialFailure() {
+        _uiState.update { it.copy(lastSharePartialFailure = null) }
+    }
+
+    /**
+     * Discard the active session — deletes it from local + remote so it
+     * never appears in analytics. Drives the C1 finish sheet's "DISCARD"
+     * affordance after the confirmation dialog.
+     */
+    suspend fun discardActiveSession() {
+        val session = _uiState.value.activeSession ?: return
+        runCatching { sessionRepo.deleteSession(session.id) }
+        _uiState.update {
+            it.copy(
+                activeSession = null,
+                activeBowConfig = null,
+                activeArrowConfig = null,
+                pendingBowConfig = null,
+                pendingArrowConfig = null,
+                currentArrows = emptyList(),
+                completedEnds = emptyList(),
+                userOverrodeFace = false,
             )
         }
     }
