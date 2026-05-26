@@ -111,7 +111,15 @@ fun FeedScreen(
             friendCount = state.friends.size,
             clubCount = state.clubs.size,
             leagueCount = state.leagues.size,
-            myInitials = state.myProfile?.let { avatarInitials(it.displayName) } ?: "?",
+            // Avatar pill in the top nav — fall back to em-dash (not "?") so
+            // the cluster looks calm before the profile hydrates. iOS hard-
+            // codes "AN" here; an em-dash is the closest no-info equivalent
+            // we can show without inventing initials we don't know.
+            myInitials = state.myProfile
+                ?.displayName
+                ?.takeIf { it.isNotBlank() }
+                ?.let { avatarInitials(it) }
+                ?: "—",
             notificationCount = pendingCount,
             pendingFriendRequests = state.pendingIncomingFriendRequests,
             pendingClubInvites = state.pendingClubInvites,
