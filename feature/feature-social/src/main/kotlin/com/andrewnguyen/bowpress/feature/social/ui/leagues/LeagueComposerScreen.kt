@@ -41,10 +41,13 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
+import com.andrewnguyen.bowpress.core.model.ClubJoinPolicy
+import com.andrewnguyen.bowpress.core.model.ClubVisibility
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.HandicapConfig
 import com.andrewnguyen.bowpress.core.model.HandicapEquation
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
+import com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy
 import com.andrewnguyen.bowpress.core.model.LeagueSchedule
 import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
 import com.andrewnguyen.bowpress.core.model.LeagueType
@@ -268,6 +271,56 @@ fun LeagueComposerScreen(
                     ) {
                         Text(
                             rule.name.uppercase().replace("-", " "),
+                            style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.18.em),
+                            color = if (sel) AppPaper else AppInk3,
+                        )
+                    }
+                }
+            }
+
+            // Parity E8 — visibility + join-policy toggles in the composer
+            // (commit 29d405c). Defaults to PUBLIC / OPEN to match the API.
+            Spacer(Modifier.height(14.dp))
+            FieldHeader("VISIBILITY")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    "PUBLIC" to ClubVisibility.PUBLIC,
+                    "PRIVATE" to ClubVisibility.PRIVATE,
+                ).forEach { (label, value) ->
+                    val sel = state.visibility == value
+                    Box(
+                        modifier = Modifier
+                            .border(1.dp, if (sel) AppPondDk else AppLine)
+                            .background(if (sel) AppPondDk else AppPaper)
+                            .clickable { viewModel.updateComposerVisibility(value) }
+                            .padding(8.dp, 5.dp),
+                    ) {
+                        Text(
+                            label,
+                            style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.18.em),
+                            color = if (sel) AppPaper else AppInk3,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+            FieldHeader("JOIN POLICY")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    "OPEN" to LeagueJoinPolicy.OPEN,
+                    "INVITE-ONLY" to LeagueJoinPolicy.INVITE_ONLY,
+                ).forEach { (label, value) ->
+                    val sel = state.joinPolicy == value
+                    Box(
+                        modifier = Modifier
+                            .border(1.dp, if (sel) AppPondDk else AppLine)
+                            .background(if (sel) AppPondDk else AppPaper)
+                            .clickable { viewModel.updateComposerJoinPolicy(value) }
+                            .padding(8.dp, 5.dp),
+                    ) {
+                        Text(
+                            label,
                             style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.18.em),
                             color = if (sel) AppPaper else AppInk3,
                         )

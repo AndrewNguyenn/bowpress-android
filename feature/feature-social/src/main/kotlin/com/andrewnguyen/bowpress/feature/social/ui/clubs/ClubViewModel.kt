@@ -276,6 +276,24 @@ class ClubViewModel @Inject constructor(
         _clubHomeState.update { it.copy(inviteError = null, inviteSent = false) }
     }
 
+    /**
+     * Parity E8 — fuzzy substring search for the InviteArcherSheet result
+     * rows. Returns up to 8 [HandleSuggestion]s; the sheet handles its own
+     * debounce so this is a plain pass-through.
+     */
+    suspend fun searchInviteCandidates(query: String) =
+        runCatching { socialRepository.searchHandlesSubstring(query) }
+            .getOrDefault(emptyList())
+
+    /**
+     * Parity E8 — single-row invite from the InviteArcherSheet. Returns
+     * `Result<Unit>` so the sheet can flip the row to SENT / show the error
+     * without going through view-state. Does not flip the legacy
+     * `inviteSent` flag (the sheet has its own per-row state).
+     */
+    suspend fun inviteHandleToClub(clubId: String, handle: String): Result<Unit> =
+        runCatching { socialRepository.inviteToClub(clubId, handle) }.map { }
+
     fun dismissError() {
         _clubsState.update { it.copy(error = null) }
         _clubHomeState.update { it.copy(error = null) }

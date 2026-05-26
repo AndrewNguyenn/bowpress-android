@@ -313,6 +313,21 @@ class LeagueViewModel @Inject constructor(
         _leagueHomeState.update { it.copy(inviteError = null, inviteSent = false) }
     }
 
+    /**
+     * Parity E8 — fuzzy substring search for InviteArcherSheet, same as the
+     * club path. Pure pass-through; the sheet handles its own debounce.
+     */
+    suspend fun searchInviteCandidates(query: String) =
+        runCatching { socialRepository.searchHandlesSubstring(query) }
+            .getOrDefault(emptyList())
+
+    /**
+     * Parity E8 — single-row invite from InviteArcherSheet. Returns
+     * `Result<Unit>` so the sheet handles its own per-row state.
+     */
+    suspend fun inviteHandleToLeague(leagueId: String, handle: String): Result<Unit> =
+        runCatching { socialRepository.inviteToLeague(leagueId, handle) }.map { }
+
     fun dismissError() {
         _leaguesState.update { it.copy(error = null) }
         _leagueHomeState.update { it.copy(error = null) }

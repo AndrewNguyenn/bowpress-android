@@ -380,9 +380,17 @@ interface BowPressApi {
      * §2.1). [q] is the typed prefix (a leading `@` is trimmed server-side);
      * returns up to 8 [HandleSuggestion]s whose handle starts with [q],
      * accepted friends ranked first, the caller and blocked users excluded.
+     *
+     * Parity E8 / E9 — [mode] = `"substring"` flips the server to a fuzzy
+     * substring match on handle OR display name (iOS commits 5bcf33a +
+     * c6b7084). The default (null / `"prefix"`) keeps the mentions contract
+     * unchanged.
      */
     @GET("social/handles")
-    suspend fun searchHandles(@Query("q") q: String): List<HandleSuggestion>
+    suspend fun searchHandles(
+        @Query("q") q: String,
+        @Query("mode") mode: String? = null,
+    ): List<HandleSuggestion>
 
     // ---- Social — Friendships --------------------------------------------------
 

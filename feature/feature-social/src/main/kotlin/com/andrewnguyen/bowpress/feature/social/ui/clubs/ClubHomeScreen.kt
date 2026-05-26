@@ -65,7 +65,7 @@ import com.andrewnguyen.bowpress.feature.social.ui.SocialUnavailableNotice
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.MuteBlockAction
-import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteByHandleDialog
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteArcherSheet
 
 @Composable
 fun ClubHomeScreen(
@@ -89,12 +89,13 @@ fun ClubHomeScreen(
         viewModel.loadClubHome(clubId)
     }
 
+    // Parity E8 — fuzzy substring invite picker (iOS commit c6b7084) replaces
+    // the exact-handle dialog. Surface from the host-only INVITE chip.
     if (showInviteDialog) {
-        InviteByHandleDialog(
-            title = "Invite to ${state.club?.name ?: "club"}",
-            error = state.inviteError,
-            sent = state.inviteSent,
-            onSubmit = { handle -> viewModel.inviteToClub(clubId, handle) },
+        InviteArcherSheet(
+            targetLabel = state.club?.name ?: "club",
+            onSearch = { q -> viewModel.searchInviteCandidates(q) },
+            onInvite = { suggestion -> viewModel.inviteHandleToClub(clubId, suggestion.handle) },
             onDismiss = {
                 showInviteDialog = false
                 viewModel.resetInviteState()

@@ -49,18 +49,22 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
+import com.andrewnguyen.bowpress.core.model.ClubJoinPolicy
+import com.andrewnguyen.bowpress.core.model.ClubVisibility
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.League
+import com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy
 import com.andrewnguyen.bowpress.core.model.LeagueStandingRow
 import com.andrewnguyen.bowpress.core.model.LeagueStatus
 import com.andrewnguyen.bowpress.core.model.LeagueSubmission
 import com.andrewnguyen.bowpress.core.model.BlockKind
+import com.andrewnguyen.bowpress.feature.social.ui.clubs.AccessToggleRow
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.SocialUnavailableNotice
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.BlockViewModel
 import com.andrewnguyen.bowpress.feature.social.ui.blocks.MuteBlockAction
-import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteByHandleDialog
+import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteArcherSheet
 import com.andrewnguyen.bowpress.feature.social.ui.label
 
 @Composable
@@ -68,6 +72,8 @@ fun LeagueHomeScreen(
     leagueId: String,
     onBack: () -> Unit,
     onAdminClick: (String) -> Unit,
+    // Parity E2 — tap a standings row to drill into that archer's profile.
+    onOpenArcher: (String) -> Unit = {},
     viewModel: LeagueViewModel = hiltViewModel(),
     blockViewModel: BlockViewModel = hiltViewModel(),
 ) {
@@ -78,17 +84,18 @@ fun LeagueHomeScreen(
     var showAttachmentDialog by remember { mutableStateOf(false) }
     // The host viewing their own league: a hostUserId, no personal entry.
     val isHost = state.league?.let { it.myEntry == null && it.hostUserId.isNotBlank() } == true
+    val currentUserId = state.currentUserId
 
     LaunchedEffect(leagueId) {
         viewModel.loadLeagueHome(leagueId)
     }
 
+    // Parity E8 — fuzzy substring invite picker, same as the club path.
     if (showInviteDialog) {
-        InviteByHandleDialog(
-            title = "Invite to ${state.league?.name ?: "league"}",
-            error = state.inviteError,
-            sent = state.inviteSent,
-            onSubmit = { handle -> viewModel.inviteToLeague(leagueId, handle) },
+        InviteArcherSheet(
+            targetLabel = state.league?.name ?: "league",
+            onSearch = { q -> viewModel.searchInviteCandidates(q) },
+            onInvite = { suggestion -> viewModel.inviteHandleToLeague(leagueId, suggestion.handle) },
             onDismiss = {
                 showInviteDialog = false
                 viewModel.resetInviteState()
@@ -183,6 +190,52 @@ fun LeagueHomeScreen(
         }
 
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+            // Parity E8 — host-only visibility + join-policy toggles.
+            if (isHost && league != null) {
+                item {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "ACCESS",
+                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                        color = AppInk3,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    HorizontalDivider(color = AppLine, thickness = 1.dp)
+                    Spacer(Modifier.height(8.dp))
+                    AccessToggleRow(
+                        title = "Visibility · ${league.visibility.label}",
+                        detail = if (league.visibility == ClubVisibility.PUBLIC)
+                            "members + non-members can view"
+                        else
+                            "members only",
+                        cta = if (league.visibility == ClubVisibility.PUBLIC) "MAKE PRIVATE" else "MAKE PUBLIC",
+                        onCta = {
+                            val next = if (league.visibility == ClubVisibility.PUBLIC)
+                                ClubVisibility.PRIVATE
+                            else
+                                ClubVisibility.PUBLIC
+                            viewModel.updateLeagueAccess(league.id, visibility = next)
+                        },
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AccessToggleRow(
+                        title = "Join Policy · ${league.joinPolicy.label}",
+                        detail = if (league.joinPolicy == LeagueJoinPolicy.OPEN)
+                            "anyone with invite code can join"
+                        else
+                            "host must send invitation first",
+                        cta = if (league.joinPolicy == LeagueJoinPolicy.OPEN) "INVITE-ONLY" else "OPEN",
+                        onCta = {
+                            val next = if (league.joinPolicy == LeagueJoinPolicy.OPEN)
+                                LeagueJoinPolicy.INVITE_ONLY
+                            else
+                                LeagueJoinPolicy.OPEN
+                            viewModel.updateLeagueAccess(league.id, joinPolicy = next)
+                        },
+                    )
+                }
+            }
+
             // Round spec
             league?.let { lg ->
                 item {
@@ -277,7 +330,15 @@ fun LeagueHomeScreen(
             }
 
             items(filteredStandings, key = { it.userId }) { row ->
-                StandingRow(row = row)
+                // Parity E2 — tap any non-you standings row to open that
+                // archer's profile. You-row stays inert.
+                StandingRow(
+                    row = row,
+                    onClick = if (row.userId == currentUserId || row.isYou) null
+                    else {
+                        { onOpenArcher(row.userId) }
+                    },
+                )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
             }
 
@@ -399,11 +460,12 @@ fun LeagueHomeScreen(
 }
 
 @Composable
-private fun StandingRow(row: LeagueStandingRow) {
+private fun StandingRow(row: LeagueStandingRow, onClick: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (row.isYou) Modifier.background(AppPaper2) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -182,6 +182,18 @@ class SocialRepository @Inject constructor(
     }
 
     /**
+     * Parity E8 / E9 — fuzzy variant of [searchHandles] that asks the server
+     * for substring matches on handle OR display name (iOS 5bcf33a +
+     * c6b7084). The lowercase normalisation here mirrors the mentions path;
+     * the server does the actual matching.
+     */
+    suspend fun searchHandlesSubstring(query: String): List<HandleSuggestion> {
+        val q = query.removePrefix("@").trim().lowercase()
+        if (q.isEmpty()) return emptyList()
+        return api.searchHandles(q, mode = "substring")
+    }
+
+    /**
      * Resolve a bare handle to its archer profile (mentions contract §3.2) —
      * used to turn a tapped `@handle` mention span into a profile screen
      * navigation. Returns null when the handle resolves to no real archer
