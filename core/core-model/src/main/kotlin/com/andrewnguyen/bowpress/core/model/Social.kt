@@ -77,25 +77,39 @@ data class SendFriendRequestBody(
     val source: FriendshipSource? = null,
 )
 
-/** Minimal session summary attached to a friend profile. Mirrors API §2 `SessionSummary`. */
+/**
+ * Minimal session summary attached to a friend profile. Mirrors API §2
+ * `SessionSummary`.
+ *
+ * The API emits null on every scored field below for friend-profile rows
+ * because per-session score/title/face aren't computed at that endpoint —
+ * the profile screen uses them as row headers, not as scoring data.
+ * Marking them nullable matches the iOS oracle (commit 82b38fd) and fixes a
+ * latent decode crash on any friend with sessions.
+ */
 @Serializable
 data class SessionSummary(
     val id: String,
     val title: String? = null,
     val distance: String? = null,
     val targetFaceType: String? = null,
-    val score: Int = 0,
-    val xCount: Int = 0,
+    val score: Int? = null,
+    val xCount: Int? = null,
     val arrowCount: Int = 0,
     @Serializable(with = InstantSerializer::class)
     val endedAt: Instant? = null,
 )
 
-/** 30-day stat block on a friend profile. */
+/**
+ * 30-day stat block on a friend profile.
+ *
+ * `avgArrowScore` and `xRate` are nullable because the API emits null when
+ * the friend has zero arrows in the window — matches iOS (commit 82b38fd).
+ */
 @Serializable
 data class Stat30d(
-    val avgArrowScore: Double = 0.0,
-    val xRate: Double = 0.0,
+    val avgArrowScore: Double? = null,
+    val xRate: Double? = null,
     val groupSigmaMm: Double? = null,
     val sessionCount: Int = 0,
     val arrowCount: Int = 0,

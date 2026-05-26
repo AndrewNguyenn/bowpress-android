@@ -193,9 +193,9 @@ fun FriendProfileScreen(
                         .fillMaxWidth()
                         .padding(vertical = 14.dp, horizontal = 4.dp),
                 ) {
-                    StatBlock(label = "Avg", value = String.format("%.1f", fp.stat30d.avgArrowScore), unit = "per arrow", primary = true, modifier = Modifier.weight(1f))
+                    StatBlock(label = "Avg", value = fp.stat30d.avgArrowScore?.let { String.format("%.1f", it) } ?: "—", unit = "per arrow", primary = true, modifier = Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(1.dp).background(AppLine2))
-                    StatBlock(label = "X rate", value = "${(fp.stat30d.xRate * 100).toInt()}%", unit = "of arrows", modifier = Modifier.weight(1f))
+                    StatBlock(label = "X rate", value = fp.stat30d.xRate?.let { "${(it * 100).toInt()}%" } ?: "—", unit = "of arrows", modifier = Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(1.dp).background(AppLine2))
                     StatBlock(
                         label = "Group ∅",
@@ -326,7 +326,7 @@ private fun SessionSummaryRow(session: SessionSummary, initials: String) {
                 color = AppInk3,
             )
             Text(
-                "${session.score} · ${session.xCount}X · ${session.arrowCount} arrows",
+                "${session.score ?: 0} · ${session.xCount ?: 0}X · ${session.arrowCount} arrows",
                 style = jetbrainsMono(9.5.sp),
                 color = AppInk2,
             )
