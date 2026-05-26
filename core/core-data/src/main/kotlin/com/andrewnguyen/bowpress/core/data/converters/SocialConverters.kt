@@ -19,7 +19,9 @@ import com.andrewnguyen.bowpress.core.model.ActivitySourceKind
 import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.BlockMode
 import com.andrewnguyen.bowpress.core.model.Club
+import com.andrewnguyen.bowpress.core.model.ClubJoinPolicy
 import com.andrewnguyen.bowpress.core.model.ClubRole
+import com.andrewnguyen.bowpress.core.model.ClubVisibility
 import com.andrewnguyen.bowpress.core.model.Division
 import com.andrewnguyen.bowpress.core.model.FriendshipDirection
 import com.andrewnguyen.bowpress.core.model.FriendshipSource
@@ -30,6 +32,7 @@ import com.andrewnguyen.bowpress.core.model.InvitationKind
 import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueEntry
+import com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy
 import com.andrewnguyen.bowpress.core.model.LeagueEntryRule
 import com.andrewnguyen.bowpress.core.model.LeagueSchedule
 import com.andrewnguyen.bowpress.core.model.LeagueScheduleKind
@@ -120,6 +123,8 @@ fun ClubEntity.toDto(): Club = Club(
     createdBy = createdBy,
     memberCount = memberCount,
     myRole = runCatching { ClubRole.valueOf(myRole) }.getOrDefault(ClubRole.member),
+    visibility = runCatching { ClubVisibility.valueOf(visibility) }.getOrDefault(ClubVisibility.PUBLIC),
+    joinPolicy = runCatching { ClubJoinPolicy.valueOf(joinPolicy) }.getOrDefault(ClubJoinPolicy.OPEN),
 )
 
 fun Club.toEntity(): ClubEntity = ClubEntity(
@@ -132,6 +137,8 @@ fun Club.toEntity(): ClubEntity = ClubEntity(
     createdBy = createdBy,
     memberCount = memberCount,
     myRole = myRole.name,
+    visibility = visibility.name,
+    joinPolicy = joinPolicy.name,
 )
 
 // ── ActivityItem ───────────────────────────────────────────────────────────
@@ -236,6 +243,8 @@ fun LeagueEntity.toDto(): League {
         createdAt = createdAt,
         myEntry = myEntry,
         entryCount = entryCount,
+        visibility = runCatching { ClubVisibility.valueOf(visibility) }.getOrDefault(ClubVisibility.PUBLIC),
+        joinPolicy = runCatching { LeagueJoinPolicy.valueOf(joinPolicy) }.getOrDefault(LeagueJoinPolicy.OPEN),
     )
 }
 
@@ -256,6 +265,8 @@ fun League.toEntity(): LeagueEntity = LeagueEntity(
     createdAt = createdAt,
     myEntryJson = myEntry?.let { json.encodeToString(it) },
     entryCount = entryCount,
+    visibility = visibility.name,
+    joinPolicy = joinPolicy.name,
 )
 
 // ── Invitation (§11) ─────────────────────────────────────────────────────────

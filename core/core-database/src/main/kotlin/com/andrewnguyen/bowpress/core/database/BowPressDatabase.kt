@@ -52,9 +52,11 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
  * (`titleIsCustom`, `isOwn`) in version 16, the Likes & Comments
  * columns on `activity_feed` (`subjectId`, `likeCount`, `likedByMe`,
  * `commentCount`) in version 17, and the Comment-threads kudos column on
- * `activity_feed` (`likersJson`) in version 18, and the avatar
+ * `activity_feed` (`likersJson`) in version 18, the avatar
  * cache-buster columns on `activity_feed`
- * (`actorAvatarVersion`, `actorAvatarUrl`) in version 19 (parity E5).
+ * (`actorAvatarVersion`, `actorAvatarUrl`) in version 19 (parity E5),
+ * and the visibility / join-policy columns on `clubs` + `leagues`
+ * in version 20 (parity E8 — iOS #33/#34).
  *
  * `exportSchema = true` writes generated schema JSON to `core-database/schemas/`
  * so we have a migration history from day 1 (configured via `room.schemaLocation`
@@ -85,7 +87,7 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // 3D Course stations — added v15
         CourseStationEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -135,6 +137,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // with defaults of NULL; an older cached row resolves to the monogram
         // until a fresh feed fetch backfills the version.
         AutoMigration(from = 18, to = 19),
+        // 19→20: added visibility + joinPolicy columns to clubs and leagues
+        // (iOS #33/#34). Pure additive — NOT NULL with SQL DEFAULT 'PUBLIC' /
+        // 'OPEN' to match the iOS decoder fallback for pre-migration rows.
+        AutoMigration(from = 19, to = 20),
     ],
 )
 @TypeConverters(Converters::class)

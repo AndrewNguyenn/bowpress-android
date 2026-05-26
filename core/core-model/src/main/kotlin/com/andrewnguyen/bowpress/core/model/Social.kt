@@ -163,7 +163,40 @@ data class CompareView(
 enum class ClubRole { host, member }
 
 /**
+ * Issue #33 — who can view the club when they're not a member.
+ * Wire values: `public` / `private` (matches the API enum).
+ */
+@Serializable
+enum class ClubVisibility {
+    @SerialName("public") PUBLIC,
+    @SerialName("private") PRIVATE;
+
+    val label: String get() = when (this) {
+        PUBLIC -> "Public"
+        PRIVATE -> "Private"
+    }
+}
+
+/**
+ * Issue #34 — how non-members may join the club.
+ * Wire values: `open` / `invite_only` (matches the API enum).
+ */
+@Serializable
+enum class ClubJoinPolicy {
+    @SerialName("open") OPEN,
+    @SerialName("invite_only") INVITE_ONLY;
+
+    val label: String get() = when (this) {
+        OPEN -> "Open"
+        INVITE_ONLY -> "Invite-only"
+    }
+}
+
+/**
  * Mirrors API §3 `Club`.
+ *
+ * `visibility` + `joinPolicy` default to PUBLIC / OPEN matching the iOS
+ * decoder (commit 3b20250) so pre-migration payloads still decode.
  */
 @Serializable
 data class Club(
@@ -177,6 +210,8 @@ data class Club(
     val createdBy: String,
     val memberCount: Int = 0,
     val myRole: ClubRole = ClubRole.member,
+    val visibility: ClubVisibility = ClubVisibility.PUBLIC,
+    val joinPolicy: ClubJoinPolicy = ClubJoinPolicy.OPEN,
 )
 
 @Serializable
@@ -215,13 +250,20 @@ data class LeaderboardRow(
 )
 
 @Serializable
-data class CreateClubBody(val name: String, val description: String? = null)
+data class CreateClubBody(
+    val name: String,
+    val description: String? = null,
+    val visibility: ClubVisibility = ClubVisibility.PUBLIC,
+    val joinPolicy: ClubJoinPolicy = ClubJoinPolicy.OPEN,
+)
 
 @Serializable
 data class UpdateClubBody(
     val name: String? = null,
     val description: String? = null,
     val notes: String? = null,
+    val visibility: ClubVisibility? = null,
+    val joinPolicy: ClubJoinPolicy? = null,
 )
 
 @Serializable
@@ -285,7 +327,32 @@ data class LeagueEntry(
 )
 
 /**
+ * Issue #33 — who can view the league when they're not a member. Mirrors
+ * iOS's `LeagueVisibility = ClubVisibility` typealias.
+ */
+typealias LeagueVisibility = ClubVisibility
+
+/**
+ * Issue #34 — how non-members may join the league. Distinct enum from the
+ * club one to keep the future shapes diverge-able, but the wire values
+ * (`open` / `invite_only`) match.
+ */
+@Serializable
+enum class LeagueJoinPolicy {
+    @SerialName("open") OPEN,
+    @SerialName("invite_only") INVITE_ONLY;
+
+    val label: String get() = when (this) {
+        OPEN -> "Open"
+        INVITE_ONLY -> "Invite-only"
+    }
+}
+
+/**
  * Mirrors API §4 `League`.
+ *
+ * `visibility` + `joinPolicy` default to PUBLIC / OPEN matching the iOS
+ * decoder (commit 29d405c) so pre-migration payloads still decode.
  */
 @Serializable
 data class League(
@@ -306,6 +373,8 @@ data class League(
     val createdAt: Instant,
     val myEntry: LeagueEntry? = null,
     val entryCount: Int = 0,
+    val visibility: LeagueVisibility = ClubVisibility.PUBLIC,
+    val joinPolicy: LeagueJoinPolicy = LeagueJoinPolicy.OPEN,
 )
 
 @Serializable
@@ -353,6 +422,8 @@ data class CreateLeagueBody(
     val schedule: LeagueSchedule,
     val handicap: HandicapConfig,
     val entryRule: LeagueEntryRule,
+    val visibility: LeagueVisibility = ClubVisibility.PUBLIC,
+    val joinPolicy: LeagueJoinPolicy = LeagueJoinPolicy.OPEN,
 )
 
 /**
@@ -368,6 +439,8 @@ data class UpdateLeagueBody(
     val schedule: LeagueSchedule? = null,
     val handicap: HandicapConfig? = null,
     val entryRule: LeagueEntryRule? = null,
+    val visibility: LeagueVisibility? = null,
+    val joinPolicy: LeagueJoinPolicy? = null,
 )
 
 @Serializable

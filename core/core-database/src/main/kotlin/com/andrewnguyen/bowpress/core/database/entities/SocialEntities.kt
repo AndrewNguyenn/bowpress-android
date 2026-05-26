@@ -54,6 +54,13 @@ data class ClubEntity(
     val createdBy: String,
     val memberCount: Int = 0,
     val myRole: String,              // ClubRole.name
+    // Issue #33/#34 — added v19. Visibility (public/private) and join policy
+    // (open/invite_only) for the club. Defaulted to 'PUBLIC' / 'OPEN' for
+    // pre-migration rows so the v18→v19 AutoMigration is purely additive.
+    @ColumnInfo(defaultValue = "PUBLIC")
+    val visibility: String = "PUBLIC",     // ClubVisibility.name
+    @ColumnInfo(defaultValue = "OPEN")
+    val joinPolicy: String = "OPEN",       // ClubJoinPolicy.name
     // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
@@ -142,6 +149,13 @@ data class LeagueEntity(
     val createdAt: Instant,
     val myEntryJson: String? = null, // JSON LeagueEntry or null
     val entryCount: Int = 0,
+    // Issue #33/#34 — added v19. Same default story as `clubs`: 'PUBLIC' /
+    // 'OPEN' for pre-migration rows so the v18→v19 AutoMigration is purely
+    // additive.
+    @ColumnInfo(defaultValue = "PUBLIC")
+    val visibility: String = "PUBLIC",     // ClubVisibility.name (reused for leagues)
+    @ColumnInfo(defaultValue = "OPEN")
+    val joinPolicy: String = "OPEN",       // LeagueJoinPolicy.name
     // reserved; social writes are online-first in v1
     val pendingSync: Boolean = false,
 )
