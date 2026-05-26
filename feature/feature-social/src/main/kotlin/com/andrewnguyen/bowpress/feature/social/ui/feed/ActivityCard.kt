@@ -548,7 +548,12 @@ private fun RangeSessionBody(
                 // The friend's arrows — the real plotted positions from the
                 // feed payload when present, else a deterministic scatter
                 // within each scoring ring's band.
-                ArrowPlotOverlay(ends, plotPoints, arrowDiameterMm)
+                ArrowPlotOverlay(
+                    ends = ends,
+                    plotPoints = plotPoints,
+                    arrowDiameterMm = arrowDiameterMm,
+                    mmPerNormUnit = feedCardMmPerNormUnit(resolvedFaceType, distance),
+                )
             }
         }
         Box(
@@ -703,16 +708,17 @@ private fun rangeEyebrow(distance: String?) = buildAnnotatedString {
  * The same session always plots the same picture; mirrors iOS
  * `ActivityCard.ArrowScatter`.
  *
- * Dot radius (§B1): scaled from a 6mm shaft reference at 4% of face radius —
- * a 9mm Black Eagle reads ~1.5×, a 4mm X10 ~0.67× — clamped to a 2px floor
- * so a thumbnail-size feed card stays readable. Mirrors iOS
- * `TargetArrowDotsOverlay` (commits dfb2de9 / d2ac25d / 4389944 / ef72fed).
+ * Dot radius (§B1, post-ef77dfb): geometric `shaftMm / mmPerNormUnit *
+ * faceRadius` with a 2dp floor — the same dots the feed had before the
+ * detail-view fix. The 6mm-reference formula lives on the (yet-unported)
+ * larger detail overlay, not the thumbnail feed card.
  */
 @Composable
 private fun ArrowPlotOverlay(
     ends: List<List<Int>>,
     plotPoints: List<List<Double>>,
     arrowDiameterMm: Double?,
+    mmPerNormUnit: Double,
 ) {
     // Prefer the real plotted positions from the feed; fall back to the
     // deterministic synthesised scatter when the payload carries no x/y.
@@ -729,6 +735,7 @@ private fun ArrowPlotOverlay(
         val dotRadius = feedCardArrowDotRadiusPx(
             faceRadiusPx = faceRadius,
             arrowDiameterMm = arrowDiameterMm,
+            mmPerNormUnit = mmPerNormUnit,
             density = density,
         )
         arrows.forEach { arrow ->
@@ -983,11 +990,17 @@ private fun ReactionAction(
  */
 internal fun faceTypeFor(face: String?): BPTargetFaceType {
     val f = (face ?: "").lowercase()
-    // Check "10" before "6" so a "60cm" / "WA 60" label doesn't misfire as
-    // sixRing. Mirrors iOS `TargetFaceType.inferring(from:)` precedence.
+    // Check "10" before "6-ring" so "60cm" / "WA 60" stays tenRing — the
+    // outer "10" hint wins. The 6-side check is intentionally narrow:
+    // "6-ring" / "6-spot" / "vegas" / "spot" — NOT a bare "6" — so a
+    // "60cm" / "WA 60" label doesn't misfire as sixRing. Mirrors iOS
+    // `TargetFaceType.inferring(from:)` precedence.
     return when {
         f.contains("10") -> BPTargetFaceType.TenRing
-        f.contains("6") || f.contains("spot") || f.contains("vegas") ->
+        f.contains("6-ring") ||
+            f.contains("6-spot") ||
+            f.contains("vegas") ||
+            f.contains("spot") ->
             BPTargetFaceType.SixRing
         else -> BPTargetFaceType.TenRing
     }
@@ -1010,67 +1023,94 @@ internal fun resolvedBPFaceType(
 }
 
 /**
- * §B3 — pick the SixRing visual variant for a feed card by the session's
- * distance string. 50m/70m → outdoor80 7-zone; everything else (20yd or
- * unknown) → Vegas 6-zone (the safe default — matches the printed indoor
- * card). Mirrors iOS `socialSixRingStyle(forDistance:)` (commit d5884e3).
+ * §B3 — feed-card String → SixRing variant. The feed payload carries
+ * `distance` as free text ("50m", "20yd", null), so we parse to the
+ * structured [ShootingDistance] enum first, then route through the single
+ * canonical [BPSixRingStyle.forDistance] helper. An unrecognised distance
+ * string falls through to Vegas — the safe default that matches every
+ * other surface.
  *
- * tenRing is distance-invariant; this is only consulted when the resolved
- * face is sixRing.
+ * Mirrors iOS `socialSixRingStyle(forDistance:)` (commit d5884e3). Only
+ * consulted when the resolved face is sixRing; tenRing is invariant.
  */
 internal fun sixRingVisualStyleForFeed(distance: String?): BPSixRingStyle {
-    val d = distance?.trim()?.lowercase() ?: return BPSixRingStyle.Vegas
-    return if (d == "50m" || d == "70m") BPSixRingStyle.Outdoor80 else BPSixRingStyle.Vegas
+    val parsed = parseFeedDistance(distance)
+    return BPSixRingStyle.forDistance(parsed)
 }
 
 /**
- * §B1 — scale arrow-plot dot radius from a 6mm shaft reference. The
- * formula is `faceRadius * 0.04 * (shaftMm / 6.0)` so a 6mm reference
- * shaft renders at exactly 4% of face radius; a 9mm Black Eagle reads
- * ~1.5×, a 4mm X10 ~0.67×. On the small feed card we clamp to a 2dp
- * floor so a thumbnail-size card stays readable even with a thin shaft.
- * Mirrors iOS `TargetArrowDotsOverlay` feed-card path
- * (commits dfb2de9 / d2ac25d / 4389944 / ef72fed).
+ * Map a free-text feed `distance` label to a [ShootingDistance] enum.
+ * Wire values: `"20yd"`, `"50m"`, `"70m"` (matching
+ * [ShootingDistance.label] / `.wire`). Anything else → null.
+ */
+private fun parseFeedDistance(distance: String?): com.andrewnguyen.bowpress.core.model.ShootingDistance? {
+    val d = distance?.trim()?.lowercase() ?: return null
+    return when (d) {
+        "20yd" -> com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20
+        "50m" -> com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50
+        "70m" -> com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70
+        else -> null
+    }
+}
+
+/**
+ * §B1 — feed-card arrow-plot dot radius. The feed card uses the
+ * geometric `arrowDiameterMm / mmPerNormUnit * faceRadius` formula with a
+ * 2dp floor — the same dots the feed had before the detail-view fix.
+ * Mirrors iOS `TargetRingScatter.swift:140-145` (commit ef77dfb, which
+ * reverted the feed-card overlay from the 6mm-reference back to
+ * geometric mm-on-mm + 2pt floor; the 6mm-reference belongs on the
+ * larger DETAIL overlay, not the thumbnail-size feed card).
+ *
+ * [mmPerNormUnit] is the geometry's real mm at radius 1.0 — varies by
+ * face (Vegas ≈123.5, Outdoor80 = 400, TenRing ≈123.5) so the dots
+ * scale physically with the printed face the archer actually shot.
+ * Resolved at the call site via the same face/distance pair the WA
+ * face renderer receives. Kept agnostic of `TargetGeometry` itself so
+ * `feature-social` stays decoupled from `feature-session`.
  */
 internal fun feedCardArrowDotRadiusPx(
     faceRadiusPx: Float,
     arrowDiameterMm: Double?,
+    mmPerNormUnit: Double,
     density: Float,
 ): Float {
     val shaftMm = arrowDiameterMm ?: 6.0
-    val rawPx = (faceRadiusPx * 0.04f * (shaftMm.toFloat() / 6f))
+    val rawPx = (shaftMm.toFloat() / mmPerNormUnit.toFloat()) * faceRadiusPx
     val floorPx = 2f * density   // 2dp minimum for thumbnail legibility
     return rawPx.coerceAtLeast(floorPx)
 }
 
 /**
- * §B1 — like [feedCardArrowDotRadiusPx], but for the larger detail-screen
- * overlay where the dots are enlarged (no thumbnail floor). The brief
- * marks this surface "no floor". Kept here next to its smaller sibling so
- * the 6mm-reference formula stays in one place.
+ * §B3 — feed-card mmPerNormUnit for a (resolved face, distance string)
+ * pair. Pure parity table — keeps feature-social free of any
+ * `TargetGeometry` import. Values match the geometry layer:
+ *  - SixRing, 50m/70m → Outdoor80 → 400mm
+ *  - SixRing, anything else → Vegas → 20 / R10_RADIUS ≈ 123.53mm
+ *  - TenRing → same as Vegas (≈123.53mm)
+ *
+ * If you change a face's mmPerNormUnit in `TargetGeometry`, change it
+ * here too.
  */
-internal fun detailArrowDotRadiusPx(
-    faceRadiusPx: Float,
-    arrowDiameterMm: Double?,
-): Float {
-    val shaftMm = arrowDiameterMm ?: 6.0
-    return faceRadiusPx * 0.04f * (shaftMm.toFloat() / 6f)
-}
-
-/**
- * §B1 — medium variant for the profile plot-strip thumbnails. Floors at
- * 1dp so a strip-sized card with a thin shaft still renders something
- * visible without dominating like the detail surface does.
- */
-internal fun profilePlotStripArrowDotRadiusPx(
-    faceRadiusPx: Float,
-    arrowDiameterMm: Double?,
-    density: Float,
-): Float {
-    val shaftMm = arrowDiameterMm ?: 6.0
-    val rawPx = (faceRadiusPx * 0.04f * (shaftMm.toFloat() / 6f))
-    val floorPx = 1f * density
-    return rawPx.coerceAtLeast(floorPx)
+internal fun feedCardMmPerNormUnit(
+    face: BPTargetFaceType,
+    distance: String?,
+): Double {
+    val parsed = parseFeedDistance(distance)
+    return when (face) {
+        BPTargetFaceType.SixRing -> when (parsed) {
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50,
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70,
+            -> 400.0
+            // Vegas indoor / null / 20yd → 20 / (119/735) ≈ 123.53mm.
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20, null,
+            -> 20.0 / (119.0 / 735.0)
+        }
+        // TenRing reuses the Vegas mmPerNormUnit so an arrow dot at a
+        // given physical shaft is the same px size on both faces —
+        // matches `TargetGeometry.TenRing.mmPerNormUnit`.
+        BPTargetFaceType.TenRing -> 20.0 / (119.0 / 735.0)
+    }
 }
 
 /** Compact relative time — "2h", "3d", "2w". Mirrors iOS `relativeStamp`. */
