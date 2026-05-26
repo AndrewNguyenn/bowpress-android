@@ -84,6 +84,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -227,7 +228,10 @@ class SocialRepository @Inject constructor(
     }
 
     suspend fun getFriendProfile(otherUserId: String): FriendProfile =
-        api.getFriendProfile(otherUserId)
+        // tz query param (parity E1, iOS 82b38fd) — the API uses the caller's
+        // local zone to bucket the 7-day chart's day labels in the user's
+        // calendar instead of server-UTC.
+        api.getFriendProfile(otherUserId, tz = TimeZone.getDefault().id)
 
     suspend fun getCompareView(
         otherUserId: String,

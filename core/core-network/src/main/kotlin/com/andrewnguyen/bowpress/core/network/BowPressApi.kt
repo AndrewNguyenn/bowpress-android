@@ -404,8 +404,17 @@ interface BowPressApi {
     @DELETE("social/friends/{otherUserId}")
     suspend fun unfriend(@Path("otherUserId") otherUserId: String)
 
+    /**
+     * Friend profile. The `tz` query param carries the caller's local time
+     * zone so the API can bucket the 7-day chart's day labels in the caller's
+     * calendar (not server-UTC). Pass `TimeZone.getDefault().id` from the
+     * repository. Mirrors iOS commit 82b38fd (parity E1).
+     */
     @GET("social/friends/{otherUserId}/profile")
-    suspend fun getFriendProfile(@Path("otherUserId") otherUserId: String): FriendProfile
+    suspend fun getFriendProfile(
+        @Path("otherUserId") otherUserId: String,
+        @Query("tz") tz: String,
+    ): FriendProfile
 
     @GET("social/friends/{otherUserId}/compare")
     suspend fun getCompareView(
