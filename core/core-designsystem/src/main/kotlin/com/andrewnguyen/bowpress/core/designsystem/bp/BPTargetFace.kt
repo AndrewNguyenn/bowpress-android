@@ -119,8 +119,11 @@ private val tenRingRings = listOf(
 private val sixRingVegasRings = listOf(
     Ring(0.96f, fill = AppTgtBlue),
     Ring(0.80f, fill = AppTgtRed),
-    Ring(0.64f, stroke = AppInk, strokeWidth = 0.25f),
-    Ring(0.48f, stroke = AppInk, strokeWidth = 0.25f),
+    // Single decorative divider at the 7/8 ring boundary inside red.
+    // iOS BPTargetFace.swift's `.vegas` path uses this exact position;
+    // earlier versions of this list had two strokes at 0.64 + 0.48 which
+    // don't correspond to any WA scoring boundary and broke parity.
+    Ring(0.60f, stroke = AppInk, strokeWidth = 0.25f),
     Ring(0.40f, fill = AppTgtYellow),
     Ring(0.20f, stroke = AppInk, strokeWidth = 0.25f),
     Ring(0.014f, fill = AppInk),
