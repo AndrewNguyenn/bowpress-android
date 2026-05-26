@@ -481,17 +481,20 @@ private fun FeedTopNav(
                 idTag = "Leagues",
             )
             // Bell → notification center, with the unread count badge.
+            // iOS parity (A2) — border + icon tint activates pond when there
+            // is a pending count; the badge itself is always maple (matches
+            // bellButton in SocialTabView.swift).
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .border(1.dp, AppInk3)
+                    .border(1.dp, if (notificationCount > 0) AppPondDk else AppInk3)
                     .background(AppPaper2)
                     .clickable(onClick = onBellClick),
             ) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Notifications",
-                    tint = AppInk2,
+                    tint = if (notificationCount > 0) AppPondDk else AppInk2,
                     modifier = Modifier
                         .size(16.dp)
                         .padding(0.dp)
@@ -500,7 +503,7 @@ private fun FeedTopNav(
                 if (notificationCount > 0) {
                     PillCornerBadge(
                         text = if (notificationCount > 99) "99+" else "$notificationCount",
-                        tint = AppPondDk,
+                        tint = AppMaple,
                     )
                 }
             }
