@@ -73,9 +73,30 @@ class SessionViewModel @Inject constructor(
      */
     private var lastTargetLayout: TargetLayout = TargetLayout.SINGLE
 
+    /**
+     * Sticky last manually-picked target face — restored at setup before
+     * falling back to the bow-type default (C2). Null until the archer has
+     * ever overridden the face, in which case the bow-default smart-pick
+     * still kicks in. Mirrors iOS `@AppStorage("session.lastSelectedTargetFaceType")`.
+     */
+    private var lastTargetFaceType: TargetFaceType? = null
+
     init {
         viewModelScope.launch {
             sessionSetupPrefs.lastTargetLayout.collect { lastTargetLayout = it }
+        }
+        viewModelScope.launch {
+            sessionSetupPrefs.lastTargetFaceType.collect { restored ->
+                lastTargetFaceType = restored
+                // Apply the restored face once on first emission, only if the
+                // archer hasn't already manually picked one this session.
+                if (restored != null) {
+                    _uiState.update { state ->
+                        if (state.userOverrodeFace) state
+                        else syncLayoutToCurrentCombo(state.copy(selectedFaceType = restored))
+                    }
+                }
+            }
         }
         viewModelScope.launch {
             bowRepo.observeBows().collect { bows ->
@@ -153,10 +174,12 @@ class SessionViewModel @Inject constructor(
             }
             // Smart default for the target face whenever the selected bow changes,
             // unless the user has already manually picked a face for this setup.
+            // C2 — restore the sticky last-pick first; fall back to the bow-type
+            // default only when nothing has been stored. Mirrors iOS commit 6c7a01e.
             val nextFace = if (state.userOverrodeFace) {
                 state.selectedFaceType
             } else {
-                TargetFaceType.defaultFor(bow.bowType)
+                lastTargetFaceType ?: TargetFaceType.defaultFor(bow.bowType)
             }
             // Route the face change through syncLayoutToCurrentCombo — same as
             // selectFaceType — so a bow-driven face flip (e.g. compound→recurve
@@ -177,6 +200,10 @@ class SessionViewModel @Inject constructor(
         _uiState.update {
             syncLayoutToCurrentCombo(it.copy(selectedFaceType = faceType, userOverrodeFace = true))
         }
+        // C2 — persist the manual pick so it survives a process restart and
+        // is the restore target the next time the setup screen mounts.
+        lastTargetFaceType = faceType
+        viewModelScope.launch { sessionSetupPrefs.setLastTargetFaceType(faceType) }
     }
 
     /** Pick (or clear with `null`) the shooting distance for the next session. */

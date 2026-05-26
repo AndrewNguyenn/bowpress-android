@@ -36,8 +36,14 @@ data class SessionUiState(
     val selectedFaceType: TargetFaceType = TargetFaceType.SIX_RING,
     /** True once the user has manually picked a face — stops the bow-default from overriding. */
     val userOverrodeFace: Boolean = false,
-    /** Distance the user will shoot at; null = "not set" (won't appear under any specific-distance analytics filter). */
-    val selectedDistance: ShootingDistance? = null,
+    /**
+     * Distance the user will shoot at; null = "not set" (won't appear under
+     * any specific-distance analytics filter). Defaults to [ShootingDistance.YARDS_20]
+     * so the Begin button isn't gated on a first-launch pick — mirrors iOS C2
+     * (commit 6c7a01e). The Begin-gate still respects null, just in case the
+     * archer deliberately clears the pick.
+     */
+    val selectedDistance: ShootingDistance? = ShootingDistance.YARDS_20,
     /**
      * Multi-spot Vegas layout the user picked on the setup screen. Only
      * meaningful at 20yd + 6-ring; forced to [TargetLayout.SINGLE] off-combo
