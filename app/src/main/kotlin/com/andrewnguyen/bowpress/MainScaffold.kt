@@ -168,7 +168,11 @@ fun MainScaffold(
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = TopTab.Analytics.graphRoute,
+            // iOS parity (A1) — Feed is the home tab. The route string
+            // `tab/social` is preserved so existing deep links (which all
+            // target `bowpress://social/...`) still land here without any
+            // server- or client-side rewrite.
+            startDestination = TopTab.Social.graphRoute,
             modifier = Modifier.padding(padding),
             // navigation-compose's default page transition is a 700ms fade,
             // which reads as sluggish when switching tabs. Drop it to 140ms
@@ -282,11 +286,16 @@ private enum class TopTab(
     val label: String,
     val icon: ImageVector,
 ) {
-    // Bottom bar: Analytics, Log, Session, Social, Equipment.
-    // Settings is behind the avatar in the Social feed's You screen.
-    Analytics("tab/analytics", "Analytics", Icons.Filled.BarChart),
+    // iOS parity (A1) — Feed is the home tab, so the Social entry is first
+    // in declaration order (Compose iterates `entries` for the bottom bar).
+    // Order: Feed · Log · Session · Analytics · Equipment.
+    //
+    // The route string `tab/social` is preserved on the Social entry so any
+    // deep link / saved-state route survives the rename; only the
+    // user-visible label is "Feed".
+    Social("tab/social", "Feed", Icons.Filled.Group),
     Log("tab/log", "Log", Icons.Filled.Assignment),
     Session("tab/session", "Session", Icons.Filled.TrackChanges),
-    Social("tab/social", "Social", Icons.Filled.Group),
+    Analytics("tab/analytics", "Analytics", Icons.Filled.BarChart),
     Equipment("tab/equipment", "Equipment", Icons.Filled.Tune),
 }

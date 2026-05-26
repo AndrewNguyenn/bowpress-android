@@ -81,7 +81,8 @@ fun ClubsScreen(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    "‹  Social",
+                    // iOS parity (A1) — back label is "Feed", not "Social".
+                    "‹  Feed",
                     style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.32.em),
                     color = AppPondDk,
                     modifier = Modifier.clickable(onClick = onBack),

@@ -381,8 +381,10 @@ private fun FeedTopNav(
                 style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.32.em),
                 color = AppPondDk,
             )
+            // iOS parity (A1) — the screen-title text is "Feed". The graph
+            // route string and class names stay `Social*` for back-compat.
             Text(
-                text = "Social",
+                text = "Feed",
                 style = frauncesDisplay(28.sp),
                 color = AppInk,
             )
