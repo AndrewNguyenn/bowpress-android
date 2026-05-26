@@ -991,6 +991,13 @@ data class ActivitySession(
     // Migration 0039 — the post's free-text caption (may contain @mentions),
     // or null. Drives the truncated description line on the feed card.
     val description: String? = null,
+    // Mentions fanout (iOS commit adca015 / parity E4) — when a session
+    // appears in your feed because someone you follow was @-mentioned in
+    // the post (not because the poster is your friend), the API tags the
+    // row with the handle of the user that pulled it in. Drives the
+    // small-caps "VIA @{handle}" eyebrow above the card header. Null on
+    // a non-fanout row or a pre-mentions payload.
+    val viaMentionHandle: String? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a
