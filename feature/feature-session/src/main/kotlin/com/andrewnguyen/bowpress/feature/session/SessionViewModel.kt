@@ -703,7 +703,11 @@ class SessionViewModel @Inject constructor(
         viewModelScope.launch {
             socialSessionSharer.shareCompletedSession(
                 sessionId = session.id,
-                score = scored.sumOf { it.ring },
+                // X (ring == 11) is reported separately as xCount; for the
+                // score total it counts as a 10 — the same `min(ring, 10)`
+                // cap the local hero applies in ActiveSessionScreen. Without
+                // the cap an X inflated the server-side score by 1 each.
+                score = scored.sumOf { it.ring.coerceAtMost(10) },
                 xCount = scored.count { it.ring == 11 },
                 arrowCount = scored.size,
                 distance = session.distance?.label,
@@ -729,7 +733,9 @@ class SessionViewModel @Inject constructor(
         location: SessionLocation?,
     ) {
         val scored = arrows.filterNot { it.excluded }
-        val score = scored.sumOf { it.ring }
+        // Same `min(ring, 10)` cap the local hero applies — an X (ring == 11)
+        // is reported separately as xCount, and counts as a 10 in the total.
+        val score = scored.sumOf { it.ring.coerceAtMost(10) }
         val xCount = scored.count { it.ring == 11 }
         val arrowCount = scored.size
         // Reset the partial-failure hint at the top of every share path so a
