@@ -261,11 +261,37 @@ class SocialRepository @Inject constructor(
         return result
     }
 
-    suspend fun updateClub(id: String, name: String? = null, description: String? = null, notes: String? = null): Club {
-        val result = api.updateClub(id, UpdateClubBody(name, description, notes))
+    /**
+     * PATCH a club's editable fields. Any null argument is omitted from the
+     * request body; the server then leaves that field unchanged. Parity E3 /
+     * E8 added [description] and [visibility] / [joinPolicy] to the surface
+     * — they piggy-back on the existing endpoint via [UpdateClubBody].
+     */
+    suspend fun updateClub(
+        id: String,
+        name: String? = null,
+        description: String? = null,
+        notes: String? = null,
+        visibility: com.andrewnguyen.bowpress.core.model.ClubVisibility? = null,
+        joinPolicy: com.andrewnguyen.bowpress.core.model.ClubJoinPolicy? = null,
+    ): Club {
+        val result = api.updateClub(
+            id,
+            UpdateClubBody(name, description, notes, visibility, joinPolicy),
+        )
         clubDao.upsert(result.toEntity())
         return result
     }
+
+    /**
+     * Parity E8 — convenience overload for the host-only access toggles in
+     * ClubHomeScreen. Either argument may be null to leave that field alone.
+     */
+    suspend fun updateClubAccess(
+        id: String,
+        visibility: com.andrewnguyen.bowpress.core.model.ClubVisibility? = null,
+        joinPolicy: com.andrewnguyen.bowpress.core.model.ClubJoinPolicy? = null,
+    ): Club = updateClub(id, visibility = visibility, joinPolicy = joinPolicy)
 
     suspend fun deleteClub(id: String) {
         api.deleteClub(id)
@@ -319,6 +345,20 @@ class SocialRepository @Inject constructor(
         leagueDao.upsert(result.toEntity())
         return result
     }
+
+    /**
+     * Parity E8 — convenience overload for the host-only access toggles in
+     * LeagueHomeScreen / LeagueSettingsScreen. Either argument may be null to
+     * leave that field unchanged on the server.
+     */
+    suspend fun updateLeagueAccess(
+        id: String,
+        visibility: com.andrewnguyen.bowpress.core.model.LeagueVisibility? = null,
+        joinPolicy: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy? = null,
+    ): League = updateLeague(
+        id,
+        UpdateLeagueBody(visibility = visibility, joinPolicy = joinPolicy),
+    )
 
     suspend fun joinLeagueByCode(inviteCode: String, division: Division): League {
         val result = api.joinLeagueByCode(JoinLeagueBody(inviteCode, division))

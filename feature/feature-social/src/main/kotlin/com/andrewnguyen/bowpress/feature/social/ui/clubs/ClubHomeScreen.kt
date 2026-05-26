@@ -63,6 +63,9 @@ import com.andrewnguyen.bowpress.feature.social.ui.invitations.InviteByHandleDia
 fun ClubHomeScreen(
     clubId: String,
     onBack: () -> Unit,
+    // Parity E2 / E10 — tap a leaderboard or member-activity row to drill in.
+    onOpenArcher: (String) -> Unit = {},
+    onOpenSession: (sharedSessionId: String) -> Unit = {},
     viewModel: ClubViewModel = hiltViewModel(),
     blockViewModel: BlockViewModel = hiltViewModel(),
 ) {
@@ -70,7 +73,9 @@ fun ClubHomeScreen(
     val blocksState by blockViewModel.uiState.collectAsState()
     var showInviteDialog by remember { mutableStateOf(false) }
     var showAnnouncementComposer by remember { mutableStateOf(false) }
+    var showDescriptionEditor by remember { mutableStateOf(false) }
     val isHost = state.club?.myRole == ClubRole.host
+    val currentUserId = state.currentUserId
 
     LaunchedEffect(clubId) {
         viewModel.loadClubHome(clubId)

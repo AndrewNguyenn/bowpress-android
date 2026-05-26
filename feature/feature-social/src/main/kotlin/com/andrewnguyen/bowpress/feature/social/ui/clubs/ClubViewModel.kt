@@ -36,6 +36,15 @@ data class ClubHomeUiState(
     val inviteSent: Boolean = false,
     /** Host-only announcement composer error. */
     val announcementError: String? = null,
+    /**
+     * Parity E2 / E3 — the signed-in caller's user id, so the Club screen can
+     * gate the "Edit description" affordance to the host (compare to
+     * [Club.createdBy]) and pass a null actor-click callback for the caller's
+     * own leaderboard row (the you-row stays inert).
+     */
+    val currentUserId: String = "",
+    /** Parity E3 — error message when the description PATCH fails. */
+    val descriptionError: String? = null,
 )
 
 @HiltViewModel
@@ -77,6 +86,9 @@ class ClubViewModel @Inject constructor(
                 val announcements = runCatching {
                     socialRepository.getClubAnnouncements(clubId)
                 }.getOrDefault(emptyList())
+                // Parity E2 / E3 — current user id drives host gating + the
+                // you-row inert affordance in the leaderboard.
+                val me = runCatching { socialRepository.getMyProfile() }.getOrNull()
                 _clubHomeState.update {
                     it.copy(
                         club = club,
@@ -84,6 +96,7 @@ class ClubViewModel @Inject constructor(
                         feed = feed,
                         announcements = announcements,
                         leaderboard = leaderboard,
+                        currentUserId = me?.userId ?: it.currentUserId,
                         isLoading = false,
                     )
                 }
@@ -91,6 +104,58 @@ class ClubViewModel @Inject constructor(
                 _clubHomeState.update { it.copy(error = e.message, isLoading = false) }
             }
         }
+    }
+
+    /**
+     * Parity E3 — host-only description update. The dialog is hidden until
+     * the host taps Edit and the trimmed text is non-blank — empty trimmed
+     * text would clear an existing description, which the caller should opt
+     * into deliberately (an explicit empty save still passes through, but
+     * the screen's `canSave` gate prevents it). Surfaces failure inline via
+     * [ClubHomeUiState.descriptionError].
+     */
+    fun updateClubDescription(id: String, description: String, onSaved: () -> Unit) {
+        viewModelScope.launch {
+            _clubHomeState.update { it.copy(descriptionError = null) }
+            runCatching {
+                socialRepository.updateClub(id, description = description)
+            }.onSuccess { updated ->
+                _clubHomeState.update { it.copy(club = updated) }
+                _clubsState.update { s ->
+                    s.copy(clubs = s.clubs.map { if (it.id == id) updated else it })
+                }
+                onSaved()
+            }.onFailure { e ->
+                _clubHomeState.update { it.copy(descriptionError = e.message) }
+            }
+        }
+    }
+
+    /**
+     * Parity E8 — host-only visibility / joinPolicy update. Either argument
+     * may be null to leave the field untouched (matches [UpdateClubBody]).
+     */
+    fun updateClubAccess(
+        id: String,
+        visibility: com.andrewnguyen.bowpress.core.model.ClubVisibility? = null,
+        joinPolicy: com.andrewnguyen.bowpress.core.model.ClubJoinPolicy? = null,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                socialRepository.updateClubAccess(id, visibility, joinPolicy)
+            }.onSuccess { updated ->
+                _clubHomeState.update { it.copy(club = updated) }
+                _clubsState.update { s ->
+                    s.copy(clubs = s.clubs.map { if (it.id == id) updated else it })
+                }
+            }.onFailure { e ->
+                _clubHomeState.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun resetDescriptionError() {
+        _clubHomeState.update { it.copy(descriptionError = null) }
     }
 
     /** Reload just the announcement board (after a post / pin / delete). */

@@ -46,6 +46,8 @@ data class LeagueHomeUiState(
     val inviteSent: Boolean = false,
     /** Host-only add-attachment dialog error. */
     val attachmentError: String? = null,
+    /** Parity E2 — drives the you-row inert affordance in the standings. */
+    val currentUserId: String = "",
 )
 
 /** Form state for the league composer. */
@@ -59,6 +61,14 @@ data class LeagueComposerState(
     val totalWeeks: Int = 8,
     val entryRule: LeagueEntryRule = LeagueEntryRule.open,
     val handicapConfig: HandicapConfig = HandicapConfig(),
+    /**
+     * Parity E8 — visibility + joinPolicy toggles in the composer (default to
+     * PUBLIC / OPEN, matching the API decoder).
+     */
+    val visibility: com.andrewnguyen.bowpress.core.model.LeagueVisibility =
+        com.andrewnguyen.bowpress.core.model.ClubVisibility.PUBLIC,
+    val joinPolicy: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy =
+        com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy.OPEN,
     val isSaving: Boolean = false,
     val error: String? = null,
 )
@@ -104,17 +114,42 @@ class LeagueViewModel @Inject constructor(
                 val attachments = runCatching {
                     socialRepository.getLeagueAttachments(leagueId)
                 }.getOrDefault(emptyList())
+                val me = runCatching { socialRepository.getMyProfile() }.getOrNull()
                 _leagueHomeState.update {
                     it.copy(
                         league = league,
                         standings = standings,
                         mySubmissions = submissions,
                         attachments = attachments,
+                        currentUserId = me?.userId ?: it.currentUserId,
                         isLoading = false,
                     )
                 }
             }.onFailure { e ->
                 _leagueHomeState.update { it.copy(error = e.message, isLoading = false) }
+            }
+        }
+    }
+
+    /**
+     * Parity E8 — host-only visibility / joinPolicy update for a league.
+     * Either argument may be null to leave that field untouched.
+     */
+    fun updateLeagueAccess(
+        leagueId: String,
+        visibility: com.andrewnguyen.bowpress.core.model.LeagueVisibility? = null,
+        joinPolicy: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy? = null,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                socialRepository.updateLeagueAccess(leagueId, visibility, joinPolicy)
+            }.onSuccess { updated ->
+                _leagueHomeState.update { it.copy(league = updated) }
+                _leaguesState.update { s ->
+                    s.copy(leagues = s.leagues.map { if (it.id == leagueId) updated else it })
+                }
+            }.onFailure { e ->
+                _leagueHomeState.update { it.copy(error = e.message) }
             }
         }
     }
@@ -225,6 +260,12 @@ class LeagueViewModel @Inject constructor(
     fun updateComposerTotalWeeks(weeks: Int) { _composerState.update { it.copy(totalWeeks = weeks) } }
     fun updateComposerEntryRule(rule: LeagueEntryRule) { _composerState.update { it.copy(entryRule = rule) } }
     fun updateComposerHandicap(config: HandicapConfig) { _composerState.update { it.copy(handicapConfig = config) } }
+    fun updateComposerVisibility(v: com.andrewnguyen.bowpress.core.model.LeagueVisibility) {
+        _composerState.update { it.copy(visibility = v) }
+    }
+    fun updateComposerJoinPolicy(p: com.andrewnguyen.bowpress.core.model.LeagueJoinPolicy) {
+        _composerState.update { it.copy(joinPolicy = p) }
+    }
 
     fun createLeague(schedule: LeagueSchedule, onSuccess: (League) -> Unit) {
         val s = _composerState.value
@@ -240,6 +281,8 @@ class LeagueViewModel @Inject constructor(
                         schedule = schedule,
                         handicap = s.handicapConfig,
                         entryRule = s.entryRule,
+                        visibility = s.visibility,
+                        joinPolicy = s.joinPolicy,
                     ),
                 )
             }.onSuccess { league ->
