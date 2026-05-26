@@ -596,7 +596,16 @@ private fun ArrowPlotOverlay(ends: List<List<Int>>, plotPoints: List<List<Double
     Canvas(modifier = Modifier.size(TARGET_FACE_SIZE)) {
         val faceRadius = size.minDimension / 2f
         val center = Offset(size.width / 2f, size.height / 2f)
-        val dotRadius = 0.032f * faceRadius
+        // F2 — feed-card dot floor (parity with iOS commit 3591f97, which
+        // sets minDotSize=5pt on the small feed-card surface). The base
+        // `0.032 * faceRadius` formula yields ~2.7dp at TARGET_FACE_SIZE
+        // (168dp), already above the 2dp visibility floor — but coercing
+        // explicitly here keeps a 1-arrow / few-arrow session legible if
+        // porter-target-face (B1) later switches to a smaller shaft-derived
+        // formula. NOTE: floor lives only at the feed-card thumbnail; detail
+        // screens own their own scaling.
+        val minDotPx = 2.dp.toPx()
+        val dotRadius = (0.032f * faceRadius).coerceAtLeast(minDotPx)
         arrows.forEach { arrow ->
             val at = Offset(
                 center.x + arrow.x * faceRadius,
