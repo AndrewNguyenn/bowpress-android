@@ -36,6 +36,38 @@ enum class TargetFaceType {
             BowType.COMPOUND -> SIX_RING
             BowType.RECURVE, BowType.BAREBOW -> TEN_RING
         }
+
+        /**
+         * Recover a [TargetFaceType] from a free-text face label as it lives
+         * on a shared-session row (`shared_sessions.face`).
+         *
+         * Two passes:
+         *  1. Literal wire-value parse — `"six_ring"` / `"ten_ring"`
+         *     (case-insensitive). 2 pre-migration-0038 sessions in prod
+         *     still carry the snake_case enum value as a label rather
+         *     than the human form.
+         *  2. Free-text heuristic — `"10"` → TEN_RING, `"6-Ring"` /
+         *     `"Vegas"` / `"Spot"` → SIX_RING. The 10 check runs first so
+         *     `"60cm"` / `"WA 60"` don't misfire as sixRing.
+         *
+         * Returns null when the label carries no clear signal; the caller
+         * then falls back to the bow-default or to [TEN_RING].
+         *
+         * Mirrors iOS commit 3c1a305 (parity B2).
+         */
+        fun matching(label: String?): TargetFaceType? {
+            val raw = label?.takeIf { it.isNotEmpty() } ?: return null
+            // Literal wire-value parse first.
+            when (raw.lowercase()) {
+                "six_ring" -> return SIX_RING
+                "ten_ring" -> return TEN_RING
+            }
+            // Free-text heuristic.
+            val f = raw.lowercase()
+            if (f.contains("10")) return TEN_RING
+            if (f.contains("6-ring") || f.contains("spot") || f.contains("vegas")) return SIX_RING
+            return null
+        }
     }
 }
 
