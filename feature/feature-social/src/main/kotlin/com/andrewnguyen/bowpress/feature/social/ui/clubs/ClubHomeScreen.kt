@@ -11,13 +11,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,8 +55,10 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.model.BlockKind
 import com.andrewnguyen.bowpress.core.model.ClubFeedItem
+import com.andrewnguyen.bowpress.core.model.ClubJoinPolicy
 import com.andrewnguyen.bowpress.core.model.ClubMember
 import com.andrewnguyen.bowpress.core.model.ClubRole
+import com.andrewnguyen.bowpress.core.model.ClubVisibility
 import com.andrewnguyen.bowpress.core.model.LeaderboardRow
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
 import com.andrewnguyen.bowpress.feature.social.ui.SocialUnavailableNotice
@@ -105,6 +113,24 @@ fun ClubHomeScreen(
             onDismiss = {
                 showAnnouncementComposer = false
                 viewModel.resetAnnouncementError()
+            },
+        )
+    }
+
+    // Parity E3 — host-only description editor sheet.
+    if (showDescriptionEditor && state.club != null) {
+        DescriptionEditorSheet(
+            title = "Edit description",
+            initial = state.club?.description.orEmpty(),
+            error = state.descriptionError,
+            onSave = { newText ->
+                viewModel.updateClubDescription(clubId, newText) {
+                    showDescriptionEditor = false
+                }
+            },
+            onDismiss = {
+                showDescriptionEditor = false
+                viewModel.resetDescriptionError()
             },
         )
     }
@@ -174,6 +200,111 @@ fun ClubHomeScreen(
         }
 
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+            // Parity E3 — read-only description visible to everyone; hosts
+            // see an Edit affordance that opens the bottom-sheet editor.
+            state.club?.let { club ->
+                val desc = club.description?.trim().orEmpty()
+                if (desc.isNotEmpty() || isHost) {
+                    item {
+                        Spacer(Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom,
+                        ) {
+                            Text(
+                                "DESCRIPTION",
+                                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                                color = AppInk3,
+                            )
+                            if (isHost) {
+                                Text(
+                                    if (desc.isEmpty()) "ADD" else "EDIT",
+                                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                                    color = AppPondDk,
+                                    modifier = Modifier
+                                        .clickable { showDescriptionEditor = true }
+                                        .padding(4.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        HorizontalDivider(color = AppLine, thickness = 1.dp)
+                        Spacer(Modifier.height(8.dp))
+                        if (desc.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, AppLine)
+                                    .background(AppPaper2)
+                                    .padding(14.dp),
+                            ) {
+                                Text(
+                                    desc,
+                                    style = frauncesDisplay(13.5.sp, italic = true),
+                                    color = AppInk2,
+                                )
+                            }
+                        } else {
+                            Text(
+                                "No description yet.",
+                                style = jetbrainsMono(9.5.sp),
+                                color = AppInk3,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Parity E8 — host-only visibility + join-policy toggles. Visible
+            // only to the club host (the row in the club detail in iOS is
+            // member-gated; non-members would never see this section).
+            if (isHost && state.club != null) {
+                val club = state.club!!
+                item {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "ACCESS",
+                        style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
+                        color = AppInk3,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    HorizontalDivider(color = AppLine, thickness = 1.dp)
+                    Spacer(Modifier.height(8.dp))
+                    AccessToggleRow(
+                        title = "Visibility · ${club.visibility.label}",
+                        detail = if (club.visibility == ClubVisibility.PUBLIC)
+                            "members + non-members can view"
+                        else
+                            "members only",
+                        cta = if (club.visibility == ClubVisibility.PUBLIC) "MAKE PRIVATE" else "MAKE PUBLIC",
+                        onCta = {
+                            val next = if (club.visibility == ClubVisibility.PUBLIC)
+                                ClubVisibility.PRIVATE
+                            else
+                                ClubVisibility.PUBLIC
+                            viewModel.updateClubAccess(club.id, visibility = next)
+                        },
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AccessToggleRow(
+                        title = "Join Policy · ${club.joinPolicy.label}",
+                        detail = if (club.joinPolicy == ClubJoinPolicy.OPEN)
+                            "anyone with invite code can join"
+                        else
+                            "host must send invitation first",
+                        cta = if (club.joinPolicy == ClubJoinPolicy.OPEN) "INVITE-ONLY" else "OPEN",
+                        onCta = {
+                            val next = if (club.joinPolicy == ClubJoinPolicy.OPEN)
+                                ClubJoinPolicy.INVITE_ONLY
+                            else
+                                ClubJoinPolicy.OPEN
+                            viewModel.updateClubAccess(club.id, joinPolicy = next)
+                        },
+                    )
+                }
+            }
+
             // Notes / pinned info
             state.club?.notes?.let { notes ->
                 item {
@@ -310,7 +441,15 @@ fun ClubHomeScreen(
                 HorizontalDivider(color = AppLine, thickness = 1.dp)
             }
             items(state.leaderboard, key = { it.userId }) { row ->
-                LeaderboardRowItem(row = row)
+                LeaderboardRowItem(
+                    row = row,
+                    // Parity E2 / E10 — tap any non-you row to open that
+                    // archer's profile. You-row stays inert.
+                    onClick = if (row.userId == currentUserId || row.isYou) null
+                    else {
+                        { onOpenArcher(row.userId) }
+                    },
+                )
                 HorizontalDivider(color = AppLine2, thickness = 1.dp)
             }
 
@@ -338,7 +477,14 @@ fun ClubHomeScreen(
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
                 items(state.feed, key = { it.id }) { item ->
-                    ClubFeedItemRow(item = item)
+                    // Parity E10 — tap a member-activity row that points at a
+                    // shared session to drill into the session detail.
+                    ClubFeedItemRow(
+                        item = item,
+                        onClick = item.sharedSessionId?.let { sid ->
+                            { onOpenSession(sid) }
+                        },
+                    )
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 }
             }
@@ -389,11 +535,12 @@ fun ClubHomeScreen(
 }
 
 @Composable
-private fun LeaderboardRowItem(row: LeaderboardRow) {
+private fun LeaderboardRowItem(row: LeaderboardRow, onClick: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (row.isYou) Modifier.background(AppPaper2) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -433,10 +580,11 @@ private fun LeaderboardRowItem(row: LeaderboardRow) {
 }
 
 @Composable
-private fun ClubFeedItemRow(item: ClubFeedItem) {
+private fun ClubFeedItemRow(item: ClubFeedItem, onClick: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -471,6 +619,155 @@ private fun MemberRow(member: ClubMember) {
                 color = AppPondDk,
                 modifier = Modifier.border(1.dp, AppPondDk).padding(5.dp, 2.dp),
             )
+        }
+    }
+}
+
+/**
+ * Parity E8 — host-only access toggle row (visibility + joinPolicy on
+ * clubs and leagues share this shape). [cta] is the button label that
+ * flips the value when tapped (e.g. "MAKE PRIVATE" when currently public).
+ */
+@Composable
+internal fun AccessToggleRow(
+    title: String,
+    detail: String,
+    cta: String,
+    onCta: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, AppLine)
+            .background(AppPaper)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = frauncesDisplay(14.sp, italic = true), color = AppInk)
+            Text(detail, style = jetbrainsMono(9.5.sp), color = AppInk3)
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            cta,
+            style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+            color = AppPondDk,
+            modifier = Modifier
+                .border(1.dp, AppPondDk)
+                .clickable(onClick = onCta)
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+        )
+    }
+}
+
+/**
+ * Parity E3 — bottom-sheet description editor used by [ClubHomeScreen].
+ *
+ * 200-char counter; [canSave] disallows clearing a non-empty description
+ * via whitespace-only input — matches iOS commit 9889102.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DescriptionEditorSheet(
+    title: String,
+    initial: String,
+    error: String?,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var text by remember { mutableStateOf(initial) }
+    val maxChars = 200
+    val trimmed = text.trim()
+    val initialTrimmed = initial.trim()
+    val canSave = trimmed.length <= maxChars &&
+        trimmed != initialTrimmed &&
+        (trimmed.isNotEmpty() || initialTrimmed.isEmpty())
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AppPaper,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            // Header row — Cancel · Title · Save
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "CANCEL",
+                    style = interUI(11.sp, FontWeight.SemiBold).copy(letterSpacing = 0.2.em),
+                    color = AppInk2,
+                    modifier = Modifier.clickable(onClick = onDismiss),
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    title,
+                    style = frauncesDisplay(14.sp, italic = true),
+                    color = AppInk,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "SAVE",
+                    style = interUI(11.sp, FontWeight.SemiBold).copy(letterSpacing = 0.2.em),
+                    color = if (canSave) AppPondDk else AppInk3,
+                    modifier = Modifier
+                        .then(
+                            if (canSave) Modifier.clickable { onSave(trimmed) }
+                            else Modifier,
+                        ),
+                )
+            }
+            HorizontalDivider(color = AppLine, thickness = 1.dp)
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = text,
+                onValueChange = { new ->
+                    text = if (new.length > maxChars) new.take(maxChars) else new
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 140.dp),
+                placeholder = {
+                    Text(
+                        "Describe your club in a couple of sentences…",
+                        style = frauncesDisplay(13.sp, italic = true),
+                        color = AppInk3,
+                    )
+                },
+                textStyle = frauncesDisplay(14.sp, italic = true).copy(color = AppInk),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = AppPaper,
+                    unfocusedContainerColor = AppPaper,
+                    focusedIndicatorColor = AppPondDk,
+                    unfocusedIndicatorColor = AppLine,
+                ),
+            )
+
+            // Counter row — turns maple when full.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                if (error != null) {
+                    Text(
+                        error,
+                        style = jetbrainsMono(9.5.sp),
+                        color = AppMaple,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Text(
+                    "${text.length}/$maxChars",
+                    style = jetbrainsMono(9.5.sp),
+                    color = if (text.length >= maxChars) AppMaple else AppInk3,
+                )
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

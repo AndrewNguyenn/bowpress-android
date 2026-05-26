@@ -235,6 +235,12 @@ data class ClubFeedItem(
     val meta: String? = null,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant,
+    /**
+     * Parity E10 — when the row points at a shared session, drives a tap
+     * into the friend-session-detail screen. Null for activity items that
+     * don't have a session attached (e.g. "joined the club" rows).
+     */
+    val sharedSessionId: String? = null,
 )
 
 @Serializable
