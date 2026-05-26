@@ -1207,7 +1207,13 @@ internal fun feedCardArrowDotRadiusPx(
     // or a 40cm indoor (≈123.5). Result: Outdoor80 dots came out ~2.7x
     // too big and indoor dots ~0.8x too small. Restoring the geometric
     // formula matches iOS dot-on-mm exactly across both faces.
-    val shaftMm = arrowDiameterMm ?: 6.0
+    //
+    // The 5.0mm fallback matches iOS `TargetRingScatter.arrowDiameterMm`
+    // default — the feed payload doesn't carry shaft diameter (only the
+    // friend-detail endpoint does), so without an explicit value we
+    // assume a mid-range competition shaft. Was 6.0mm here, which made
+    // single-spot feed-card dots ~20% bigger than iOS.
+    val shaftMm = arrowDiameterMm ?: 5.0
     val computed = (shaftMm / mmPerNormUnit).toFloat() * faceRadiusPx
     val floorPx = 2f * density
     return computed.coerceAtLeast(floorPx)
