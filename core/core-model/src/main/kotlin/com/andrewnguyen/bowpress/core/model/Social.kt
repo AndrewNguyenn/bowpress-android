@@ -998,6 +998,11 @@ data class ActivitySession(
     // small-caps "VIA @{handle}" eyebrow above the card header. Null on
     // a non-fanout row or a pre-mentions payload.
     val viaMentionHandle: String? = null,
+    // Arrow shaft diameter in mm (parity B1) — drives plot-dot sizing on
+    // the feed card / detail view: dotRadius = faceRadius * 0.04 *
+    // (shaftMm / 6.0). Null → fall back to a 6mm reference. Mirrors iOS
+    // commits dfb2de9 / d2ac25d / 4389944 / f8e7675.
+    val arrowDiameterMm: Double? = null,
 ) {
     /**
      * True when the shared session is a walked 3D course rather than a
@@ -1074,6 +1079,10 @@ data class SharedSessionDetail(
     // Social Feed V2 Part 3 (contract §6.4) — up to 3 most-recent likers for
     // the kudos avatar stack. Empty on a pre-§6 detail payload.
     val likers: List<ActivityActor> = emptyList(),
+    // Arrow shaft diameter in mm (parity B1) — drives plot-dot sizing on
+    // the detail-view TargetArrowDotsOverlay (no floor; enlarged at detail
+    // size). Null → fall back to a 6mm reference. See ActivitySession.
+    val arrowDiameterMm: Double? = null,
 )
 
 // ── §5 Likes & Comments (Social Feed V2 Part 2) ──────────────────────────────
