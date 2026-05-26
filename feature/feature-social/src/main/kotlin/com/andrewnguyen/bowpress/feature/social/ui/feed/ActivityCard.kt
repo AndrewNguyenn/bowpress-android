@@ -173,7 +173,11 @@ fun ActivityCard(
     val preview = activityPreview(item)
     Column(
         modifier = modifier
+            // D3 — clamp the card's max width so on tablets / split-screen
+            // the photo strip can't drive an oversized layout. Mirrors iOS
+            // commit c68e27f. Phones (<720dp) keep fillMaxWidth behaviour.
             .fillMaxWidth()
+            .widthIn(max = 720.dp)
             .background(AppPaper)
             .border(1.dp, AppLine)
             .clickable(onClick = onClick)

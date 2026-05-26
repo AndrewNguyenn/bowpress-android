@@ -249,12 +249,9 @@ fun SessionHomeScreen(
                 },
             )
 
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = "nock up, breathe, and tap when you're on the line.",
-                style = frauncesDisplay(11.sp, italic = true).copy(color = AppInk3),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // iOS C5 (commit 01835ff) — the "nock up, breathe, and tap when
+            // you're on the line." microcopy block under Begin was removed in
+            // the same change that landed the FinishSheet. Android matches.
 
             state.error?.let { err ->
                 Spacer(Modifier.height(12.dp))

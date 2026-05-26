@@ -340,16 +340,22 @@ internal fun PhotoStripViewer(
                         .padding(bottom = 32.dp),
                 )
             }
-            // Close affordance — top-end.
-            Text(
-                text = "CLOSE",
-                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-                color = AppPaper,
+            // Close affordance — top-end. D2: the whole chip is tappable, not
+            // just the glyph. We wrap the Text in a Box that owns the
+            // `clickable` so the hit area covers the padded chip rather than
+            // just the (~40dp tall) text run. Mirrors iOS commit 4e96ab6.
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(20.dp)
-                    .clickable(onClick = onDismiss),
-            )
+                    .clickable(onClick = onDismiss)
+                    .padding(20.dp),
+            ) {
+                Text(
+                    text = "CLOSE",
+                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                    color = AppPaper,
+                )
+            }
         }
     }
 }
