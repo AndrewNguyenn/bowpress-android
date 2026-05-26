@@ -27,6 +27,11 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
 
+    // C3 — NearestRangeFinder uses FusedLocationProviderClient for the
+    // one-shot fix + the platform Geocoder for the reverse-geocode fallback.
+    implementation(libs.play.services.location)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     // CameraX — the live viewfinder for the 3D capture screen.
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
