@@ -30,7 +30,12 @@ data class ShootingSession(
     val feelTags: List<String> = emptyList(),
     val conditions: SessionConditions? = null,
     val arrowCount: Int = 0,
-    val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
+    // Default to TEN_RING (the WA full face), not SIX_RING — legacy / synced
+    // rows that omit targetFaceType used to force-decode as SIX_RING, which
+    // rendered every recurve / barebow archer's session as a compound 6-ring
+    // face. TEN_RING is the more conservative renderer. Mirrors iOS commit
+    // faf1113. (parity B4)
+    val targetFaceType: TargetFaceType = TargetFaceType.TEN_RING,
     /** How the faces are arranged on the boss. Defaulted for legacy rows. */
     val targetLayout: TargetLayout = TargetLayout.SINGLE,
     /** Optional shooting distance — null for sessions that predate the field. */

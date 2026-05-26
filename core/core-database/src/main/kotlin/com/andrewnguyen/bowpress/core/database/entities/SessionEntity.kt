@@ -29,12 +29,16 @@ data class SessionEntity(
     val windSpeed: Double? = null,
     val tempF: Double? = null,
     val lighting: String? = null,
-    // Target face (WA 6-ring vs 10-ring). Added in schema v2; legacy rows default to SIX_RING
-    // which matches the renderer behaviour prior to the migration. The SQL DEFAULT clause is
-    // required so the migration and any future raw INSERTs satisfy the NOT NULL constraint;
-    // it also makes the Room schema validator happy when diffing against the migration.
+    // Target face (WA 6-ring vs 10-ring). Added in schema v2; the SQL DEFAULT of
+    // SIX_RING was the v1→v2 migration backfill (matched the renderer behaviour
+    // before the field existed). The Kotlin default now reads TEN_RING to match
+    // iOS (commit faf1113, parity B4) — a synced / decoded session row that
+    // omits the field is more conservatively the WA full face, not a compound
+    // 6-ring. The SQL DEFAULT is intentionally not bumped — it would only fire
+    // on a raw INSERT that omits the column, which no code path does, and
+    // changing it would cut a new migration for no behavioural gain.
     @ColumnInfo(defaultValue = "SIX_RING")
-    val targetFaceType: TargetFaceType = TargetFaceType.SIX_RING,
+    val targetFaceType: TargetFaceType = TargetFaceType.TEN_RING,
     // Target layout — single vs 3-spot triangle/vertical. Added in schema v12;
     // the SQL DEFAULT keeps the additive AutoMigration NOT-NULL-safe and legacy
     // rows render as a single face (the prior behaviour).
