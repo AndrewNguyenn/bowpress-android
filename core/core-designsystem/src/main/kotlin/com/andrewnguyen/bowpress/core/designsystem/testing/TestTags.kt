@@ -173,6 +173,9 @@ object TestTags {
     // Social Feed V2 Part 2 — likes & comments.
     const val FeedRowLikeButton: String = "feed_row_like_button"
     const val FeedRowCommentButton: String = "feed_row_comment_button"
+    // iOS parity (A5) — 3-dot overflow on the activity-card header.
+    // Surfaces Edit / Delete for own Log-tab rows; Feed leaves it absent.
+    const val FeedRowOverflow: String = "feed_row_overflow"
     const val CommentsRoot: String = "comments_root"
     const val CommentsComposeField: String = "comments_compose_field"
     const val CommentsSendButton: String = "comments_send_button"

@@ -23,8 +23,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -157,6 +160,13 @@ fun ActivityCard(
     // signature stays stable while the porter lands the eyebrow / actor-tap
     // body implementation. Don't fill in the call sites without coordinating.
     @Suppress("UNUSED_PARAMETER") onActorClick: ((String) -> Unit)? = null,
+    // iOS parity (A5) — overflow affordances for own rows. When at least
+    // one of [onEdit] / [onDelete] is non-null the header renders a 3-dot
+    // overflow that opens a DropdownMenu with the corresponding items.
+    // The Log tab wires these so a mis-logged local session can still be
+    // edited / deleted after the row migrated to ActivityCard chrome.
+    onEdit: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
     val preview = activityPreview(item)
     Column(
@@ -167,7 +177,13 @@ fun ActivityCard(
             .clickable(onClick = onClick)
             .testTag(TestTags.FeedRowPreview),
     ) {
-        ActivityCardHeader(item, onLocationTap, onMentionTap)
+        ActivityCardHeader(
+            item = item,
+            onLocationTap = onLocationTap,
+            onMentionTap = onMentionTap,
+            onEdit = onEdit,
+            onDelete = onDelete,
+        )
         // Header bottom hairline.
         HorizontalDivider(color = AppLine2, thickness = 1.dp)
         ActivityCardBody(item, preview, photoLoader)
@@ -223,6 +239,8 @@ private fun ActivityCardHeader(
     item: ActivityItem,
     onLocationTap: (SessionLocation) -> Unit,
     onMentionTap: (handle: String) -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
     // The PR/milestone/social stamp shows only on a row that carries one; the
     // relative time always pins to the right.
@@ -336,6 +354,62 @@ private fun ActivityCardHeader(
             style = jetbrainsMono(9.5.sp),
             color = AppInk3,
         )
+        // iOS parity (A5) — overflow affordance for own rows. Renders only
+        // when the caller wired Edit and/or Delete (the Log tab does; the
+        // Feed leaves both null today). Click-region stays inside the
+        // header so it doesn't fight the card-level tap.
+        if (onEdit != null || onDelete != null) {
+            Spacer(Modifier.width(4.dp))
+            ActivityCardOverflow(onEdit = onEdit, onDelete = onDelete)
+        }
+    }
+}
+
+/**
+ * iOS parity (A5) — 3-dot overflow exposing Edit / Delete for own Log
+ * rows. Wraps Material3 [DropdownMenu] so the anchor stays inside the
+ * header row, and gates each item on a non-null callback. Tapping the
+ * dot opens the menu without bubbling up to the card-level click.
+ */
+@Composable
+private fun ActivityCardOverflow(
+    onEdit: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Icon(
+            imageVector = Icons.Filled.MoreVert,
+            contentDescription = "More",
+            tint = AppInk3,
+            modifier = Modifier
+                .size(20.dp)
+                .clickable { expanded = true }
+                .testTag(TestTags.FeedRowOverflow),
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            if (onEdit != null) {
+                DropdownMenuItem(
+                    text = { Text("Edit") },
+                    onClick = {
+                        expanded = false
+                        onEdit()
+                    },
+                )
+            }
+            if (onDelete != null) {
+                DropdownMenuItem(
+                    text = { Text("Delete", color = AppMaple) },
+                    onClick = {
+                        expanded = false
+                        onDelete()
+                    },
+                )
+            }
+        }
     }
 }
 

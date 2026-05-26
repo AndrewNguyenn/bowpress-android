@@ -7,6 +7,13 @@ plugins {
 
 android {
     namespace = "com.andrewnguyen.bowpress.feature.social"
+
+    // BuildConfig.DEBUG gates the FeedViewModel hero-carousel preview
+    // fixture so release builds don't leak hardcoded fixtures into every
+    // user's Feed — same hazard guard as :feature:feature-analytics.
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {

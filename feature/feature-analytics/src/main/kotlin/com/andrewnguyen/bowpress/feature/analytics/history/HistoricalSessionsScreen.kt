@@ -180,10 +180,9 @@ internal fun HistoricalSessionsContent(
                     item(key = "header-${group.header}") {
                         GroupHeader(group)
                     }
-                    items(group.rows, keyPrefix = "row") { row, isLast ->
+                    items(group.rows, keyPrefix = "row") { row ->
                         SessionLogRow(
                             row = row,
-                            isLast = isLast,
                             onTap = { onOpenSession(row.id, row.isThreeDCourse) },
                             onEdit = { pendingEdit = row.id },
                             onDelete = { pendingDelete = row.id },
@@ -248,17 +247,17 @@ internal fun HistoricalSessionsContent(
     }
 }
 
-// Helper that wraps forEach with a trailing `isLast` flag.
+// Keyed-row helper — wraps forEach in LazyListScope.item with a stable
+// "<keyPrefix>-<id>" key. The legacy `isLast` flag was dropped along
+// with the bespoke SessionLogRow chrome; the ActivityCard wrapper draws
+// its own border.
 private inline fun androidx.compose.foundation.lazy.LazyListScope.items(
     rows: List<SessionRow>,
     keyPrefix: String,
-    crossinline content: @Composable (row: SessionRow, isLast: Boolean) -> Unit,
+    crossinline content: @Composable (row: SessionRow) -> Unit,
 ) {
-    val total = rows.size
-    rows.forEachIndexed { idx, row ->
-        item(key = "$keyPrefix-${row.id}") {
-            content(row, idx == total - 1)
-        }
+    rows.forEach { row ->
+        item(key = "$keyPrefix-${row.id}") { content(row) }
     }
 }
 
@@ -323,32 +322,19 @@ private fun GroupHeader(group: SessionGroup) {
  * composables instead of carrying bespoke 3-column ArrowBars chrome.
  *
  * `reactions = null` suppresses the like/comment bar (Log rows are local
- * sessions, not shared posts). The card-level tap still routes to the
- * session-detail screen via [onTap]; iOS-style edit/delete affordances
- * are not surfaced here (the existing context menu is dropped along with
- * the legacy SessionLogRow chrome — a follow-up porter can re-introduce
- * them through an overflow on ActivityCard if needed). [isLast] is no
- * longer consumed because the ActivityCard's own border draws the row's
- * outline; the parameter is kept on the signature for now so the call
- * site at the LazyColumn doesn't need to thread an `idx`.
+ * sessions, not shared posts). The card-level tap routes to the
+ * session-detail screen via [onTap]; the 3-dot overflow on the header
+ * surfaces [onEdit] / [onDelete] so a mis-logged session can still be
+ * fixed or removed after the row migrated to ActivityCard chrome.
  */
 @Composable
 private fun SessionLogRow(
     row: SessionRow,
-    isLast: Boolean,
     onTap: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val item = remember(row) { row.toActivityItem() }
-    // The Edit / Delete affordances from the legacy 3-column row are not
-    // bound here. The follow-up porter should expose an overflow on
-    // ActivityCard's header that re-binds these — kept as named params so
-    // the call site stays stable across that follow-up. Reference them so
-    // the compiler doesn't warn on unused.
-    @Suppress("UNUSED_EXPRESSION") onEdit
-    @Suppress("UNUSED_EXPRESSION") onDelete
-    @Suppress("UNUSED_EXPRESSION") isLast
     com.andrewnguyen.bowpress.feature.social.ui.feed.ActivityCard(
         item = item,
         onClick = onTap,
@@ -358,6 +344,11 @@ private fun SessionLogRow(
         // iOS parity (A5) — local Log rows aren't likeable/commentable;
         // passing null suppresses the reactions bar entirely.
         reactions = null,
+        // Edit / Delete surface through the ActivityCard header's
+        // 3-dot overflow — restores the affordances the legacy
+        // SessionLogRow exposed inline before the refactor.
+        onEdit = onEdit,
+        onDelete = onDelete,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
     )
 }
@@ -397,7 +388,15 @@ private fun SessionRow.toActivityItem(): com.andrewnguyen.bowpress.core.model.Ac
     )
     return com.andrewnguyen.bowpress.core.model.ActivityItem(
         id = this.id,
-        kind = com.andrewnguyen.bowpress.core.model.ActivityKind.friend_session,
+        // iOS parity (A5) — kind tracks PR-ness so any future code that
+        // branches on it (filters, deep-links, a11y) behaves correctly.
+        // PR stamp surfaces from `stamp` below, not from kind, but the
+        // semantic typing has to match.
+        kind = if (this.isBest) {
+            com.andrewnguyen.bowpress.core.model.ActivityKind.friend_pr
+        } else {
+            com.andrewnguyen.bowpress.core.model.ActivityKind.friend_session
+        },
         sourceKind = com.andrewnguyen.bowpress.core.model.ActivitySourceKind.friend,
         actorHandle = "you",
         actorDisplayName = "You",

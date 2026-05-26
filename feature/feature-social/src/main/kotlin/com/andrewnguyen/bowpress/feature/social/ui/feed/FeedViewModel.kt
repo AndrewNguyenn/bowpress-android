@@ -213,16 +213,27 @@ class FeedViewModel @Inject constructor(
     )
 
     /**
-     * iOS parity (A3) — stub source for the swipeable hero carousel.
+     * iOS parity (A3) — source for the swipeable hero carousel.
+     *
+     * Release builds emit `null` so the carousel hides entirely until a
+     * port of the iOS `GET /social/feed-summary` endpoint lands through
+     * `core-data` — shipping the preview fixture to every TestFlight /
+     * Play user would put a hardcoded "Hoyt RX-7 · Tuesday Vegas · …"
+     * card above their real feed.
+     *
+     * DEBUG builds emit `FeedSummaryUi.preview` so the layout can be
+     * verified end-to-end against iOS Maestro screenshots without
+     * blocking on the API port.
      *
      * TODO(porter:profile-social or follow-up): replace with a live
-     * `socialRepository.observeFeedSummary()` once a port of the iOS
-     * `/social/feed-summary` endpoint lands on Android. For now, return
-     * the in-process preview so the carousel composable + layout can be
-     * verified end-to-end against iOS Maestro screenshots.
+     * `socialRepository.observeFeedSummary()` once the endpoint lands.
      */
     val feedSummary: StateFlow<FeedSummaryUi?> = MutableStateFlow<FeedSummaryUi?>(
-        FeedSummaryUi.preview,
+        if (com.andrewnguyen.bowpress.feature.social.BuildConfig.DEBUG) {
+            FeedSummaryUi.preview
+        } else {
+            null
+        },
     ).asStateFlow()
 
     /**
