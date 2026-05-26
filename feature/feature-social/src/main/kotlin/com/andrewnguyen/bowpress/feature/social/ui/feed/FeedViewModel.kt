@@ -7,8 +7,13 @@ import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.Friendship
+import com.andrewnguyen.bowpress.core.model.FriendshipDirection
+import com.andrewnguyen.bowpress.core.model.FriendshipStatus
+import com.andrewnguyen.bowpress.core.model.InvitationKind
+import com.andrewnguyen.bowpress.core.model.InvitationStatus
 import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.LeagueStatus
+import com.andrewnguyen.bowpress.core.model.SocialInvitation
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,12 +38,40 @@ data class FeedUiState(
     val pendingRequests: List<Friendship> = emptyList(),
     val clubs: List<Club> = emptyList(),
     val leagues: List<League> = emptyList(),
+    // iOS parity (A2) — F/C/L header pills carry `actionables only`
+    // badges (pending incoming friend requests + pending club/league
+    // invites). Holding the live `SocialInvitation` rows here lets us
+    // derive both pending counts (badge) and total counts (subline) from
+    // a single source.
+    val pendingInvitations: List<SocialInvitation> = emptyList(),
     val myProfile: SocialProfile? = null,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val nextCursor: String? = null,
     val error: String? = null,
 ) {
+    /**
+     * iOS parity (A2) — number of pending INCOMING friend requests. The
+     * outgoing direction never lights up the badge (an archer doesn't
+     * need to be reminded that they sent a request).
+     */
+    val pendingIncomingFriendRequests: Int
+        get() = pendingRequests.count {
+            it.status == FriendshipStatus.pending && it.direction == FriendshipDirection.incoming
+        }
+
+    /** iOS parity (A2) — number of pending club invitations awaiting decision. */
+    val pendingClubInvites: Int
+        get() = pendingInvitations.count {
+            it.kind == InvitationKind.club && it.status == InvitationStatus.pending
+        }
+
+    /** iOS parity (A2) — number of pending league invitations awaiting decision. */
+    val pendingLeagueInvites: Int
+        get() = pendingInvitations.count {
+            it.kind == InvitationKind.league && it.status == InvitationStatus.pending
+        }
+
     /**
      * True when an active league's deadline is within the urgent window —
      * drives the maple tint on the Social-landing League nav card.
@@ -130,16 +163,24 @@ class FeedViewModel @Inject constructor(
     // `combine`'s 5-flow typed-arity limit. The two pagination flows
     // (_isLoadingMore, _nextCursor) are pre-combined into a Pair for the same
     // reason; the outer combine then merges four inputs.
+    //
+    // iOS parity (A2) — `observeInvitations()` joins the same pre-combine to
+    // drive the Clubs / Leagues pill badges. We pre-pair friends + invitations
+    // into one input so the 5-flow typed limit still holds.
     private val lists: Flow<FeedUiState> = combine(
         socialRepository.observeFeed(),
-        socialRepository.observeFriends(),
+        combine(
+            socialRepository.observeFriends(),
+            socialRepository.observeInvitations(),
+        ) { friends, invitations -> friends to invitations },
         socialRepository.observePendingRequests(),
         socialRepository.observeClubs(),
         socialRepository.observeLeagues(),
-    ) { feed, friends, pending, clubs, leagues ->
+    ) { feed, friendsAndInvites, pending, clubs, leagues ->
         FeedUiState(
             feed = feed,
-            friends = friends,
+            friends = friendsAndInvites.first,
+            pendingInvitations = friendsAndInvites.second,
             pendingRequests = pending,
             clubs = clubs,
             leagues = leagues,
@@ -210,6 +251,10 @@ class FeedViewModel @Inject constructor(
                 socialRepository.refreshFriends()
                 socialRepository.refreshClubs()
                 socialRepository.refreshLeagues()
+                // iOS parity (A2) — invitations drive the Clubs / Leagues
+                // pill badges; refresh them on every feed load so the
+                // header reflects the same window as the activity list.
+                socialRepository.getInvitations()
                 _myProfile.value = socialRepository.getMyProfile()
             }.onFailure { e ->
                 _error.value = e.message

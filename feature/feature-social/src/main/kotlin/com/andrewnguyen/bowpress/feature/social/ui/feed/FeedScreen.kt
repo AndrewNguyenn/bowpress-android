@@ -12,14 +12,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -54,8 +56,6 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityItem
-import com.andrewnguyen.bowpress.core.model.Club
-import com.andrewnguyen.bowpress.core.model.League
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.EmptyAction
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
@@ -102,31 +102,28 @@ fun FeedScreen(
             .background(AppPaper)
             .testTag(TestTags.SocialFeedRoot),
     ) {
-        // Top nav
+        // iOS parity (A2) — Top nav now carries the F/C/L drill-in pills
+        // inline with the bell + avatar. The old `FeedNavStrip` 3-card
+        // block under the header is gone.
         FeedTopNav(
             friendCount = state.friends.size,
             clubCount = state.clubs.size,
             leagueCount = state.leagues.size,
             myInitials = state.myProfile?.let { avatarInitials(it.displayName) } ?: "?",
             notificationCount = pendingCount,
+            pendingFriendRequests = state.pendingIncomingFriendRequests,
+            pendingClubInvites = state.pendingClubInvites,
+            pendingLeagueInvites = state.pendingLeagueInvites,
+            leagueUrgent = state.leagueDeadlineNear,
             onAvatarClick = onAvatarClick,
             onBellClick = onBellClick,
+            onFriendsPillClick = onFriendsClick,
+            onClubsPillClick = onClubsIndexClick,
+            onLeaguesPillClick = onLeaguesIndexClick,
         )
         HorizontalDivider(color = AppLine, thickness = 1.dp)
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            // Option-A top strip — Friends / Clubs / Leagues nav cards.
-            item {
-                FeedNavStrip(
-                    friendCount = state.friends.size,
-                    clubs = state.clubs,
-                    leagueCount = state.leagues.size,
-                    leagueUrgent = state.leagueDeadlineNear,
-                    onFriendsClick = onFriendsClick,
-                    onClubsClick = onClubsIndexClick,
-                    onLeaguesClick = onLeaguesIndexClick,
-                )
-            }
             // Eyebrow
             item {
                 FeedEyebrow()
@@ -357,6 +354,22 @@ private data class PhotoViewerRequest(
     val startIndex: Int,
 )
 
+/**
+ * iOS parity (A2) — Feed top-nav row.
+ *
+ * Mirrors `SocialTopNav` + the inline `navPill` row in
+ * `SocialTabView.swift`. The F/C/L drill-in icons now live inline with
+ * the bell + avatar instead of in a 3-card strip below. Each pill carries
+ * a corner badge that counts **actionables only** — pending incoming
+ * friend requests, pending club/league invites — so an archer with 14
+ * friends and zero inbound activity gets a clean Friends pill. The
+ * Leagues pill keeps the maple urgency cue (border + tint) when a
+ * deadline is within ~3 days.
+ *
+ * Test tags are stable on `TestTags.SocialNavPill*` so Maestro flows can
+ * tap "navCard.Friends" / etc. without caring about the strip → pill
+ * restyle.
+ */
 @Composable
 private fun FeedTopNav(
     friendCount: Int,
@@ -364,8 +377,15 @@ private fun FeedTopNav(
     leagueCount: Int,
     myInitials: String,
     notificationCount: Int,
+    pendingFriendRequests: Int,
+    pendingClubInvites: Int,
+    pendingLeagueInvites: Int,
+    leagueUrgent: Boolean,
     onAvatarClick: () -> Unit,
     onBellClick: () -> Unit,
+    onFriendsPillClick: () -> Unit,
+    onClubsPillClick: () -> Unit,
+    onLeaguesPillClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -375,7 +395,7 @@ private fun FeedTopNav(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "BOWPRESS",
                 style = interUI(10.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.32.em),
@@ -394,37 +414,59 @@ private fun FeedTopNav(
                 color = AppInk3,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // The pill / bell / avatar cluster — bottom-aligned to the title
+        // so the bottoms line up with the mono subline.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            NavPill(
+                icon = Icons.Filled.People,
+                count = pendingFriendRequests,
+                onClick = onFriendsPillClick,
+                idTag = "Friends",
+            )
+            NavPill(
+                icon = Icons.Filled.Groups,
+                count = pendingClubInvites,
+                onClick = onClubsPillClick,
+                idTag = "Clubs",
+            )
+            NavPill(
+                icon = Icons.Filled.EmojiEvents,
+                count = pendingLeagueInvites,
+                urgent = leagueUrgent,
+                onClick = onLeaguesPillClick,
+                idTag = "Leagues",
+            )
             // Bell → notification center, with the unread count badge.
-            BadgedBox(
-                badge = {
-                    if (notificationCount > 0) {
-                        Badge {
-                            Text(if (notificationCount > 99) "99+" else "$notificationCount")
-                        }
-                    }
-                },
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .border(1.dp, AppInk3)
+                    .background(AppPaper2)
+                    .clickable(onClick = onBellClick),
             ) {
-                Box(
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Notifications",
+                    tint = AppInk2,
                     modifier = Modifier
-                        .size(34.dp)
-                        .border(1.dp, AppInk3)
-                        .background(AppPaper2)
-                        .clickable(onClick = onBellClick),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = AppInk2,
-                        modifier = Modifier.size(16.dp),
+                        .size(16.dp)
+                        .padding(0.dp)
+                        .align(Alignment.Center),
+                )
+                if (notificationCount > 0) {
+                    PillCornerBadge(
+                        text = if (notificationCount > 99) "99+" else "$notificationCount",
+                        tint = AppPondDk,
                     )
                 }
             }
             // Avatar button → You screen
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(32.dp)
                     .border(1.dp, AppPondDk)
                     .background(AppPaper2)
                     .clickable(onClick = onAvatarClick),
@@ -441,92 +483,73 @@ private fun FeedTopNav(
 }
 
 /**
- * Option-A 3-card nav strip above the activity feed — Friends · Clubs ·
- * Leagues. Mirrors `.nav-strip`/`.nc` in `SOCIAL_DESIGN_OPTION_A.html`: each
- * card is a large Fraunces numeral, a label, and a mono sub-line. The League
- * card takes the maple `urgent` tint/border when a deadline is near.
+ * iOS parity (A2) — one F/C/L drill-in pill in the FeedScreen top-nav.
+ * Mirrors iOS `navPill` in `SocialTabView.swift`:
+ *  - 32dp box, 1px stroke, paper-2 ground.
+ *  - Stroke + glyph tint maple when [urgent] is true, otherwise ink2.
+ *  - Top-right corner badge shows the actionable [count]; hidden when 0
+ *    (an empty F/C/L count shouldn't light up the UI).
+ *  - Stable Maestro identifier `navCard.<idTag>` kept on the prior nav
+ *    card name so existing flows keep working through the restyle.
  */
 @Composable
-private fun FeedNavStrip(
-    friendCount: Int,
-    clubs: List<Club>,
-    leagueCount: Int,
-    leagueUrgent: Boolean,
-    onFriendsClick: () -> Unit,
-    onClubsClick: () -> Unit,
-    onLeaguesClick: () -> Unit,
+private fun NavPill(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    count: Int,
+    onClick: () -> Unit,
+    idTag: String,
+    urgent: Boolean = false,
 ) {
-    Row(
+    val tint = if (urgent) AppMaple else AppInk2
+    val borderColor = if (urgent) AppMaple else AppLine
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp)
-            .padding(top = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .size(32.dp)
+            .border(1.dp, borderColor)
+            .background(AppPaper2)
+            .clickable(onClick = onClick)
+            .testTag("navCard.$idTag"),
     ) {
-        NavCard(
-            count = friendCount,
-            label = "Friends",
-            sub = "your circle",
-            onClick = onFriendsClick,
-            modifier = Modifier.weight(1f),
+        Icon(
+            imageVector = icon,
+            contentDescription = idTag,
+            tint = tint,
+            modifier = Modifier
+                .size(16.dp)
+                .align(Alignment.Center),
         )
-        NavCard(
-            count = clubs.size,
-            label = "Clubs",
-            // First word of each club name, matching the prototype sub-line.
-            sub = clubs.takeIf { it.isNotEmpty() }
-                ?.joinToString(" · ") { it.name.substringBefore(' ') }
-                ?: "none yet",
-            onClick = onClubsClick,
-            modifier = Modifier.weight(1f),
-        )
-        NavCard(
-            count = leagueCount,
-            label = if (leagueCount == 1) "League" else "Leagues",
-            sub = if (leagueUrgent) "deadline near" else "standings",
-            urgent = leagueUrgent,
-            onClick = onLeaguesClick,
-            modifier = Modifier.weight(1f),
-        )
+        if (count > 0) {
+            PillCornerBadge(
+                text = if (count > 99) "99+" else "$count",
+                tint = if (urgent) AppMaple else AppPondDk,
+            )
+        }
     }
 }
 
-/** One nav-strip card — `.nc` in the design CSS. */
+/**
+ * iOS parity (A2) — the small badge that rides the top-right corner of a
+ * NavPill / bell icon. Mirrors iOS `badgeView` in `SocialTabView.swift`:
+ * paper-tinted text on the badge fill, paper outline so the chip reads
+ * cleanly on top of the pill's own outline.
+ */
 @Composable
-private fun NavCard(
-    count: Int,
-    label: String,
-    sub: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    urgent: Boolean = false,
+private fun androidx.compose.foundation.layout.BoxScope.PillCornerBadge(
+    text: String,
+    tint: androidx.compose.ui.graphics.Color,
 ) {
-    val accent = if (urgent) AppMaple else AppPondDk
-    Column(
-        modifier = modifier
-            .border(1.dp, if (urgent) AppMaple else AppLine)
-            // Faint maple wash for the urgent card; plain paper-2 otherwise.
-            .background(if (urgent) AppMaple.copy(alpha = 0.08f) else AppPaper2)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 11.dp),
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .offset(x = 6.dp, y = (-5).dp)
+            .background(tint)
+            .border(1.dp, AppPaper)
+            .padding(horizontal = 4.dp, vertical = 1.dp),
     ) {
         Text(
-            text = "$count",
-            style = frauncesDisplay(22.sp),
-            color = accent,
-        )
-        Text(
-            text = label,
-            style = frauncesDisplay(13.sp),
-            color = AppInk,
-            modifier = Modifier.padding(top = 3.dp),
-        )
-        Text(
-            text = sub,
-            style = jetbrainsMono(8.5.sp, if (urgent) FontWeight.Medium else FontWeight.Normal)
-                .copy(letterSpacing = 0.04.em),
-            color = if (urgent) AppMaple else AppInk3,
-            modifier = Modifier.padding(top = 2.dp),
+            text = text,
+            style = jetbrainsMono(9.sp, FontWeight.SemiBold),
+            color = AppPaper,
         )
     }
 }
