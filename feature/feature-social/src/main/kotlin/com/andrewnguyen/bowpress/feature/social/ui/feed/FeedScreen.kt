@@ -23,9 +23,11 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,6 +65,7 @@ import com.andrewnguyen.bowpress.feature.social.ui.SocialEmptyState
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.location.LocationMapSheet
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     onAvatarClick: () -> Unit,
@@ -133,7 +136,20 @@ fun FeedScreen(
         )
         HorizontalDivider(color = AppLine, thickness = 1.dp)
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        // iOS parity — `SocialTabView` attaches `.refreshable { load(force:
+        // true) }` to its ScrollView. PullToRefreshBox is the Compose
+        // equivalent; on swipe-down it drives a fresh feed reload via the
+        // existing `viewModel.refresh()` path (resets cursor, replaces the
+        // first page — same as the iOS forced reload). `state.isLoading`
+        // doubles as the cold-start indicator, which is fine: the same
+        // spinner that lands during a user-initiated refresh also lands on
+        // the first paint, so the screen never appears empty mid-fetch.
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
             // iOS parity (A3) — swipeable hero carousel above the
             // activity list. Hidden entirely when there's no summary
             // data (a brand-new account); the per-card empty-handling
@@ -360,6 +376,7 @@ fun FeedScreen(
             }
 
             item { Spacer(Modifier.height(24.dp)) }
+            }
         }
     }
 
