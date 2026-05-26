@@ -61,7 +61,9 @@ class SessionViewModelTest {
 
     @After fun tearDown() = Dispatchers.resetMain()
 
-    private fun newViewModel(): SessionViewModel {
+    private fun newViewModel(
+        stickyLastFace: TargetFaceType? = null,
+    ): SessionViewModel {
         val bowRepo = mockk<BowRepository>(relaxed = true) {
             every { observeBows() } returns flowOf(emptyList())
         }
@@ -76,6 +78,7 @@ class SessionViewModelTest {
         }
         val setupPrefs = mockk<SessionSetupPreferencesRepository>(relaxed = true) {
             every { lastTargetLayout } returns flowOf(TargetLayout.SINGLE)
+            every { lastTargetFaceType } returns flowOf(stickyLastFace)
         }
         return SessionViewModel(
             appContext = mockk<Context>(relaxed = true),
@@ -133,6 +136,65 @@ class SessionViewModelTest {
             assertThat(vm.uiState.value.selectedLayout).isEqualTo(TargetLayout.SINGLE)
         }
 
+    // ---- C2: last-target-face restore ----
+
+    @Test
+    fun `selectBow without a sticky last-face falls back to the bow-type default`() =
+        runTest(testDispatcher) {
+            // No sticky last-pick (newViewModel default) — selectBow should
+            // smart-default to the bow's preferred face. Pinning this
+            // pre-C2 behaviour so a future tweak to the restore order can't
+            // silently break the fresh-install path.
+            val vm = newViewModel(stickyLastFace = null)
+            runCurrent()
+            vm.selectBow(compoundBow)
+            runCurrent()
+            assertThat(vm.uiState.value.selectedFaceType)
+                .isEqualTo(TargetFaceType.defaultFor(compoundBow.bowType))
+        }
+
+    @Test
+    fun `sticky last-face overrides bow-type default for compound + 10-ring archer`() =
+        runTest(testDispatcher) {
+            // A compound archer who manually flipped to 10-ring last session
+            // should land back on 10-ring when they restart, even though the
+            // compound bow-type default is 6-ring. Mirrors iOS commit 6c7a01e.
+            val vm = newViewModel(stickyLastFace = TargetFaceType.TEN_RING)
+            runCurrent()
+            vm.selectBow(compoundBow)
+            runCurrent()
+            assertThat(vm.uiState.value.selectedFaceType).isEqualTo(TargetFaceType.TEN_RING)
+        }
+
+    @Test
+    fun `manual face pick this session beats the sticky last-face`() =
+        runTest(testDispatcher) {
+            // Restore the sticky pick, then the archer manually flips. A
+            // subsequent bow change must not bump them back to the sticky
+            // value — that would defeat the point of the override flag.
+            val vm = newViewModel(stickyLastFace = TargetFaceType.TEN_RING)
+            runCurrent()
+            vm.selectBow(compoundBow)
+            runCurrent()
+            vm.selectFaceType(TargetFaceType.SIX_RING)   // userOverrodeFace = true
+            runCurrent()
+            vm.selectBow(recurveBow)
+            runCurrent()
+            assertThat(vm.uiState.value.selectedFaceType).isEqualTo(TargetFaceType.SIX_RING)
+        }
+
+    @Test
+    fun `distance defaults to 20yd on a fresh setup`() =
+        runTest(testDispatcher) {
+            // C2 fix (2): the Begin button used to be gated on a manual
+            // distance pick before this. iOS commit 6c7a01e seeds 20yd as
+            // the initial value — Android mirrors via SessionUiState's
+            // `selectedDistance = ShootingDistance.YARDS_20` default.
+            val vm = newViewModel(stickyLastFace = null)
+            runCurrent()
+            assertThat(vm.uiState.value.selectedDistance).isEqualTo(ShootingDistance.YARDS_20)
+        }
+
     // ---- Live-session ends ----
 
     private val activeSession = ShootingSession(
@@ -180,6 +242,7 @@ class SessionViewModelTest {
         }
         val setupPrefs = mockk<SessionSetupPreferencesRepository>(relaxed = true) {
             every { lastTargetLayout } returns flowOf(TargetLayout.SINGLE)
+            every { lastTargetFaceType } returns flowOf(null)
         }
         val vm = SessionViewModel(
             appContext = mockk<Context>(relaxed = true),
@@ -324,6 +387,7 @@ class SessionViewModelTest {
             socialSessionSharer = mockk<SocialSessionSharer>(relaxed = true),
             sessionSetupPrefs = mockk<SessionSetupPreferencesRepository>(relaxed = true) {
                 every { lastTargetLayout } returns flowOf(TargetLayout.SINGLE)
+                every { lastTargetFaceType } returns flowOf(null)
             },
         )
         return { StoreBackedVm(vm, plotTable.toMap(), endTable.toList()) }
