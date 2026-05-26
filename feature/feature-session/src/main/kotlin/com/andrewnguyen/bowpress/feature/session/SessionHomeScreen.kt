@@ -250,21 +250,6 @@ fun SessionHomeScreen(
                 },
             )
 
-            // iOS oracle (SessionView.swift `beginCtaBlock`) restored the
-            // helper-text block under Begin after the initial FinishSheet
-            // landing — Android matches.
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = if (isThreeD) {
-                    "walk the course; tap shoot at each target."
-                } else {
-                    "nock up, breathe, and tap when you're on the line."
-                },
-                style = frauncesDisplay(14.sp, italic = true, weight = FontWeight.Normal)
-                    .copy(color = AppInk3, textAlign = TextAlign.Center),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
             state.error?.let { err ->
                 Spacer(Modifier.height(12.dp))
                 Text(
