@@ -56,7 +56,11 @@ import com.andrewnguyen.bowpress.feature.settings.SettingsRoutes
 import com.andrewnguyen.bowpress.feature.settings.settingsNavGraph
 import com.andrewnguyen.bowpress.feature.social.nav.SocialRoutes
 import com.andrewnguyen.bowpress.feature.social.nav.socialNavGraph
+import com.andrewnguyen.bowpress.feature.social.ui.location.LocationSoftPromptSheet
+import com.andrewnguyen.bowpress.feature.social.ui.location.LocationSoftPromptViewModel
 import com.andrewnguyen.bowpress.feature.subscription.subscriptionNavGraph
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * Root scaffold shown once the user is authenticated. Bottom bar mirrors the
@@ -82,6 +86,18 @@ fun MainScaffold(
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentEntry?.destination?.hierarchy?.firstOrNull()?.route
+
+    // Parity E7 — value-prop location prompt, shown once on first launch
+    // after sign-in. ViewModel pulls the persisted "seen" flag from
+    // DataStore; we mark seen on dismiss / allow either way.
+    val softPromptVm: LocationSoftPromptViewModel = hiltViewModel()
+    val shouldShowSoftPrompt by softPromptVm.shouldShow.collectAsState()
+    if (shouldShowSoftPrompt) {
+        LocationSoftPromptSheet(
+            archerName = uiState.currentUser?.name.orEmpty(),
+            onResolved = { softPromptVm.markSeen() },
+        )
+    }
 
     Scaffold(
         containerColor = AppPaper,
