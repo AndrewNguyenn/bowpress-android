@@ -116,6 +116,11 @@ class FeedViewModelTest {
         every { repository.observePendingRequests() } returns flowOf(emptyList())
         every { repository.observeClubs() } returns flowOf(listOf(stubClub))
         every { repository.observeLeagues() } returns flowOf(listOf(stubLeague))
+        // The header-pills combine joins observeInvitations(); without a
+        // stub, mockk's relaxed default returns a Flow that never emits,
+        // so the outer combine waits forever and uiState stalls at the
+        // initial seed value.
+        every { repository.observeInvitations() } returns flowOf(emptyList())
 
         coEvery { repository.refreshFeed() } returns
             com.andrewnguyen.bowpress.core.model.FeedPage(items = emptyList(), nextCursor = null)
