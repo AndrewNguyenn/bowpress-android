@@ -129,12 +129,21 @@ private fun ringBands(
         0.2f to AppTgtYellow, 0.1f to AppTgtYellow,
     )
     TargetFaceType.SIX_RING -> when (sixRingStyle) {
-        // 40cm indoor 6-zone — outer single blue band, then red, then yellow.
-        // Rings 6,6,7,8,9,10 outer edges at 1.0, 0.833, 0.667, 0.5, 0.333, 0.167.
+        // 40cm Vegas indoor 6-zone — ONE thin blue ring (6), TWO red rings
+        // (7,8), THREE yellow zones (9,10,X). Ring outer edges sit at
+        // 1.0, 0.833, 0.667, 0.5, 0.333, 0.167 (each 1/6 of the face
+        // radius). Bands are layered outside-in: the colour at index i is
+        // visible from `edges[i+1]` to `edges[i]`, so the colour change
+        // points (not every entry) define the visible bands. The earlier
+        // 1/3-each layout (blue 0.667→1.0, red 0.333→0.667, yellow
+        // 0→0.333) mis-painted rings 7 and 9 as blue and red.
         BPSixRingStyle.Vegas -> listOf(
-            1.0f to AppTgtBlue, 0.833f to AppTgtBlue,
-            0.667f to AppTgtRed, 0.5f to AppTgtRed,
-            0.333f to AppTgtYellow, 0.167f to AppTgtYellow,
+            1.0f to AppTgtBlue,     // ring 6 — blue fills 0.833→1.0
+            0.833f to AppTgtRed,    // colour flip — red from here in
+            0.667f to AppTgtRed,    // hairline between rings 7 and 8
+            0.5f to AppTgtYellow,   // colour flip — yellow from here in
+            0.333f to AppTgtYellow, // hairline between rings 9 and 10
+            0.167f to AppTgtYellow, // hairline at the X ring outer
         )
         // 80cm WA compound 7-zone — equal-width 1/6 bands, ring 5's outer
         // edge at 1.0; blue is split into ring 5 (outer) + ring 6 (inner),
