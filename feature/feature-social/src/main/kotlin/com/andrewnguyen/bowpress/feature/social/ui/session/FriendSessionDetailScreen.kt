@@ -387,6 +387,7 @@ fun FriendSessionDetailScreen(
     // Social Feed V2 §3/§4 — owner edit sheet.
     if (editing && state.detail != null) {
         val detail = state.detail!!
+        LaunchedEffect(Unit) { viewModel.beginEdit() }
         MySessionEditSheet(
             sharedSessionId = detail.sharedSession.id,
             initialTitle = detail.sharedSession.title.orEmpty(),
@@ -404,11 +405,13 @@ fun FriendSessionDetailScreen(
             onAddPhotos = { uris -> viewModel.addPhotos(uris) },
             onRemovePhoto = { photo -> viewModel.removePhoto(photo) },
             onDelete = {
-                // Close the sheet so the LaunchedEffect on `isDeleted` can pop.
                 editing = false
                 viewModel.deletePost()
             },
-            onDismiss = { editing = false },
+            onDismiss = {
+                viewModel.rollbackUncommittedPhotos()
+                editing = false
+            },
         )
     }
 }

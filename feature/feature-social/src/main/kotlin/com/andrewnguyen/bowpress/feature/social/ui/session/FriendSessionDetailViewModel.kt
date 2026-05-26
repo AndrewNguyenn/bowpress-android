@@ -54,6 +54,9 @@ class FriendSessionDetailViewModel @Inject constructor(
 
     private var sharedSessionId: String = ""
 
+    private val addedPhotoIds = mutableSetOf<String>()
+    private var editCommitted = false
+
     /**
      * Photo loader for the gallery — fetches the Bearer-gated display JPEG
      * through the repository.
@@ -105,10 +108,29 @@ class FriendSessionDetailViewModel @Inject constructor(
                     originalLocation = loaded?.location,
                 )
             }.onSuccess {
+                editCommitted = true
                 reloadDetailKeepingPhotos()
             }.onFailure { e ->
                 _uiState.update { it.copy(error = e.message, isSaving = false) }
             }
+        }
+    }
+
+    fun beginEdit() {
+        addedPhotoIds.clear()
+        editCommitted = false
+    }
+
+    fun rollbackUncommittedPhotos() {
+        if (editCommitted || addedPhotoIds.isEmpty()) return
+        val ssId = sharedSessionId.ifBlank { return }
+        val toDelete = addedPhotoIds.toSet()
+        addedPhotoIds.clear()
+        viewModelScope.launch {
+            for (id in toDelete) {
+                runCatching { socialRepository.deleteSharedSessionPhoto(ssId, id) }
+            }
+            refreshPhotos()
         }
     }
 
@@ -140,7 +162,8 @@ class FriendSessionDetailViewModel @Inject constructor(
                     continue
                 }
                 runCatching { socialRepository.uploadSharedSessionPhoto(ssId, bytes) }
-                    .onSuccess {
+                    .onSuccess { photo ->
+                        addedPhotoIds += photo.id
                         // Surface each photo as it lands.
                         refreshPhotos()
                     }
@@ -174,6 +197,7 @@ class FriendSessionDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isDeleting = true, error = null) }
             runCatching { socialRepository.deleteSharedSession(ssId) }
                 .onSuccess {
+                    editCommitted = true
                     _uiState.update { it.copy(isDeleting = false, isDeleted = true) }
                 }
                 .onFailure { e ->
@@ -190,6 +214,7 @@ class FriendSessionDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             runCatching { socialRepository.deleteSharedSessionPhoto(ssId, photo.id) }
+                .onSuccess { addedPhotoIds -= photo.id }
                 .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
             refreshPhotos()
             _uiState.update { it.copy(isSaving = false) }
