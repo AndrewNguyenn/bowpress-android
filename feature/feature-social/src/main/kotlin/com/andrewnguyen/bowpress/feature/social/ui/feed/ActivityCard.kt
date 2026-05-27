@@ -50,6 +50,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -698,11 +699,18 @@ private fun RangeSessionBody(
                 text = rangeEyebrow(distance),
                 style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
             )
-            // Hero score on one line: the score as an upright Fraunces numeral
-            // in --deep, then a quiet italic " / " + upright max, then a maple
-            // X-count chip — all on the typographic baseline (the design's
-            // `align-items: baseline`), so mixed font sizes don't drift up or
-            // down relative to the score.
+            // Hero score on one line: an upright Fraunces numeral in --deep,
+            // then a quiet italic " / " + upright max, then a maple X-count
+            // chip. Rendered as a single Text from an AnnotatedString so
+            // `maxLines = 1` + `softWrap = false` keep the whole expression on
+            // one typographic baseline — a prior Row-of-Texts laid out the
+            // last child ("  $xCount") with a near-zero width remaining and
+            // its leading spaces forced the digits onto a second line.
+            //
+            // Chip sizes match the design's literal 26 / 15 (Feed Tile ·
+            // Equipment Inline.html). Proportional scale-up against the 48sp
+            // score was wide enough to push the italic "X" off the line for
+            // 3-digit + 2-digit totals like 299 /300  22X.
             val showsMax = maxScore >= score
             val scoreA11y = buildString {
                 append("Score ")
@@ -710,54 +718,53 @@ private fun RangeSessionBody(
                 if (showsMax) append(" of ").append(maxScore)
                 if (xCount > 0 && showsMax) append(", ").append(xCount).append(" X")
             }
-            Row(
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .semantics(mergeDescendants = true) { contentDescription = scoreA11y },
-            ) {
-                Text(
-                    text = "$score",
-                    style = frauncesDisplay(48.sp, italic = false, weight = FontWeight.Medium),
-                    color = AppDeep,
-                    modifier = Modifier.alignByBaseline(),
-                )
+            val annotatedScore = buildAnnotatedString {
+                withStyle(
+                    frauncesDisplay(48.sp, italic = false, weight = FontWeight.Medium)
+                        .toSpanStyle().copy(color = AppDeep),
+                ) { append("$score") }
                 // The "/ max" tail shows only when the max is coherent — a
                 // stale arrowCount could otherwise produce an impossible
                 // fraction (e.g. 285/270), so fall back to the bare score.
                 if (showsMax) {
-                    Text(
-                        text = " / ",
-                        style = frauncesDisplay(22.sp, italic = true, weight = FontWeight.Normal),
-                        color = AppInk3,
-                        modifier = Modifier.alignByBaseline(),
-                    )
-                    Text(
-                        text = "$maxScore",
-                        style = frauncesDisplay(22.sp, italic = false, weight = FontWeight.Medium),
-                        color = AppInk3,
-                        modifier = Modifier.alignByBaseline(),
-                    )
+                    withStyle(
+                        frauncesDisplay(22.sp, italic = true, weight = FontWeight.Normal)
+                            .toSpanStyle().copy(color = AppInk3),
+                    ) { append(" / ") }
+                    withStyle(
+                        frauncesDisplay(22.sp, italic = false, weight = FontWeight.Medium)
+                            .toSpanStyle().copy(color = AppInk3),
+                    ) { append("$maxScore") }
                     // X-count chip — rides the score baseline as a maple peer
                     // of the total. Hidden when the archer hit no Xs so a no-X
                     // row reads clean instead of trailing a bare "0X". Gated on
                     // showsMax too because the chip needs the /max baseline as
                     // its visual anchor.
                     if (xCount > 0) {
-                        Text(
-                            text = "  $xCount",
-                            style = frauncesDisplay(32.sp, italic = false, weight = FontWeight.Medium),
-                            color = AppMaple,
-                            modifier = Modifier.alignByBaseline(),
-                        )
-                        Text(
-                            text = "X",
-                            style = frauncesDisplay(18.sp, italic = true, weight = FontWeight.Medium),
-                            color = AppMaple,
-                            modifier = Modifier.alignByBaseline(),
-                        )
+                        withStyle(
+                            frauncesDisplay(26.sp, italic = false, weight = FontWeight.Medium)
+                                .toSpanStyle().copy(color = AppMaple),
+                        ) { append("  $xCount") }
+                        withStyle(
+                            frauncesDisplay(15.sp, italic = true, weight = FontWeight.Medium)
+                                .toSpanStyle().copy(color = AppMaple),
+                        ) { append("X") }
                     }
                 }
             }
+            Text(
+                text = annotatedScore,
+                maxLines = 1,
+                softWrap = false,
+                // Clip rather than Visible — at the new 26/15 chip the line
+                // fits comfortably, but a future giant total (60-arrow rounds,
+                // narrow tablets) should be cut off at the column edge rather
+                // than overlap the hairline and bleed into the target column.
+                overflow = TextOverflow.Clip,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .semantics(mergeDescendants = true) { contentDescription = scoreA11y },
+            )
             if (ends.isNotEmpty()) {
                 EndsTable(ends, modifier = Modifier.padding(top = 14.dp))
             }
