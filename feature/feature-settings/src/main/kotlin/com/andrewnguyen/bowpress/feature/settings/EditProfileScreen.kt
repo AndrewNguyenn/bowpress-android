@@ -1,5 +1,9 @@
 package com.andrewnguyen.bowpress.feature.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,9 +30,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -36,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
+import com.andrewnguyen.bowpress.core.data.social.PhotoDownscaler
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
@@ -48,6 +59,11 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.network.ApiException
+import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PendingCropImage
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropMode
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperHost
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperLaunch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +83,13 @@ import javax.inject.Inject
  */
 data class EditProfileUiState(
     val loaded: Boolean = false,
+    /**
+     * The full social profile last loaded — drives the photo tile (which needs
+     * `userId` + `avatarVersion` to resolve the avatar URL) and the
+     * display-name / handle "Change photo" vs "Add photo" label. Null until the
+     * cache or the server lands.
+     */
+    val profile: SocialProfile? = null,
     val initialDisplayName: String = "",
     val displayName: String = "",
     val initialHandle: String = "",
@@ -74,6 +97,8 @@ data class EditProfileUiState(
     val saving: Boolean = false,
     val saved: Boolean = false,
     val error: String? = null,
+    val uploadingPhoto: Boolean = false,
+    val photoError: String? = null,
 ) {
     val displayNameTrimmed: String get() = displayName.trim()
     val handleTrimmed: String get() = handle.trim()
@@ -115,6 +140,7 @@ private const val MAX_HANDLE_LEN = 30
 @HiltViewModel
 class EditProfileViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
+    private val photoDownscaler: PhotoDownscaler,
 ) : ViewModel() {
     private val _state: MutableStateFlow<EditProfileUiState> = MutableStateFlow(EditProfileUiState())
     val state: StateFlow<EditProfileUiState> = _state.asStateFlow()
@@ -146,6 +172,7 @@ class EditProfileViewModel @Inject constructor(
     private fun seedFromProfile(profile: SocialProfile) {
         _state.value = _state.value.copy(
             loaded = true,
+            profile = profile,
             initialDisplayName = profile.displayName,
             displayName = profile.displayName,
             initialHandle = profile.handle,
@@ -157,6 +184,12 @@ class EditProfileViewModel @Inject constructor(
      * Rebase the diff-vs-send baseline onto a freshly-fetched profile, and
      * only update the visible fields when the archer hasn't already started
      * editing — a slow refresh must not clobber an in-flight edit.
+     *
+     * The avatar gets the same shield: if an upload landed between the init's
+     * GET and this rebase, the server's `getSocialProfile` response is stale
+     * (the version it carries is whatever was current when the read started).
+     * Picking the higher `avatarVersion` keeps the tile from snapping back to
+     * the old image — same hazard iOS has with `EditProfileView.swift:96-101`.
      */
     private fun rebaseFromFresh(profile: SocialProfile) {
         val current = _state.value
@@ -166,8 +199,16 @@ class EditProfileViewModel @Inject constructor(
         val handle =
             if (current.handle == current.initialHandle) profile.handle
             else current.handle
+        val mergedProfile = run {
+            val localVersion = current.profile?.avatarVersion ?: 0
+            val remoteVersion = profile.avatarVersion ?: 0
+            if (localVersion > remoteVersion) {
+                profile.copy(avatarVersion = current.profile?.avatarVersion)
+            } else profile
+        }
         _state.value = current.copy(
             loaded = true,
+            profile = mergedProfile,
             initialDisplayName = profile.displayName,
             initialHandle = profile.handle,
             displayName = displayName,
@@ -180,6 +221,18 @@ class EditProfileViewModel @Inject constructor(
         _state.value = _state.value.copy(saved = false)
     }
 
+    /**
+     * Clear any photo-upload error before the next pick — otherwise a previous
+     * 413 / decode failure sits below the tile until a fresh upload succeeds,
+     * even though the archer's already-tapped intent says "I'm fixing it now."
+     * iOS clears `photoError` at the start of `preparePickedPhoto`; same idea.
+     */
+    fun onPickPhotoStarted() {
+        if (_state.value.photoError != null) {
+            _state.value = _state.value.copy(photoError = null)
+        }
+    }
+
     fun onDisplayNameChange(value: String) {
         _state.value = _state.value.copy(displayName = value)
     }
@@ -189,6 +242,50 @@ class EditProfileViewModel @Inject constructor(
         // never lands in state and the field can't go out of sync with what
         // the server will accept.
         _state.value = _state.value.copy(handle = sanitizeHandle(value))
+    }
+
+    /**
+     * Downscale the cropped image at [croppedUri] to a 512 px square JPEG and
+     * PUT it to `/social/me/avatar`. On success the SocialRepository re-caches
+     * the freshly-bumped `avatarVersion`, so SocialAvatarImage repaints the
+     * new picture from the cache-busted URL on the next composition. Mirrors
+     * iOS `EditProfileView.uploadCroppedAvatar`.
+     */
+    fun uploadAvatar(croppedUri: Uri) {
+        _state.value = _state.value.copy(uploadingPhoto = true, photoError = null)
+        viewModelScope.launch {
+            val bytes = photoDownscaler.downscaleToJpeg(
+                uri = croppedUri,
+                maxLongEdge = PhotoDownscaler.AVATAR_LONG_EDGE,
+            )
+            if (bytes == null) {
+                _state.value = _state.value.copy(
+                    uploadingPhoto = false,
+                    photoError = "Couldn't read that image — try another.",
+                )
+                return@launch
+            }
+            runCatching { socialRepository.uploadAvatar(bytes) }
+                .onSuccess { updated ->
+                    _state.value = _state.value.copy(
+                        uploadingPhoto = false,
+                        profile = updated,
+                    )
+                }
+                .onFailure { t ->
+                    _state.value = _state.value.copy(
+                        uploadingPhoto = false,
+                        photoError = friendlyPhotoMessage(t),
+                    )
+                }
+        }
+    }
+
+    private fun friendlyPhotoMessage(t: Throwable): String {
+        if (t is ApiException && t.status == 413) {
+            return "That image is too large — pick a smaller one."
+        }
+        return t.message ?: "Couldn't upload that photo."
     }
 
     fun save() {
@@ -260,6 +357,25 @@ fun EditProfileScreen(
         }
     }
 
+    // System photo picker — single image. The picked Uri goes through uCrop
+    // (1:1 locked, since the avatar tile renders square) before upload;
+    // PhotoCropperHost drains the queue one item at a time. Mirrors iOS's
+    // PhotosPicker → PhotoCropperSheet → uploadCroppedAvatar pipeline in
+    // EditProfileView.swift.
+    var currentCrop by remember { mutableStateOf<PendingCropImage?>(null) }
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) currentCrop = PendingCropImage(source = uri)
+    }
+    PhotoCropperHost(
+        launch = PhotoCropperLaunch(image = currentCrop, mode = PhotoCropMode.Square),
+        onResult = { cropped ->
+            currentCrop = null
+            if (cropped != null) viewModel.uploadAvatar(cropped)
+        },
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -267,6 +383,20 @@ fun EditProfileScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         EditProfileHeader(onBack = onBack)
+
+        Spacer(Modifier.height(8.dp))
+
+        PhotoSection(
+            profile = state.profile,
+            uploading = state.uploadingPhoto,
+            photoError = state.photoError,
+            onPickPhoto = {
+                viewModel.onPickPhotoStarted()
+                photoPicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
+        )
 
         Spacer(Modifier.height(8.dp))
 
@@ -318,6 +448,85 @@ fun EditProfileScreen(
                     onClick = viewModel::save,
                 )
             }
+        }
+    }
+}
+
+/**
+ * Centred avatar tile + Add / Change-photo button + an inline error slot.
+ * The tile mirrors iOS's `EditProfileView.photoSection` — 88 dp square with
+ * a dimming overlay while an upload is in flight. The button label flips to
+ * "Change photo" once the profile carries an avatar.
+ *
+ * Tapping anywhere on the tile or the label launches the picker (the iOS
+ * surface uses a PhotosPicker that's only on the label; making the tile
+ * itself tappable on Android is the platform-native expectation).
+ */
+@Composable
+private fun PhotoSection(
+    profile: SocialProfile?,
+    uploading: Boolean,
+    photoError: String?,
+    onPickPhoto: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .clickable(enabled = profile != null && !uploading, onClick = onPickPhoto)
+                .testTag(TestTags.EditProfileAvatarTile),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (profile != null) {
+                SocialAvatarImage(
+                    displayName = profile.displayName,
+                    userId = profile.userId,
+                    avatarUrl = null,
+                    avatarVersion = profile.avatarVersion,
+                    size = 88,
+                )
+            } else {
+                SocialAvatarImage(
+                    displayName = "…",
+                    userId = null,
+                    avatarUrl = null,
+                    avatarVersion = null,
+                    size = 88,
+                )
+            }
+            if (uploading) {
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .background(Color.Black.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = AppPaper)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        val hasAvatar = (profile?.avatarVersion ?: 0) > 0
+        Text(
+            text = if (hasAvatar) "Change photo" else "Add photo",
+            style = interUI(13.sp, FontWeight.SemiBold).copy(
+                color = if (profile != null && !uploading) AppPond else AppInk3,
+            ),
+            modifier = Modifier
+                .clickable(enabled = profile != null && !uploading, onClick = onPickPhoto)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .testTag(TestTags.EditProfileChangePhotoButton),
+        )
+        if (photoError != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = photoError,
+                style = interUI(12.sp).copy(color = AppMaple),
+                modifier = Modifier.padding(horizontal = 26.dp),
+            )
         }
     }
 }

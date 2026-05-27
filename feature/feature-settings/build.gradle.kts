@@ -20,6 +20,12 @@ dependencies {
     // share the Entitlement core-model.
     implementation(project(":feature:feature-subscription"))
 
+    // Edit Profile reuses the avatar tile (SocialAvatarImage) and the uCrop
+    // bridge (PhotoCropperHost) from feature-social — both already exist for
+    // the feed / session photo flows. iOS uses the same building blocks from
+    // its Components folder.
+    implementation(project(":feature:feature-social"))
+
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
