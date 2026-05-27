@@ -298,7 +298,11 @@ class SocialRepository @Inject constructor(
 
     suspend fun refreshClubs() {
         val remote = api.getClubs()
-        clubDao.upsertAll(remote.map { it.toEntity() })
+        // replaceAll, not upsertAll: also evicts any locally-cached club
+        // that's no longer in the server response (left, kicked, or
+        // deleted server-side). Without this the cache only grows and
+        // ghost clubs hang around after a server-side delete.
+        clubDao.replaceAll(remote.map { it.toEntity() })
     }
 
     suspend fun getClub(id: String): Club {
@@ -377,7 +381,8 @@ class SocialRepository @Inject constructor(
 
     suspend fun refreshLeagues() {
         val remote = api.getLeagues()
-        leagueDao.upsertAll(remote.map { it.toEntity() })
+        // See refreshClubs — same reconcile reasoning.
+        leagueDao.replaceAll(remote.map { it.toEntity() })
     }
 
     suspend fun getLeague(id: String): League {

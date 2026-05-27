@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -28,6 +29,16 @@ interface LeagueDao {
     @Query("DELETE FROM leagues WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("DELETE FROM leagues WHERE id NOT IN (:ids)")
+    suspend fun deleteWhereIdNotIn(ids: List<String>)
+
     @Query("DELETE FROM leagues")
     suspend fun clear()
+
+    /** See [ClubDao.replaceAll] — same reconcile pattern, same rationale. */
+    @Transaction
+    suspend fun replaceAll(entities: List<LeagueEntity>) {
+        deleteWhereIdNotIn(entities.map { it.id })
+        upsertAll(entities)
+    }
 }
