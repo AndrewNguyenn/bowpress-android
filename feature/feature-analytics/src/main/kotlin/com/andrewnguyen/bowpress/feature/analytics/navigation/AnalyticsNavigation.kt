@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.analytics.navigation
 
+import android.net.Uri
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -16,9 +17,6 @@ import com.andrewnguyen.bowpress.feature.analytics.timeline.ScoreTimelineScreen
 import com.andrewnguyen.bowpress.feature.analytics.trend.TrendFindingDetailScreen
 import com.andrewnguyen.bowpress.feature.session.threed.ThreeDAnalyticsScreen
 import com.andrewnguyen.bowpress.feature.session.threed.ThreeDLogDetailScreen
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import kotlinx.serialization.json.Json
 
 /**
@@ -61,7 +59,13 @@ object AnalyticsRoutes {
 
     fun trendDetail(finding: TrendFinding): String {
         val json = Json.encodeToString(TrendFinding.serializer(), finding)
-        val encoded = URLEncoder.encode(json, StandardCharsets.UTF_8.name())
+        // Path encoding (Uri.encode), not FORM encoding (URLEncoder.encode):
+        // the previous URLEncoder.encode + URLDecoder.decode pair double-decoded
+        // — Compose Navigation auto-runs Uri.decode on path args, so a literal
+        // '%' in the JSON (after one decode) tripped URLDecoder with
+        // "Illegal hex characters in escape (%) pattern : %XY". Uri.encode pairs
+        // cleanly with that auto-decode.
+        val encoded = Uri.encode(json)
         return "analytics/trend/$encoded"
     }
 
@@ -110,9 +114,13 @@ fun NavGraphBuilder.analyticsNavGraph(navController: NavController) {
                 navArgument(AnalyticsRoutes.Args.FindingJson) { type = NavType.StringType },
             ),
         ) { entry ->
-            val raw = entry.arguments?.getString(AnalyticsRoutes.Args.FindingJson).orEmpty()
-            val decoded = URLDecoder.decode(raw, StandardCharsets.UTF_8.name())
-            val finding = Json.decodeFromString(TrendFinding.serializer(), decoded)
+            // Compose Navigation already ran Uri.decode on the path arg before
+            // stashing it in `arguments`, so the raw value is the original JSON.
+            // No second decode here — that's what produced the
+            // "Illegal hex characters in escape (%) pattern" crash on data
+            // containing a literal '%'.
+            val json = entry.arguments?.getString(AnalyticsRoutes.Args.FindingJson).orEmpty()
+            val finding = Json.decodeFromString(TrendFinding.serializer(), json)
             TrendFindingDetailScreen(
                 finding = finding,
                 onBack = { navController.popBackStack() },

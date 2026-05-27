@@ -1,14 +1,12 @@
 package com.andrewnguyen.bowpress.feature.auth
 
+import android.net.Uri
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 /**
  * Nav routes exposed by feature-auth. Import these from the host NavHost.
@@ -17,10 +15,16 @@ object AuthRoutes {
     const val GRAPH = "auth"
     const val LANDING = "auth/landing"
     const val EMAIL = "auth/email"
-    /** `auth/verify/{email}` — email is URL-encoded so `+` and `@` survive. */
+    /**
+     * `auth/verify/{email}` — email is path-encoded (Uri.encode) so `+` and
+     * `@` survive. Don't use `URLEncoder.encode` here: it FORM-encodes (space
+     * → `+`) and pairs badly with Compose Navigation's auto-Uri.decode on
+     * receive, producing double-decode crashes for any literal `%` in the
+     * value.
+     */
     const val VERIFY = "auth/verify/{email}"
     fun verifyFor(email: String): String =
-        "auth/verify/${URLEncoder.encode(email, StandardCharsets.UTF_8.name())}"
+        "auth/verify/${Uri.encode(email)}"
 }
 
 /**
@@ -61,8 +65,9 @@ fun NavGraphBuilder.authNavGraph(
             route = AuthRoutes.VERIFY,
             arguments = listOf(navArgument("email") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val encoded = backStackEntry.arguments?.getString("email").orEmpty()
-            val email = URLDecoder.decode(encoded, StandardCharsets.UTF_8.name())
+            // Compose Navigation already ran Uri.decode on the path arg, so
+            // the raw value IS the original email — see [AuthRoutes.VERIFY].
+            val email = backStackEntry.arguments?.getString("email").orEmpty()
             VerifyEmailScreen(
                 email = email,
                 onCancel = { navController.popBackStack() },
