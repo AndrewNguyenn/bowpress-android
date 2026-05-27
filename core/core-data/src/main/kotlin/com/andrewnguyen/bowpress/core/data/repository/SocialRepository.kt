@@ -188,6 +188,21 @@ class SocialRepository @Inject constructor(
         return updated
     }
 
+    /**
+     * Upload a new profile picture for the signed-in archer. [jpegBytes] is a
+     * downscaled, square JPEG (caller crops + downscales via PhotoDownscaler
+     * with `maxLongEdge = AVATAR_LONG_EDGE`). The server bumps `avatar_version`
+     * and returns the refreshed profile, which is re-cached so the new avatar
+     * paints across the app on the next composition (SocialAvatarImage keys on
+     * `avatarVersion` for cache-busting). Mirrors iOS `APIClient.uploadAvatar`.
+     */
+    suspend fun uploadAvatar(jpegBytes: ByteArray): SocialProfile {
+        val body = jpegBytes.toRequestBody(JPEG_MEDIA_TYPE)
+        val updated = api.uploadAvatar(body)
+        profileDao.upsert(updated.toEntity())
+        return updated
+    }
+
     suspend fun searchArcher(handle: String): SocialProfile =
         api.getArcherByHandle(handle)
 
