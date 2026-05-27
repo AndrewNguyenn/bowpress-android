@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,8 +29,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -85,29 +84,30 @@ fun SessionDetailScreen(
 
     Scaffold(
         topBar = {
-            // Empty title — the in-content `TitleHeader` is the page anchor,
-            // matching iOS dropping the generic "Session Detail" nav label.
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-                actions = {
-                    TextButton(onClick = { /* future: edit metadata */ }) {
-                        Text("Edit")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppPaper,
-                    navigationIconContentColor = AppInk,
-                    actionIconContentColor = AppPondDk,
-                ),
-            )
+            // Custom 48dp Row instead of Material's TopAppBar (which is fixed at
+            // 64dp): iOS BowPress uses SwiftUI's tighter ~44pt nav chrome, and
+            // the M3 default left a visible gap above the in-body TitleHeader.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppPaper)
+                    .statusBarsPadding()
+                    .height(48.dp)
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = AppInk,
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { /* future: edit metadata */ }) {
+                    Text("Edit", color = AppPondDk)
+                }
+            }
         },
     ) { padding ->
         Box(
@@ -282,8 +282,8 @@ private fun TitleHeader(title: String, distance: String?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // top = 0 — Material's TopAppBar already provides the gap above the
-            // title; the iOS 18pt top inset is folded into the system bar height.
+            // top = 0 — the Scaffold's topBar Row already sits above us with
+            // status-bar inset baked in. Any extra inset double-stacks.
             .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
