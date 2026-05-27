@@ -13,7 +13,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
-import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlack
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlue
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtRed
@@ -206,10 +205,18 @@ private fun DrawScope.drawFace(
     drawCircle(color = DIVIDER, radius = 0.05f * radius, center = center, style = Stroke(width = 0.8.dp.toPx()))
 }
 
-/** Draw one arrow dot — ink fill, paper hairline so it reads on every band. */
+/** Draw one arrow dot — ink fill with a soft shadow, mirroring iOS
+ *  `EndArrowDot` (HistoricalSessionsView). Drops the previous AppPaper
+ *  hairline: iOS has no border, and the ring read as a hard white edge
+ *  against the red/yellow Vegas bands. The shadow gives the dot enough
+ *  separation from the face without the rim. */
 private fun DrawScope.drawArrowDot(at: Offset, dotRadius: Float) {
+    drawCircle(
+        color = Color.Black.copy(alpha = 0.4f),
+        radius = dotRadius,
+        center = Offset(at.x, at.y + 1f),
+    )
     drawCircle(color = AppInk, radius = dotRadius, center = at)
-    drawCircle(color = AppPaper, radius = dotRadius, center = at, style = Stroke(width = 1.dp.toPx()))
 }
 
 /**
