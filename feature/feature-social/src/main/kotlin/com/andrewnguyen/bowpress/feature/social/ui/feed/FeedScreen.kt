@@ -170,11 +170,6 @@ fun FeedScreen(
                     )
                 }
             }
-            // Eyebrow
-            item {
-                FeedEyebrow()
-            }
-
             when (state.emptyVariant) {
                 FeedEmptyVariant.NewUser -> item {
                     SocialEmptyState(
@@ -610,34 +605,3 @@ private fun androidx.compose.foundation.layout.BoxScope.PillCornerBadge(
     }
 }
 
-@Composable
-private fun FeedEyebrow() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp)
-            .padding(top = 14.dp, bottom = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        Row {
-            Text(
-                text = "ACTIVITY",
-                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
-                color = AppPondDk,
-            )
-            Text(
-                // Social Feed V2 §2 — the caller's own activity now interleaves
-                // into the feed, so the eyebrow names the caller first.
-                text = " · you + friends + clubs + leagues",
-                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.24.em),
-                color = AppInk3,
-            )
-        }
-        Text(
-            text = "infinite scroll",
-            style = jetbrainsMono(10.sp),
-            color = AppInk3,
-        )
-    }
-}
