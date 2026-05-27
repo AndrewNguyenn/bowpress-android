@@ -190,24 +190,26 @@ private fun DrawScope.drawFace(
     bands.forEach { (edge, color) ->
         drawCircle(color = color, radius = edge * radius, center = center)
     }
-    // Outer edge + hair-thin ring dividers.
-    drawCircle(color = DIVIDER, radius = radius, center = center, style = Stroke(width = 1.5f))
+    // Outer edge + hair-thin ring dividers. Stroke widths are in dp so
+    // the dividers stay visible at the same physical thickness across
+    // device densities; raw px would collapse to sub-pixel on a 1x phone.
+    drawCircle(color = DIVIDER, radius = radius, center = center, style = Stroke(width = 1.5.dp.toPx()))
     bands.drop(1).map { it.first }.distinct().forEach { edge ->
         drawCircle(
             color = DIVIDER,
             radius = edge * radius,
             center = center,
-            style = Stroke(width = 0.5f),
+            style = Stroke(width = 0.5.dp.toPx()),
         )
     }
     // X tick at centre.
-    drawCircle(color = DIVIDER, radius = 0.05f * radius, center = center, style = Stroke(width = 0.8f))
+    drawCircle(color = DIVIDER, radius = 0.05f * radius, center = center, style = Stroke(width = 0.8.dp.toPx()))
 }
 
 /** Draw one arrow dot — ink fill, paper hairline so it reads on every band. */
 private fun DrawScope.drawArrowDot(at: Offset, dotRadius: Float) {
     drawCircle(color = AppInk, radius = dotRadius, center = at)
-    drawCircle(color = AppPaper, radius = dotRadius, center = at, style = Stroke(width = 1f))
+    drawCircle(color = AppPaper, radius = dotRadius, center = at, style = Stroke(width = 1.dp.toPx()))
 }
 
 /**

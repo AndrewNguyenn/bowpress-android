@@ -42,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -53,7 +52,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.andrewnguyen.bowpress.core.designsystem.AppCream
 import com.andrewnguyen.bowpress.core.designsystem.AppDeep
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk2
@@ -871,12 +869,6 @@ private fun ArrowPlotOverlay(
             // a plain scoring arrow reads ink. Mirrors iOS `TargetArrowDotsOverlay`.
             val fill = if (arrow.ring >= 11 || arrow.ring <= 0) AppMaple else AppInk
             drawCircle(color = fill, radius = dotRadius, center = at)
-            drawCircle(
-                color = AppCream,
-                radius = dotRadius,
-                center = at,
-                style = Stroke(width = 0.9.dp.toPx()),
-            )
         }
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppMoss
@@ -190,11 +191,19 @@ fun BPTargetFace(
                 val radius = ring.ratio * px / 2f
                 ring.fill?.let { drawCircle(it, radius, center) }
                 ring.stroke?.let {
+                    // strokeWidth values on the Ring records are in dp,
+                    // not raw px — convert through the DrawScope density so
+                    // they render at the same visual thickness as iOS's pt
+                    // values. The 0.5dp floor mirrors iOS `max(_, 0.5)` on
+                    // BPTargetFace.swift; without it, 0.25dp on a 1x display
+                    // would collapse to sub-pixel and disappear.
+                    val strokePx = ring.strokeWidth.dp.toPx()
+                        .coerceAtLeast(0.5.dp.toPx())
                     drawCircle(
                         color = it,
                         radius = radius,
                         center = center,
-                        style = Stroke(width = ring.strokeWidth.coerceAtLeast(0.5f)),
+                        style = Stroke(width = strokePx),
                     )
                 }
             }

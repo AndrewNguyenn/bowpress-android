@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.dp
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlue
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtRed
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtYellow
@@ -28,27 +29,32 @@ fun DrawScope.drawVegasSixRingSpot(center: Offset, radius: Float) {
     drawCircle(color = AppTgtRed, radius = radius * 0.80f, center = center)
     drawCircle(color = AppTgtYellow, radius = radius * 0.40f, center = center)
 
+    // Stroke widths in dp — density-aware so dividers stay visible at
+    // the same physical thickness across phones. Raw px would collapse
+    // a 0.9px divider to sub-pixel on a 1x display.
+    val dividerStrokePx = 0.9.dp.toPx()
     VEGAS_DIVIDERS.forEach { frac ->
         drawCircle(
             color = VEGAS_DIVIDER_INK,
             radius = radius * frac,
             center = center,
-            style = Stroke(width = 0.9f),
+            style = Stroke(width = dividerStrokePx),
         )
     }
 
     val tick = radius * 0.03f
+    val tickStrokePx = 0.8.dp.toPx()
     drawLine(
         VEGAS_X_TICK_INK,
         Offset(center.x - tick, center.y),
         Offset(center.x + tick, center.y),
-        strokeWidth = 0.8f,
+        strokeWidth = tickStrokePx,
     )
     drawLine(
         VEGAS_X_TICK_INK,
         Offset(center.x, center.y - tick),
         Offset(center.x, center.y + tick),
-        strokeWidth = 0.8f,
+        strokeWidth = tickStrokePx,
     )
 }
 
