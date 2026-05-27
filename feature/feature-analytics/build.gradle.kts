@@ -7,12 +7,6 @@ plugins {
 android {
     namespace = "com.andrewnguyen.bowpress.feature.analytics"
 
-    // BuildConfig.DEBUG gates MockAnalyticsWave2 decoration on the Analytics
-    // screen so release builds don't ship the hardcoded "10.4 / 72%" fixtures.
-    buildFeatures {
-        buildConfig = true
-    }
-
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
