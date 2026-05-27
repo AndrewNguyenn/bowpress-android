@@ -118,4 +118,51 @@ class ScorecardTest {
         assertThat(Scorecard.score(0)).isEqualTo(0) // miss
         assertThat(Scorecard.score(-1)).isEqualTo(0)
     }
+
+    @Test
+    fun `recorded end with zero arrows is dropped from the card`() {
+        // Reproduces the bug from session 673fccb3- — end 2 exists in the
+        // DB but every arrow under it was orphaned. Rendering it as a "0"
+        // row looks like a scoring bug to the archer.
+        val arrows = listOf(
+            arrow(10, "e1", 1),
+            arrow(11, "e3", 2),
+        )
+        val card = Scorecard.build(arrows, listOf(end(1), end(2), end(3)), "s1")
+
+        assertThat(card.endCount).isEqualTo(2)
+        // Surviving lines renumber 1, 2 so the END column has no visible gap.
+        assertThat(card.lines.map { it.end.endNumber }).containsExactly(1, 2).inOrder()
+        assertPartitions(card, arrows)
+    }
+
+    @Test
+    fun `empty end followed by orphan arrows — orphans become the next line`() {
+        // Christian's session shape: 4 recorded ends with arrows, end 5 in
+        // the DB but empty, plus 4 arrows whose end_id was nulled out.
+        val arrows = listOf(
+            arrow(10, "e1", 1), arrow(11, "e1", 2), arrow(11, "e1", 3),
+            arrow(11, "e2", 4), arrow(11, "e2", 5), arrow(10, "e2", 6),
+            arrow(11, "e3", 7), arrow(10, "e3", 8), arrow(11, "e3", 9),
+            arrow(10, "e4", 10), arrow(11, "e4", 11), arrow(11, "e4", 12),
+            // 4 orphan X's that should have lived under end 5.
+            arrow(11, null, 13), arrow(11, null, 14),
+            arrow(11, null, 15), arrow(11, null, 16),
+        )
+        val ends = listOf(end(1), end(2), end(3), end(4), end(5))
+        val card = Scorecard.build(arrows, ends, "s1")
+
+        assertThat(card.endCount).isEqualTo(5)
+        assertThat(card.lines.map { it.end.endNumber }).containsExactly(1, 2, 3, 4, 5).inOrder()
+        assertThat(card.lines[4].arrows.size).isEqualTo(4)
+        assertThat(card.totalScore).isEqualTo(160)
+        assertPartitions(card, arrows)
+    }
+
+    @Test
+    fun `all recorded ends empty, no orphans — yields an empty card`() {
+        val card = Scorecard.build(emptyList(), listOf(end(1), end(2)), "s1")
+        assertThat(card.lines).isEmpty()
+        assertThat(card.totalScore).isEqualTo(0)
+    }
 }

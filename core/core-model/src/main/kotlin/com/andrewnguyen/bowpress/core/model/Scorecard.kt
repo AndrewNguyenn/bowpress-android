@@ -67,26 +67,40 @@ data class Scorecard(val lines: List<Line>) {
 
             if (ends.isNotEmpty()) {
                 val byEndId = sorted.filter { it.endId != null }.groupBy { it.endId!! }
-                val lines = ends.map { end ->
-                    Line(end = end, arrows = byEndId[end.id].orEmpty())
+                // Drop recorded ends with zero arrows. They surface when an
+                // end is created but every arrow under it is deleted / never
+                // assigned (e.g. a sync race orphans the arrows). Rendering
+                // them as a "0" row looks like a scoring bug to the archer.
+                // Orphans below still cover the unattributed arrows so the
+                // partition invariant holds.
+                val lines = ends.mapNotNull { end ->
+                    val endArrows = byEndId[end.id].orEmpty()
+                    if (endArrows.isEmpty()) null else Line(end = end, arrows = endArrows)
                 }.toMutableList()
 
                 val recordedIds = ends.map { it.id }.toSet()
                 val orphans = sorted.filter { it.endId == null || it.endId !in recordedIds }
                 if (orphans.isNotEmpty()) {
-                    val nextNumber = (ends.maxOfOrNull { it.endNumber } ?: 0) + 1
                     lines += Line(
                         end = SessionEnd(
                             id = "inprogress-$sessionId",
                             sessionId = sessionId,
-                            endNumber = nextNumber,
+                            endNumber = lines.size + 1,
                             notes = null,
                             completedAt = orphans.last().shotAt,
                         ),
                         arrows = orphans,
                     )
                 }
-                return Scorecard(lines)
+                // Renumber the surviving lines top-down so dropped empty
+                // ends don't leave a visible gap in the END column (1, 2,
+                // 3, 5 would look like a render bug). `endNumber` on this
+                // model is only ever a sort + display value, never an FK,
+                // so re-sequencing it is safe.
+                val renumbered = lines.mapIndexed { idx, line ->
+                    line.copy(end = line.end.copy(endNumber = idx + 1))
+                }
+                return Scorecard(renumbered)
             }
 
             // No recorded ends — chunk the arrows so the breakdown still renders.
