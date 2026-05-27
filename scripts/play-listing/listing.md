@@ -61,8 +61,8 @@ Privacy Policy: https://andrewnguyenn.github.io/bowpress-web/privacy.html
 ## URLs
 
 - **Privacy policy URL:** `https://andrewnguyenn.github.io/bowpress-web/privacy.html`
-- **Website (optional):** same site root
-- **Support email:** `stageandrewnguyen@gmail.com`
+- **Website (optional):** `https://anduwu.dev/`
+- **Support email:** `bowpresssupport@gmail.com` (public-facing — distinct from the dev-account owner email)
 
 ## Category
 
