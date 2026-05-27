@@ -136,6 +136,7 @@ object TestTags {
     /** "Find a club" CTA button inside the new-user empty state. */
     const val SocialEmptyFindClub: String = "social_empty_find_club"
     const val SocialYouRoot: String = "social_you_root"
+    const val YouEditProfileButton: String = "you_edit_profile_button"
     const val SocialFriendsRoot: String = "social_friends_root"
     const val SocialFriendSearchField: String = "social_friend_search_field"
     const val SocialClubsRoot: String = "social_clubs_root"

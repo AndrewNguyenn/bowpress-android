@@ -40,6 +40,7 @@ fun NavGraphBuilder.socialNavGraph(
     onAccountClick: () -> Unit,
     onSubscriptionClick: () -> Unit,
     onEquipmentClick: () -> Unit,
+    onEditProfileClick: () -> Unit,
 ) {
     // ── Feed (landing) ────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ fun NavGraphBuilder.socialNavGraph(
             onAccountClick = onAccountClick,
             onSubscriptionClick = onSubscriptionClick,
             onEquipmentClick = onEquipmentClick,
+            onEditProfileClick = onEditProfileClick,
         )
     }
 

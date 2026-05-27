@@ -58,6 +58,7 @@ fun YouScreen(
     onAccountClick: () -> Unit,
     onSubscriptionClick: () -> Unit,
     onEquipmentClick: () -> Unit,
+    onEditProfileClick: () -> Unit,
     viewModel: YouViewModel = hiltViewModel(),
     achievementsViewModel: AchievementsViewModel = hiltViewModel(),
 ) {
@@ -105,7 +106,7 @@ fun YouScreen(
         ) {
             // Profile header
             state.profile?.let { profile ->
-                ProfileHeader(profile = profile)
+                ProfileHeader(profile = profile, onEditProfileClick = onEditProfileClick)
             }
 
             // Trophy case (§15 / §18)
@@ -205,39 +206,60 @@ fun YouScreen(
 }
 
 @Composable
-private fun ProfileHeader(profile: SocialProfile) {
-    Row(
+private fun ProfileHeader(profile: SocialProfile, onEditProfileClick: () -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Large avatar
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Large avatar
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .border(1.dp, AppPondDk)
+                    .background(AppPaper2),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = avatarInitials(profile.displayName),
+                    style = frauncesDisplay(24.sp),
+                    color = AppPondDk,
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text(profile.displayName, style = frauncesDisplay(22.sp), color = AppInk)
+                Text(
+                    "@${profile.handle}",
+                    style = jetbrainsMono(11.sp),
+                    color = AppInk3,
+                )
+                Text(
+                    "${profile.sessionCount} sessions · ${profile.arrowCount} arrows · ${profile.division?.name ?: ""}",
+                    style = jetbrainsMono(9.5.sp),
+                    color = AppInk3,
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        // Edit Profile — mirrors iOS YouView's `ghostLabel`: a full-width
+        // outline-only pill below the avatar row. The Settings → Account →
+        // Edit Profile path is still wired (parity with iOS AccountView), but
+        // this surfaces the entry where the archer expects it.
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .fillMaxWidth()
                 .border(1.dp, AppPondDk)
-                .background(AppPaper2),
+                .clickable(onClick = onEditProfileClick)
+                .padding(vertical = 9.dp)
+                .testTag(TestTags.YouEditProfileButton),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = avatarInitials(profile.displayName),
-                style = frauncesDisplay(24.sp),
+                text = "EDIT PROFILE ›",
+                style = interUI(9.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
                 color = AppPondDk,
-            )
-        }
-        Spacer(Modifier.width(14.dp))
-        Column {
-            Text(profile.displayName, style = frauncesDisplay(22.sp), color = AppInk)
-            Text(
-                "@${profile.handle}",
-                style = jetbrainsMono(11.sp),
-                color = AppInk3,
-            )
-            Text(
-                "${profile.sessionCount} sessions · ${profile.arrowCount} arrows · ${profile.division?.name ?: ""}",
-                style = jetbrainsMono(9.5.sp),
-                color = AppInk3,
             )
         }
     }

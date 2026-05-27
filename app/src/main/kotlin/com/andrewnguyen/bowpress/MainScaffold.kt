@@ -300,6 +300,9 @@ fun MainScaffold(
                             restoreState = true
                         }
                     },
+                    onEditProfileClick = {
+                        navController.navigate(SettingsRoutes.EDIT_PROFILE)
+                    },
                 )
                 // Settings screens reachable from YouScreen (behind the avatar)
                 settingsNavGraph(navController, onSignedOut = onSignedOut)
