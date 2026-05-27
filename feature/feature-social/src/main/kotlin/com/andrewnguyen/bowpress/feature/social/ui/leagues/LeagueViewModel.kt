@@ -288,7 +288,12 @@ class LeagueViewModel @Inject constructor(
                 )
             }.onSuccess { league ->
                 _composerState.update { it.copy(isSaving = false) }
-                _leaguesState.update { st -> st.copy(leagues = st.leagues + league) }
+                // The repository upsert into Room invalidates `observeLeagues()`,
+                // which the [loadLeagues] collector then re-emits into [leaguesState].
+                // Don't manually append here — that races with the Room emission
+                // and can leave the new league in the list twice, crashing the
+                // LazyColumn with a duplicate-key IllegalArgumentException.
+                // (Same race as [ClubViewModel.createClub].)
                 onSuccess(league)
             }.onFailure { e ->
                 _composerState.update { it.copy(isSaving = false, error = e.message) }

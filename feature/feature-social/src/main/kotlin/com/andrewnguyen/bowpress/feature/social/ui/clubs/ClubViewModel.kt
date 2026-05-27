@@ -219,7 +219,11 @@ class ClubViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { socialRepository.createClub(name, description) }
                 .onSuccess { club ->
-                    _clubsState.update { it.copy(clubs = it.clubs + club) }
+                    // The repository upsert into Room invalidates `observeClubs()`,
+                    // which the [loadClubs] collector then re-emits into [clubsState].
+                    // Don't manually append here — that races with the Room emission
+                    // and can leave the new club in the list twice, crashing the
+                    // LazyColumn with a duplicate-key IllegalArgumentException.
                     onSuccess(club)
                 }
                 .onFailure { e -> _clubsState.update { it.copy(error = e.message) } }
@@ -230,7 +234,7 @@ class ClubViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { socialRepository.joinClub(inviteCode) }
                 .onSuccess { club ->
-                    _clubsState.update { it.copy(clubs = it.clubs + club) }
+                    // Same Room-Flow-already-fires-this reasoning as [createClub].
                     onSuccess(club)
                 }
                 .onFailure { e -> _clubsState.update { it.copy(error = e.message) } }
