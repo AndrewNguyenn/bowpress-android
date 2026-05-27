@@ -373,6 +373,16 @@ interface BowPressApi {
     @PATCH("social/me")
     suspend fun updateSocialProfile(@Body body: UpdateSocialProfileRequest): SocialProfile
 
+    /**
+     * Replace the signed-in archer's profile picture — a raw JPEG body. The
+     * server stores it in R2, bumps `avatar_version` on the social profile, and
+     * returns the updated [SocialProfile]. Mirrors iOS `APIClient.uploadAvatar`
+     * (PUT, `Content-Type: image/jpeg`). 413 on > 5 MB, 415 if the bytes don't
+     * decode to a supported image format.
+     */
+    @PUT("social/me/avatar")
+    suspend fun uploadAvatar(@Body body: okhttp3.RequestBody): SocialProfile
+
     @GET("social/archers/{handle}")
     suspend fun getArcherByHandle(@Path("handle") handle: String): SocialProfile
 
