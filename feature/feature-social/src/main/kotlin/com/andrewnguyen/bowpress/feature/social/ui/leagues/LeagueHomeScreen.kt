@@ -329,7 +329,10 @@ fun LeagueHomeScreen(
                 if (div == null) rows else rows.filter { it.division == div }
             }
 
-            items(filteredStandings, key = { it.userId }) { row ->
+            // Namespace per-section — see ClubHomeScreen for the full rationale
+            // (a single user.id can legitimately appear in standings AND in any
+            // userId-keyed row from another section in the same LazyColumn).
+            items(filteredStandings, key = { "standing-${it.userId}" }) { row ->
                 // Parity E2 — tap any non-you standings row to open that
                 // archer's profile. You-row stays inert.
                 StandingRow(
@@ -354,7 +357,7 @@ fun LeagueHomeScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(state.mySubmissions, key = { it.id }) { sub ->
+                items(state.mySubmissions, key = { "submission-${it.id}" }) { sub ->
                     SubmissionRow(sub = sub)
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 }
@@ -392,7 +395,7 @@ fun LeagueHomeScreen(
                     )
                 }
             } else {
-                items(state.attachments, key = { it.id }) { att ->
+                items(state.attachments, key = { "attachment-${it.id}" }) { att ->
                     Spacer(Modifier.height(8.dp))
                     AttachmentRow(
                         attachment = att,

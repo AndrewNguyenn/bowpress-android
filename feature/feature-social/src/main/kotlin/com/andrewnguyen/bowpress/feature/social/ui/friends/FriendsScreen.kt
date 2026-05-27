@@ -209,7 +209,8 @@ fun FriendsScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(state.pendingRequests, key = { it.id }) { req ->
+                // Namespace per-section — see ClubHomeScreen for rationale.
+                items(state.pendingRequests, key = { "pending-${it.id}" }) { req ->
                     PendingRequestRow(
                         friendship = req,
                         onAccept = { viewModel.acceptRequest(req.id) },
@@ -242,7 +243,7 @@ fun FriendsScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(state.friends, key = { it.id }) { friend ->
+                items(state.friends, key = { "friend-${it.id}" }) { friend ->
                     FriendRow(
                         friendship = friend,
                         onClick = { onFriendClick(friend.otherUserId) },

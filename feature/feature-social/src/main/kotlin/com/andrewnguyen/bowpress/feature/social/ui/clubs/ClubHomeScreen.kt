@@ -363,7 +363,13 @@ fun ClubHomeScreen(
                     )
                 }
             } else {
-                items(state.announcements, key = { it.id }) { ann ->
+                // Namespace per-section: this LazyColumn renders announcements,
+                // leaderboard, feed, and members back-to-back, and a single
+                // user.id can legitimately appear in BOTH leaderboard and
+                // members (e.g. for a host who created the club). Without
+                // namespacing the LazyColumn crashes with `Key "<uuid>" was
+                // already used` the moment the host opens their own club.
+                items(state.announcements, key = { "announcement-${it.id}" }) { ann ->
                     Spacer(Modifier.height(8.dp))
                     AnnouncementCard(
                         announcement = ann,
@@ -441,7 +447,7 @@ fun ClubHomeScreen(
                 Spacer(Modifier.height(4.dp))
                 HorizontalDivider(color = AppLine, thickness = 1.dp)
             }
-            items(state.leaderboard, key = { it.userId }) { row ->
+            items(state.leaderboard, key = { "leaderboard-${it.userId}" }) { row ->
                 LeaderboardRowItem(
                     row = row,
                     // Parity E2 / E10 — tap any non-you row to open that
@@ -477,7 +483,7 @@ fun ClubHomeScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(state.feed, key = { it.id }) { item ->
+                items(state.feed, key = { "feed-${it.id}" }) { item ->
                     // Parity E10 — tap a member-activity row that points at a
                     // shared session to drill into the session detail.
                     ClubFeedItemRow(
@@ -502,7 +508,7 @@ fun ClubHomeScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(state.members, key = { it.userId }) { member ->
+                items(state.members, key = { "member-${it.userId}" }) { member ->
                     MemberRow(member = member)
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 }
