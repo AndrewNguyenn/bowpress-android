@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.BowPress" parent="android:Theme.Material.Light.NoActionBar">
         <!-- AppPaper window background so the first-frame Activity surface
              matches the composable splash and avoids any white flash before
@@ -20,6 +20,19 @@
     </style>
 
     <!-- uCrop requires an AppCompat theme. Colors are overridden programmatically
-         via UCrop.Options so only the window/toolbar chrome matters here. -->
-    <style name="Theme.BowPress.Cropper" parent="Theme.AppCompat.Light.NoActionBar" />
+         via UCrop.Options so only the window/toolbar chrome matters here.
+
+         `windowOptOutEdgeToEdgeEnforcement` is the Android 15 (API 35)
+         escape hatch from forced edge-to-edge. uCrop 2.2.8 predates
+         edge-to-edge and never applies window insets to its toolbar — on
+         a targetSdk=35 build that lands the ✕ / ✓ buttons under the
+         status bar (a Pixel user reported the ✓ rendering behind the
+         battery icon during avatar crop). Opting this Activity out
+         restores the legacy inset behaviour so the toolbar sits below
+         the status bar. The attribute is silently ignored on API < 35,
+         so one declaration covers every device. The rest of the app
+         (Compose, fully inset-aware) stays edge-to-edge. -->
+    <style name="Theme.BowPress.Cropper" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
+    </style>
 </resources>
