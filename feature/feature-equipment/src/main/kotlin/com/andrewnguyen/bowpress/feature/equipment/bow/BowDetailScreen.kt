@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -119,14 +118,15 @@ fun BowDetailScreen(
             // Custom 48dp Row instead of Material's TopAppBar (which is fixed
             // at 64dp): iOS BowDetailView uses SwiftUI's tighter ~44pt nav
             // chrome, and the M3 default left a visible gap above the
-            // in-body large-title heading. Status-bar inset is applied
-            // manually since we're no longer using a Material container that
-            // handles the inset for us.
+            // in-body large-title heading. No statusBarsPadding() — the outer
+            // MainScaffold already insets the NavHost below the system bars
+            // via its body PaddingValues, and Modifier.padding(PaddingValues)
+            // doesn't consume window insets, so adding statusBarsPadding here
+            // would double-stack the inset.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(com.andrewnguyen.bowpress.core.designsystem.AppPaper2)
-                    .statusBarsPadding()
                     .height(48.dp)
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
