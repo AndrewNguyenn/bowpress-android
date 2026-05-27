@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -118,5 +119,12 @@ fun CameraViewfinder(
         }
     }
 
-    AndroidView(modifier = modifier, factory = { previewView })
+    // `clipToBounds` because PreviewView's scaled SurfaceView/TextureView can
+    // paint outside its laid-out rect (FILL_CENTER scales the camera output to
+    // cover, then centres — the overflow doesn't honour Compose layout bounds
+    // on its own), bleeding the live preview into the keypad below.
+    AndroidView(
+        modifier = modifier.clipToBounds(),
+        factory = { previewView },
+    )
 }

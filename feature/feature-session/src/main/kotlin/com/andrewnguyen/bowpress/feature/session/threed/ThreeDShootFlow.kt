@@ -189,18 +189,22 @@ private fun ThreeDCaptureScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(AppPaper)
-            .verticalScroll(rememberScrollState()),
+            .background(AppPaper),
     ) {
         ShootHeader("STEP 1 OF 2 — RANGE THE TARGET", onCancel)
 
         // The live camera feed (or a dark placeholder), with the crosshair +
         // angle HUD overlaid — "just the camera with our circle and dot".
+        // Pre-capture the viewfinder takes the full remaining vertical space;
+        // post-capture it falls back to a fixed 280dp so the distance keypad
+        // and Save button have room below without scrolling.
+        val viewfinderHeight =
+            if (!photoTaken) Modifier.weight(1f) else Modifier.height(280.dp)
         Box(
             Modifier
                 .padding(16.dp)
                 .fillMaxWidth()
-                .height(280.dp)
+                .then(viewfinderHeight)
                 .background(AppInk)
                 .border(1.dp, AppLine),
             contentAlignment = Alignment.Center,

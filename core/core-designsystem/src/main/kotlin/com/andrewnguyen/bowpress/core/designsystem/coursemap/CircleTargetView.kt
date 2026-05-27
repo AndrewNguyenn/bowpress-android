@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -295,11 +296,29 @@ class CircleLensController {
 fun CircleLensOverlay(controller: CircleLensController) {
     val snap = controller.snapshot
     if (snap != null) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            CircleLensView(snapshot = snap)
+        // `publishSnapshot` writes touchRoot / targetOriginRoot in window
+        // coordinates, but `Modifier.offset` on the lens disc and stamp
+        // positions them relative to the overlay's parent (which sits below
+        // the status bar / inside scaffold padding). Capture the overlay's
+        // window origin and rebase the snapshot into overlay-local coords so
+        // the lens lands directly under the finger instead of being shifted
+        // down by the status-bar height.
+        var overlayOrigin by remember { mutableStateOf(Offset.Zero) }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { overlayOrigin = it.positionInWindow() },
+        ) {
+            CircleLensView(snapshot = snap.rebasedTo(overlayOrigin))
         }
     }
 }
+
+private fun CircleLensSnapshot.rebasedTo(origin: Offset): CircleLensSnapshot =
+    copy(
+        touchRoot = touchRoot - origin,
+        targetOriginRoot = targetOriginRoot - origin,
+    )
 
 private const val LENS_SIZE_RATIO = 0.75f
 private const val LENS_ZOOM = 2.5f
@@ -366,13 +385,18 @@ fun CircleLensView(snapshot: CircleLensSnapshot) {
                 .border(width = 1.dp, color = AppInk, shape = CircleShape),
         ) {
             // Magnified slice of the target — a larger CircleTargetView shifted
-            // so the touch point lands at the lens centre.
+            // so the touch point lands at the lens centre. `requiredSize` (not
+            // `size`) so the zoomed target keeps its 2.5x dimensions even when
+            // the parent lens disc's constraints are much smaller; with a
+            // preferred `size` Compose would clamp the child to ~175dp and the
+            // offset would push it entirely outside the lens, leaving the lens
+            // visibly empty under the maple footprint ring.
             Box(
                 modifier = Modifier
                     .offset {
                         IntOffset(contentOffsetX.toInt(), contentOffsetY.toInt())
                     }
-                    .size(zoomedTargetDp),
+                    .requiredSize(zoomedTargetDp),
             ) {
                 CircleTargetView(
                     system = snapshot.system,
