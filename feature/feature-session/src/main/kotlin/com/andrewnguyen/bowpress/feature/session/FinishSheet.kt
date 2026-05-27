@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -70,10 +73,7 @@ import com.andrewnguyen.bowpress.core.designsystem.photo.TargetPhotoStore
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.location.LocationTagPicker
-import com.andrewnguyen.bowpress.feature.social.ui.photo.PendingCropImage
-import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropMode
-import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperHost
-import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperLaunch
+// Cropper imports dropped — FinishSheet no longer routes through uCrop.
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -106,8 +106,13 @@ sealed interface FinishMode {
 /** Max length of the description field — matches iOS `FinishSheet.maxDescription`. */
 internal const val FINISH_DESCRIPTION_MAX = 1000
 
-/** Max photos picked through the finish sheet — matches iOS. */
-internal const val FINISH_PHOTOS_MAX = 3
+/**
+ * Max media slots per finish-sheet post — matches iOS `maxMediaSlots = 4`.
+ * Bumped from 3 to match the 2×2 strip capacity so a 4-photo grid renders
+ * cleanly without a blank tile. Android has no video yet, so the slot pool
+ * is photos-only here; iOS shares the pool with one video.
+ */
+internal const val FINISH_PHOTOS_MAX = 4
 
 // ── FinishSheet (replaces the legacy EndSessionSheet alert) ──────────────────
 
@@ -147,32 +152,30 @@ fun FinishSheet(
     val photos = remember { mutableStateOf<List<ByteArray>>(emptyList()) }
     val thumbnails = remember { mutableStateOf<List<android.graphics.Bitmap>>(emptyList()) }
 
-    // FIFO crop queue + currently-displayed source URI — mirrors iOS
-    // `cropQueue` / `currentCrop` and the `.fullScreenCover(item: $currentCrop)`
-    // re-presentation through nil. A pick appends to the queue; the cropper
-    // host watches `currentCrop` and fires uCrop when it flips non-null.
-    var cropQueue by remember { mutableStateOf<List<PendingCropImage>>(emptyList()) }
-    var currentCrop by remember { mutableStateOf<PendingCropImage?>(null) }
-
     var showLocationPicker by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
 
     // System multi-pick photo picker — caps at the remaining slot count
-    // (max 3 photos total, matching iOS).
+    // (max 4 photos total, matching iOS `maxMediaSlots = 4`). Photos go
+    // straight to decode + downscale — the cropper step was producing
+    // unwanted 1:1 outputs even when the user never adjusted the crop
+    // box, and the user expectation is "post my photos as-is". The
+    // post-share Edit sheet still offers per-photo crop after the fact.
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(FINISH_PHOTOS_MAX),
     ) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         val room = (FINISH_PHOTOS_MAX - photos.value.size).coerceAtLeast(0)
         if (room == 0) return@rememberLauncherForActivityResult
-        // Each pick gets enqueued; PhotoCropperHost drains one at a time
-        // through uCrop. Re-presentation is keyed on `currentCrop` flipping
-        // through null, so the queue head is only promoted when idle.
-        val incoming = uris.take(room).map { PendingCropImage(source = it) }
-        cropQueue = cropQueue + incoming
-        if (currentCrop == null) {
-            currentCrop = cropQueue.first()
-            cropQueue = cropQueue.drop(1)
+        val incoming = uris.take(room)
+        for (uri in incoming) {
+            scope.launch {
+                val (bytes, thumb) = decodeAndDownscale(context, uri)
+                if (bytes != null && thumb != null && photos.value.size < FINISH_PHOTOS_MAX) {
+                    photos.value = photos.value + bytes
+                    thumbnails.value = thumbnails.value + thumb
+                }
+            }
         }
     }
 
@@ -321,38 +324,9 @@ fun FinishSheet(
         }
     }
 
-    // Cropper host — fires uCrop when `currentCrop` flips non-null, then
-    // promotes the next queue head once the result comes back.
-    PhotoCropperHost(
-        launch = PhotoCropperLaunch(image = currentCrop, mode = PhotoCropMode.Free),
-        onResult = { croppedUri ->
-            val handled = currentCrop
-            currentCrop = null
-            if (croppedUri != null && handled != null) {
-                scope.launch {
-                    val (bytes, thumb) = decodeAndDownscale(context, croppedUri)
-                    if (bytes != null && thumb != null && photos.value.size < FINISH_PHOTOS_MAX) {
-                        photos.value = photos.value + bytes
-                        thumbnails.value = thumbnails.value + thumb
-                    }
-                    // Promote the next queued image (if any) — done after the
-                    // append so the new photo is visible before the cropper
-                    // re-presents over the sheet.
-                    val nextHead = cropQueue.firstOrNull()
-                    if (nextHead != null) {
-                        cropQueue = cropQueue.drop(1)
-                        currentCrop = nextHead
-                    }
-                }
-            } else {
-                val nextHead = cropQueue.firstOrNull()
-                if (nextHead != null) {
-                    cropQueue = cropQueue.drop(1)
-                    currentCrop = nextHead
-                }
-            }
-        },
-    )
+    // Cropper host removed — session-finish photos now skip the cropper
+    // (iOS parity). The Edit sheet still has its own PhotoCropperHost
+    // for users who want to crop after sharing.
 
     // C3 — auto-tag the nearest archery range (with reverse-geocode fallback)
     // as soon as the sheet mounts with an empty location. The resolver
@@ -663,7 +637,13 @@ private fun ClearLocationLink(onClear: () -> Unit) {
     )
 }
 
-// ── Photo grid ───────────────────────────────────────────────────────────────
+// ── Photo grid (preview layout) ─────────────────────────────────────────────
+//
+// Mirrors iOS `PhotoStripLayoutView` — single (4:3), pair (2x 1:1),
+// trio (big left + 2 stacked right), grid (2×2 1:1). Same shape the
+// post will actually render on the feed, so the user sees a true
+// preview instead of a flat horizontal strip that hides the 4th tile.
+private val PREVIEW_GUTTER = 1.dp
 
 @Composable
 private fun PhotoGrid(
@@ -672,73 +652,169 @@ private fun PhotoGrid(
     onAddClick: () -> Unit,
     onRemoveAt: (Int) -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        thumbnails.forEachIndexed { idx, bmp ->
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-                    .border(1.dp, AppLine),
-            ) {
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Picked photo ${idx + 1}",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+        if (thumbnails.isEmpty()) {
+            // Empty state — single small + tile, sized so it doesn't
+            // dominate the form when no photos picked.
+            Row(modifier = Modifier.fillMaxWidth()) {
+                AddTile(
+                    onClick = onAddClick,
+                    modifier = Modifier.size(84.dp),
                 )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(5.dp)
-                        .size(20.dp)
-                        .background(AppInk)
-                        .clickable { onRemoveAt(idx) },
-                    contentAlignment = Alignment.Center,
+            }
+        } else {
+            PreviewLayout(thumbnails = thumbnails, onRemoveAt = onRemoveAt)
+            if (canAdd) {
+                AddMoreRow(onClick = onAddClick)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreviewLayout(
+    thumbnails: List<android.graphics.Bitmap>,
+    onRemoveAt: (Int) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AppLine),
+    ) {
+        when (thumbnails.size) {
+            1 -> ThumbCell(
+                thumbnails[0], 0, onRemoveAt,
+                modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
+            )
+            2 -> Row(horizontalArrangement = Arrangement.spacedBy(PREVIEW_GUTTER)) {
+                thumbnails.take(2).forEachIndexed { i, bmp ->
+                    ThumbCell(bmp, i, onRemoveAt,
+                        modifier = Modifier.weight(1f).aspectRatio(1f))
+                }
+            }
+            3 -> Row(
+                modifier = Modifier.height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(PREVIEW_GUTTER),
+            ) {
+                Box(modifier = Modifier.weight(2f).fillMaxHeight()) {
+                    ThumbCell(thumbnails[0], 0, onRemoveAt,
+                        modifier = Modifier.fillMaxSize())
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(PREVIEW_GUTTER),
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Remove photo",
-                        tint = AppPaper,
-                        modifier = Modifier.size(12.dp),
-                    )
+                    thumbnails.subList(1, 3).forEachIndexed { i, bmp ->
+                        ThumbCell(bmp, i + 1, onRemoveAt,
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f))
+                    }
+                }
+            }
+            else -> Column(verticalArrangement = Arrangement.spacedBy(PREVIEW_GUTTER)) {
+                for (rowIndex in 0..1) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(PREVIEW_GUTTER)) {
+                        for (colIndex in 0..1) {
+                            val idx = rowIndex * 2 + colIndex
+                            if (idx < thumbnails.size) {
+                                ThumbCell(thumbnails[idx], idx, onRemoveAt,
+                                    modifier = Modifier.weight(1f).aspectRatio(1f))
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f).aspectRatio(1f))
+                            }
+                        }
+                    }
                 }
             }
         }
-        if (canAdd) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-                    .background(AppPaper2)
-                    .border(1.dp, AppLine)
-                    .clickable(onClick = onAddClick),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add photo",
-                    tint = AppInk3,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "ADD",
-                    style = interUI(8.5.sp, weight = FontWeight.SemiBold)
-                        .copy(letterSpacing = 0.22.em, color = AppInk3),
-                )
-            }
+    }
+}
+
+@Composable
+private fun ThumbCell(
+    bmp: android.graphics.Bitmap,
+    index: Int,
+    onRemoveAt: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.background(AppPaper2)) {
+        Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = "Picked photo ${index + 1}",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(6.dp)
+                .size(22.dp)
+                .background(AppInk.copy(alpha = 0.78f))
+                .clickable { onRemoveAt(index) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove photo",
+                tint = AppPaper,
+                modifier = Modifier.size(13.dp),
+            )
         }
-        // Spacer cells to keep grid columns stable when fewer than 3 photos
-        // have been picked + add tile is gone (canAdd == false at cap).
-        val placedSlots = thumbnails.size + if (canAdd) 1 else 0
-        val emptySlots = FINISH_PHOTOS_MAX - placedSlots
-        repeat(emptySlots) {
-            Spacer(modifier = Modifier.weight(1f))
-        }
+    }
+}
+
+@Composable
+private fun AddTile(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .aspectRatio(1f)
+            .background(AppPaper2)
+            .border(1.dp, AppLine)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Add photo",
+            tint = AppInk3,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "ADD",
+            style = interUI(8.5.sp, weight = FontWeight.SemiBold)
+                .copy(letterSpacing = 0.22.em, color = AppInk3),
+        )
+    }
+}
+
+@Composable
+private fun AddMoreRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .border(1.dp, AppLine)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            tint = AppInk2,
+            modifier = Modifier.size(13.dp),
+        )
+        Text(
+            text = "ADD MORE",
+            style = interUI(9.5.sp, weight = FontWeight.SemiBold)
+                .copy(letterSpacing = 0.18.em, color = AppInk2),
+        )
     }
 }
 
