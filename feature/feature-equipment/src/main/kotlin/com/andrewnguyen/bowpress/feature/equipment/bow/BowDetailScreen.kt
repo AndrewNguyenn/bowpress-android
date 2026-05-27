@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -204,6 +205,7 @@ fun BowDetailScreen(
                 onOpenConfig = onOpenConfig,
                 onOpenSightMarks = onOpenSightMarks,
                 onToggleReference = viewModel::setReference,
+                onUpdateBowName = viewModel::updateBowName,
                 onDeleteRequested = { showDeleteConfirm = true },
                 modifier = Modifier.padding(padding),
             )
@@ -249,6 +251,7 @@ private fun BowDetailBody(
     onOpenConfig: (String) -> Unit,
     onOpenSightMarks: () -> Unit,
     onToggleReference: (configId: String, pinned: Boolean) -> Unit,
+    onUpdateBowName: (String) -> Unit,
     onDeleteRequested: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -279,12 +282,12 @@ private fun BowDetailBody(
         )
 
         // Bow Info section — mirrors iOS BowDetailView (BowDetailView.swift:119-124).
-        // Editable Name + readonly Type. iOS surfaces Name as editable but its
-        // saveCurrentState() only persists the BowConfiguration and never touches
-        // Bow.name — Android matches that surface exactly. If iOS later wires
-        // bow persistence, mirror it here.
+        // Editable Name + readonly Type. The Name field saves on focus-loss
+        // (no Save button — keeps the inline-edit UX consistent with iOS's
+        // TextField while routing through PUT /bows/{id} for actual persistence).
         BowInfoSection(
             bow = bow,
+            onNameCommit = onUpdateBowName,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
 
@@ -379,18 +382,72 @@ private fun BowDetailBody(
 @Composable
 private fun BowInfoSection(
     bow: Bow,
+    onNameCommit: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         SectionHeader("Bow Info")
         SectionCard {
-            LabeledValueRow(
-                label = "Name",
-                value = bow.name,
-                modifier = Modifier.testTag("bow_info_name_field"),
+            EditableNameRow(
+                initial = bow.name,
+                // Re-seed the local text when the bow's persisted name updates
+                // (e.g. after a successful PUT round-trip).
+                resetKey = bow.id to bow.name,
+                onCommit = onNameCommit,
             )
             LabeledValueRow(label = "Type", value = bow.bowType.label)
         }
+    }
+}
+
+/**
+ * Inline label-on-left, editable-text-on-right row that matches the visual
+ * weight of [LabeledValueRow]. Commits the new value on focus-loss when it
+ * differs from the seeded value — no Save button per row.
+ */
+@Composable
+private fun EditableNameRow(
+    initial: String,
+    resetKey: Any,
+    onCommit: (String) -> Unit,
+) {
+    var text by remember(resetKey) { mutableStateOf(initial) }
+    Row(
+        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Name",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        androidx.compose.foundation.text.BasicTextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            ),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(BowPressColors.Accent),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words,
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onDone = { onCommit(text) },
+            ),
+            modifier = Modifier
+                .weight(2f)
+                .testTag("bow_info_name_field")
+                .onFocusChanged { state ->
+                    // Commit only on focus loss (the TextField was focused
+                    // before and isn't anymore). Avoids spurious commits on
+                    // the initial composition where state.isFocused is false.
+                    if (!state.isFocused && text != initial) onCommit(text)
+                },
+        )
     }
 }
 

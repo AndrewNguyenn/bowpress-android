@@ -37,6 +37,19 @@ class BowRepository @Inject constructor(
     }
 
     /**
+     * Rename an existing bow. Unlike [saveBow] (which routes via the
+     * pending-sync queue → POST /bows for new bows), an existing bow already
+     * exists server-side, so we PUT /bows/{id} directly and upsert the
+     * authoritative response into the local cache.
+     */
+    suspend fun updateBowName(id: String, newName: String): Bow {
+        val existing = dao.findById(id)?.toDto() ?: error("Bow $id not found locally")
+        val updated = api.updateBow(id, existing.copy(name = newName))
+        dao.upsert(updated.toEntity(pendingSync = false))
+        return updated
+    }
+
+    /**
      * Pull the latest bows from the server and upsert them. Caller is responsible for
      * handling [com.andrewnguyen.bowpress.core.network.ApiException] (e.g. surfacing an
      * error toast). Remote data overwrites local because the server is authoritative

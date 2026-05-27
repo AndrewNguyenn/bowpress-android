@@ -77,6 +77,25 @@ class BowDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Rename the bow. Called from the Bow Info section's inline name editor
+     * on focus-loss / IME-done. No-op if the name is unchanged or blank — a
+     * blank rename would be valid server-side but isn't a meaningful edit, so
+     * we leave the existing name in place and skip the round trip.
+     */
+    fun updateBowName(newName: String) {
+        val trimmed = newName.trim()
+        val current = _bowFlow.value ?: return
+        if (trimmed.isEmpty() || trimmed == current.name) return
+        viewModelScope.launch {
+            runCatching { bowRepository.updateBowName(bowId, trimmed) }
+                .onSuccess { _bowFlow.value = it }
+            // On failure, leave the StateFlow at the old value; the inline
+            // editor's local text state will reset to the bow's name via the
+            // recomposition keyed on `bow.id`.
+        }
+    }
+
     /** Pin/unpin a configuration as the analytics reference. */
     fun setReference(configId: String, pinned: Boolean) {
         viewModelScope.launch {
