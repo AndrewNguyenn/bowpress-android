@@ -4,9 +4,11 @@ import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsPeriod
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.BowConfiguration
+import com.andrewnguyen.bowpress.core.model.MultiSpotGeometry
 import com.andrewnguyen.bowpress.core.model.PeriodComparison
 import com.andrewnguyen.bowpress.core.model.PeriodSlice
 import com.andrewnguyen.bowpress.core.model.ShootingSession
+import com.andrewnguyen.bowpress.core.model.TargetLayout
 import com.andrewnguyen.bowpress.core.model.TrendInsight
 import java.time.Clock
 import java.time.Instant
@@ -109,7 +111,8 @@ class LocalAnalyticsEngine(
         configs: List<BowConfiguration>,
     ): PeriodSlice {
         val ids = sessions.map { it.id }.toHashSet()
-        val plots = arrows.filter { it.sessionId in ids }
+        val rawPlots = arrows.filter { it.sessionId in ids }
+        val plots = recenterMultiSpot(rawPlots, sessions)
         val activeConfigId = sessions.maxByOrNull { it.startedAt }?.bowConfigId
         val activeConfig: BowConfiguration? = activeConfigId?.let { cid ->
             configs.firstOrNull { it.id == cid }
@@ -122,6 +125,40 @@ class LocalAnalyticsEngine(
             sessionCount = sessions.size,
             config = activeConfig,
         )
+    }
+
+    // For multi-spot sessions (Vegas triangle/vertical), `plotX`/`plotY` are
+    // stored as offsets from the face square's centre, so each spot's arrows
+    // cluster at that spot's position on the paper rather than at centre. The
+    // Impact Map renders all arrows on a single face, which made the clusters
+    // read as three separate groupings. Recenter per-spot so each arrow's
+    // coords become offsets from its own spot — mirrors the API's
+    // `analyticsRecenter.ts:recenterPlot` and the iOS sibling. We don't
+    // replicate `recenterAndPickDominant`'s bucketing: the local engine
+    // doesn't compute centroid/sigma/shift (those come from the server), so
+    // a window straddling single-face + multi-spot weeks can mix scales in
+    // `PeriodSlice.plots`. Downstream consumers should treat coords as
+    // approximate when layouts differ within a window.
+    private fun recenterMultiSpot(
+        plots: List<ArrowPlot>,
+        sessions: List<ShootingSession>,
+    ): List<ArrowPlot> {
+        val layoutBySession: Map<String, TargetLayout> =
+            sessions.associate { it.id to it.targetLayout }
+        return plots.map { plot ->
+            val layout = layoutBySession[plot.sessionId] ?: return@map plot
+            val geo = MultiSpotGeometry.preset(layout) ?: return@map plot
+            val px = plot.plotX ?: return@map plot
+            val py = plot.plotY ?: return@map plot
+            val faceX = 0.5 + px / 2.0
+            val faceY = 0.5 + py / 2.0
+            val nearest = geo.nearestSpotIndex(MultiSpotGeometry.NormPoint(faceX, faceY))
+            val c = geo.centers[nearest]
+            plot.copy(
+                plotX = (faceX - c.x) / geo.radiusNorm,
+                plotY = (faceY - c.y) / geo.radiusNorm,
+            )
+        }
     }
 
     // -------------------------------------------------------------------------
