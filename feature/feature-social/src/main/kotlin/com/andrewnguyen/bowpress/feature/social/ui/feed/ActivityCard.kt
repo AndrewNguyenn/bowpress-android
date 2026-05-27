@@ -43,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -520,6 +522,7 @@ private fun ActivityCardBody(
             // The hero "/ {max}" uses the session's full arrow count — the
             // ledger may carry only the first 10 ends. Mirrors iOS.
             maxScore = (item.session?.arrowCount ?: 0) * 10,
+            xCount = item.session?.xCount ?: 0,
             endRings = preview.endRings,
             plotPoints = item.session?.plotPoints.orEmpty(),
             // §B2 — prefer the structured TargetFaceType the session was
@@ -577,6 +580,7 @@ private fun RangeSessionBody(
     distance: String?,
     score: Int,
     maxScore: Int,
+    xCount: Int,
     endRings: List<List<Int>>?,
     plotPoints: List<List<Double>>,
     structuredFaceType: TargetFaceType?,
@@ -695,32 +699,63 @@ private fun RangeSessionBody(
                 style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
             )
             // Hero score on one line: the score as an upright Fraunces numeral
-            // in --deep, then a quiet italic " / " and the upright max.
+            // in --deep, then a quiet italic " / " + upright max, then a maple
+            // X-count chip — all on the typographic baseline (the design's
+            // `align-items: baseline`), so mixed font sizes don't drift up or
+            // down relative to the score.
+            val showsMax = maxScore >= score
+            val scoreA11y = buildString {
+                append("Score ")
+                append(score)
+                if (showsMax) append(" of ").append(maxScore)
+                if (xCount > 0 && showsMax) append(", ").append(xCount).append(" X")
+            }
             Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .semantics(mergeDescendants = true) { contentDescription = scoreA11y },
             ) {
                 Text(
                     text = "$score",
                     style = frauncesDisplay(48.sp, italic = false, weight = FontWeight.Medium),
                     color = AppDeep,
+                    modifier = Modifier.alignByBaseline(),
                 )
                 // The "/ max" tail shows only when the max is coherent — a
                 // stale arrowCount could otherwise produce an impossible
                 // fraction (e.g. 285/270), so fall back to the bare score.
-                if (maxScore >= score) {
+                if (showsMax) {
                     Text(
                         text = " / ",
                         style = frauncesDisplay(22.sp, italic = true, weight = FontWeight.Normal),
                         color = AppInk3,
-                        modifier = Modifier.padding(bottom = 5.dp),
+                        modifier = Modifier.alignByBaseline(),
                     )
                     Text(
                         text = "$maxScore",
                         style = frauncesDisplay(22.sp, italic = false, weight = FontWeight.Medium),
                         color = AppInk3,
-                        modifier = Modifier.padding(bottom = 5.dp),
+                        modifier = Modifier.alignByBaseline(),
                     )
+                    // X-count chip — rides the score baseline as a maple peer
+                    // of the total. Hidden when the archer hit no Xs so a no-X
+                    // row reads clean instead of trailing a bare "0X". Gated on
+                    // showsMax too because the chip needs the /max baseline as
+                    // its visual anchor.
+                    if (xCount > 0) {
+                        Text(
+                            text = "  $xCount",
+                            style = frauncesDisplay(32.sp, italic = false, weight = FontWeight.Medium),
+                            color = AppMaple,
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                        Text(
+                            text = "X",
+                            style = frauncesDisplay(18.sp, italic = true, weight = FontWeight.Medium),
+                            color = AppMaple,
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                    }
                 }
             }
             if (ends.isNotEmpty()) {
