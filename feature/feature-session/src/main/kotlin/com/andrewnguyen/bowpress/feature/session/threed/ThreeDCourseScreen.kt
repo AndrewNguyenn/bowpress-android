@@ -62,8 +62,8 @@ fun ThreeDCourseScreen(
     viewModel: ThreeDCourseViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val breadcrumb by viewModel.locationTracker.breadcrumb.collectAsStateWithLifecycle()
-    val current by viewModel.locationTracker.current.collectAsStateWithLifecycle()
+    val breadcrumb by viewModel.breadcrumb.collectAsStateWithLifecycle()
+    val current by viewModel.currentLocation.collectAsStateWithLifecycle()
     val unitSystem = LocalUnitSystem.current
     val context = LocalContext.current
 
@@ -82,10 +82,10 @@ fun ThreeDCourseScreen(
     ) { granted ->
         // The tracker is already started by the view model; a late grant just
         // needs to re-arm GPS registration.
-        if (granted) viewModel.locationTracker.ensureLocationUpdates()
+        if (granted) viewModel.ensureLocationUpdates()
     }
     LaunchedEffect(Unit) {
-        if (!viewModel.locationTracker.hasLocationPermission()) {
+        if (!viewModel.hasLocationPermission()) {
             permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }

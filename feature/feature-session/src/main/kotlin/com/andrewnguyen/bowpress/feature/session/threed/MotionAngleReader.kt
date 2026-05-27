@@ -50,8 +50,10 @@ class MotionAngleReader @Inject constructor(
 
     fun start() {
         if (registered) return
-        // Singleton scope — drop the smoothed value from any prior course so
-        // the next capture screen doesn't open showing the last angle.
+        // Cosmetic reset — `onSensorChanged` overwrites within one UI frame
+        // (`SENSOR_DELAY_UI`), so this just avoids a single-frame flash of
+        // the previous course's last angle when the capture screen first
+        // appears under the new singleton.
         _angleDegrees.value = 0.0
         val sensor = gravitySensor ?: return
         sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)

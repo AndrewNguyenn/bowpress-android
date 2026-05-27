@@ -106,7 +106,7 @@ fun ThreeDShootFlow(
             hasScenePhoto = hasScene,
             onBack = { step = 0 },
             onSave = { ring, plotX, plotY, hasArrow ->
-                val here = viewModel.locationTracker.current.value
+                val here = viewModel.currentLocation.value
                 viewModel.commitStation(
                     id = stationId,
                     estimatedDistance = distance,
@@ -140,8 +140,8 @@ private fun ThreeDCaptureScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val liveAngle by viewModel.motionReader.angleDegrees.collectAsStateWithLifecycle()
-    val liveHeading by viewModel.locationTracker.heading.collectAsStateWithLifecycle()
+    val liveAngle by viewModel.angleDegrees.collectAsStateWithLifecycle()
+    val liveHeading by viewModel.heading.collectAsStateWithLifecycle()
 
     var photoTaken by remember { mutableStateOf(false) }
     var frozenAngle by remember { mutableStateOf(0.0) }
@@ -169,7 +169,7 @@ private fun ThreeDCaptureScreen(
     // Store the scene JPEG + freeze the shot telemetry at the shutter (iOS parity).
     fun onSceneCaptured(bytes: ByteArray) {
         CourseStationPhotoStore.save(context, bytes, stationId, CourseStationPhotoStore.Slot.SCENE)
-        frozenAngle = if (viewModel.motionReader.isAvailable) liveAngle else manualAngle.toDouble()
+        frozenAngle = if (viewModel.isAngleSensorAvailable) liveAngle else manualAngle.toDouble()
         frozenBearing = liveHeading
         photoTaken = true
     }
@@ -221,7 +221,7 @@ private fun ThreeDCaptureScreen(
                 Box(Modifier.size(4.dp).clip(CircleShape).background(AppMaple))
             }
             Column(Modifier.align(Alignment.TopStart).padding(10.dp)) {
-                val hud = if (viewModel.motionReader.isAvailable) {
+                val hud = if (viewModel.isAngleSensorAvailable) {
                     "● GYRO ${AngleFormatting.signed(liveAngle)}"
                 } else {
                     "○ MANUAL ${AngleFormatting.signed(manualAngle.toDouble())}"
@@ -240,7 +240,7 @@ private fun ThreeDCaptureScreen(
         }
 
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (!viewModel.motionReader.isAvailable) {
+            if (!viewModel.isAngleSensorAvailable) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     BPEyebrow("ANGLE")
                     Stepper("−") { manualAngle-- }

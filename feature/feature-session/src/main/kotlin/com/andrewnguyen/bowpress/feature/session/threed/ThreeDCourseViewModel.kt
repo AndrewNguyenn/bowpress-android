@@ -89,10 +89,34 @@ class ThreeDCourseViewModel @Inject constructor(
     private val socialSessionSharer: SocialSessionSharer,
     private val bowRepo: BowRepository,
     // Process-singletons — see [MotionAngleReader] for the `SensorManager`
-    // 128-listener-per-process cap that drove this scoping.
-    val locationTracker: CourseLocationTracker,
-    val motionReader: MotionAngleReader,
+    // 128-listener-per-process cap that drove this scoping. Kept private so
+    // the lifecycle (`start` / `stop`) is owned by this VM only; the screen
+    // reaches the live signals via the passthrough accessors below.
+    private val locationTracker: CourseLocationTracker,
+    private val motionReader: MotionAngleReader,
 ) : ViewModel() {
+
+    // ---- Tracker passthroughs (read-only surface for the capture/course UI) ----
+
+    /** Live shot-incline in degrees, smoothed; 0 when no course is active. */
+    val angleDegrees: StateFlow<Double> = motionReader.angleDegrees
+
+    /** False on hardware with no gravity/accelerometer — surfaces the manual stepper. */
+    val isAngleSensorAvailable: Boolean = motionReader.isAvailable
+
+    /** Downsampled breadcrumb of the walked route, in order. */
+    val breadcrumb: StateFlow<List<GeoPoint>> = locationTracker.breadcrumb
+
+    /** Latest GPS fix, or null until the first accepted update. */
+    val currentLocation: StateFlow<GeoPoint?> = locationTracker.current
+
+    /** Live compass heading in degrees, or null until the first sensor update. */
+    val heading: StateFlow<Double?> = locationTracker.heading
+
+    fun hasLocationPermission(): Boolean = locationTracker.hasLocationPermission()
+
+    /** Re-arm GPS after a late permission grant. */
+    fun ensureLocationUpdates() = locationTracker.ensureLocationUpdates()
 
     private val _uiState = MutableStateFlow(ThreeDCourseUiState())
     val uiState: StateFlow<ThreeDCourseUiState> = _uiState.asStateFlow()
