@@ -156,6 +156,26 @@ class SocialRepository @Inject constructor(
         }
     }
 
+    /**
+     * Local cache snapshot only — no network. Used by screens that want to
+     * paint instantly from cached data before issuing a refresh.
+     */
+    suspend fun getCachedMyProfile(): SocialProfile? =
+        profileDao.findAny()?.toDto()
+
+    /**
+     * Force a remote refresh of the signed-in user's profile and re-cache.
+     * Throws on failure — unlike [getMyProfile], which silently falls back to
+     * cache. Use this from screens that need to distinguish "fresh from
+     * server" from "stale cache" (Edit Profile saves against the loaded
+     * baseline, so a stale baseline would silently PATCH the wrong values).
+     */
+    suspend fun refreshMyProfile(): SocialProfile {
+        val remote = api.getSocialProfile()
+        profileDao.upsert(remote.toEntity())
+        return remote
+    }
+
     suspend fun updateMyProfile(
         handle: String? = null,
         displayName: String? = null,

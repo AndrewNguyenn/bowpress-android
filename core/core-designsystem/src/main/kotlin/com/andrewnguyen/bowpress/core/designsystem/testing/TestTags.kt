@@ -110,6 +110,7 @@ object TestTags {
     const val UnitSystemToggle: String = "unit_system_toggle"
 
     const val EditProfileNameField: String = "edit_profile_name_field"
+    const val EditProfileHandleField: String = "edit_profile_handle_field"
     const val EditProfileSaveButton: String = "edit_profile_save_button"
 
     const val ChangePasswordCurrent: String = "change_password_current"
