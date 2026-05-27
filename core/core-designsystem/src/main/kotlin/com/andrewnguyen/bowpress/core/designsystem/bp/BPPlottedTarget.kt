@@ -21,6 +21,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppTgtWhite
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtYellow
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.MultiSpotGeometry
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
 
@@ -63,11 +64,19 @@ fun BPPlottedTarget(
     sixRingStyle: BPSixRingStyle = BPSixRingStyle.Vegas,
     // §B1 — archer's shaft outside diameter in mm. Drives the plot-dot
     // size so a 9mm Black Eagle reads visibly fatter than a 4mm X10
-    // against the printed face. Null falls back to a 6mm midline so a
-    // session without an arrow-config reference still renders sensible
+    // against the printed face. Null falls back to 5mm (iOS default) so
+    // a session without an arrow-config reference still renders sensible
     // dots. Mirrors iOS `arrowDiameterMm` on `TargetArrowDotsOverlay` /
     // `SessionHeatMapView`.
     arrowDiameterMm: Double? = null,
+    // Session distance — picks the right 10-ring face size for the
+    // single-face render. 20yd → 40cm indoor face (200mm radius); 50m /
+    // 70m → 80cm outdoor face (400mm); null defaults to the 122cm WA
+    // full face (610mm) for legacy parity. Mirrors iOS
+    // `TargetGeometry.preset(for:distance:)` for `.tenRing`. Ignored for
+    // SixRing (caller already routes through `sixRingStyle`) and for
+    // multi-spot layouts (each spot is a 40cm face).
+    distance: ShootingDistance? = null,
     // Visibility floor for the rendered dot — caps the geometric formula
     // at a readable minimum so a thumbnail-scale face (feed card) doesn't
     // collapse every dot to sub-pixel. iOS uses ~3pt diameter (1.5pt
@@ -94,6 +103,7 @@ fun BPPlottedTarget(
                 shaftMm = shaftMm,
                 faceType = faceType,
                 sixRingStyle = sixRingStyle,
+                distance = distance,
                 minDotRadiusPx = minDotRadiusPx,
             )
             drawFace(center, faceRadius, faceType, sixRingStyle)
@@ -229,38 +239,47 @@ internal fun singleFaceDotRadiusPx(
     shaftMm: Float,
     faceType: TargetFaceType,
     sixRingStyle: BPSixRingStyle,
+    distance: ShootingDistance? = null,
     minDotRadiusPx: Float,
 ): Float {
-    val mmPerNormUnit = singleFaceMmPerNormUnit(faceType, sixRingStyle)
+    val mmPerNormUnit = singleFaceMmPerNormUnit(faceType, sixRingStyle, distance)
     return (shaftMm / mmPerNormUnit * faceRadiusPx).coerceAtLeast(minDotRadiusPx)
 }
 
 /**
  * Real-world millimetres at normalised face-radius 1.0 — the divisor that
- * turns an `arrowDiameterMm` value into a face-radius fraction. Vegas
- * indoor = 20/(119/735) ≈ 123.5mm, Outdoor80 = 400mm, TenRing = 610mm.
- * Mirrors iOS `TargetGeometry.mmPerNormUnit` for each face exactly.
+ * turns an `arrowDiameterMm` value into a face-radius fraction.
  *
- * TenRing previously reused Vegas's 123.5mm here on the rationale that
- * "no caller renders a single 10-ring face in production today" — that
- * stopped being true once friend-detail screens started rendering
- * single-spot 122cm-face sessions (e.g. a 20yd 10-ring practice round
- * uploaded from iOS). Using 123.5 there made the dot ~5x wider than
- * iOS, since a 5mm shaft was being measured against a 247mm-diameter
- * face instead of the actual 1220mm. The scoring layer
- * `TargetGeometry.TenRing.mmPerNormUnit` keeps its existing Vegas-aligned
- * value — that's a separate consideration (dot-vs-ring overlap on the
- * own session view); only the visual renderer needs the physical scale.
+ *  - SixRing → routed by `sixRingStyle` (Vegas 40cm = 123.5mm, Outdoor80
+ *    80cm = 400mm). Distance is ignored; the caller already picks the
+ *    visual style upstream via `BPSixRingStyle.forDistance(distance)`.
+ *  - TenRing → distance-overloaded, mirroring iOS commit
+ *    [pending] `TargetGeometry.preset(for:.tenRing, distance:)`:
+ *      • 20yd indoor → 40cm WA face (200mm radius)
+ *      • 50m outdoor → 80cm WA compound face (400mm)
+ *      • 70m / null  → 122cm WA full face (610mm)
+ *
+ * Without the distance overload, every 10-ring session was measured
+ * against the 122cm face, which made a 20yd practice-round dot ~3x
+ * smaller than it should be (the 40cm face is ~3x smaller in radius).
  */
 private fun singleFaceMmPerNormUnit(
     faceType: TargetFaceType,
     sixRingStyle: BPSixRingStyle,
+    distance: ShootingDistance? = null,
 ): Float = when (faceType) {
     TargetFaceType.SIX_RING -> when (sixRingStyle) {
         BPSixRingStyle.Vegas -> VEGAS_MM_PER_NORM_UNIT
         BPSixRingStyle.Outdoor80 -> OUTDOOR_80_MM_PER_NORM_UNIT
     }
-    TargetFaceType.TEN_RING -> TEN_RING_MM_PER_NORM_UNIT
+    TargetFaceType.TEN_RING -> tenRingMmPerNormUnit(distance)
+}
+
+/** 10-ring face → the WA face matched to the shooting distance. */
+private fun tenRingMmPerNormUnit(distance: ShootingDistance?): Float = when (distance) {
+    ShootingDistance.YARDS_20 -> TEN_RING_40CM_MM_PER_NORM_UNIT
+    ShootingDistance.METERS_50 -> TEN_RING_80CM_MM_PER_NORM_UNIT
+    ShootingDistance.METERS_70, null -> TEN_RING_122CM_MM_PER_NORM_UNIT
 }
 
 /**
@@ -271,8 +290,10 @@ private fun singleFaceMmPerNormUnit(
  */
 val FEED_MIN_DOT_RADIUS: Dp = 1.5.dp
 
-/** 6mm is the midline target-arrow shaft — `arrowDiameterMm` falls back here. */
-private const val DEFAULT_SHAFT_MM: Double = 6.0
+/** 5mm midline target-arrow shaft — `arrowDiameterMm` falls back here.
+ *  Mirrors iOS `TargetRingScatter.arrowDiameterMm = 5.0` /
+ *  `HistoricalSessionsView.arrowDiameterFor` default. */
+private const val DEFAULT_SHAFT_MM: Double = 5.0
 
 /** Vegas 40cm indoor: 20/(119/735) ≈ 123.53mm at radius 1.0. */
 private val VEGAS_MM_PER_NORM_UNIT: Float = (20.0 / (119.0 / 735.0)).toFloat()
@@ -280,8 +301,17 @@ private val VEGAS_MM_PER_NORM_UNIT: Float = (20.0 / (119.0 / 735.0)).toFloat()
 /** 80cm WA compound outdoor: 400mm at radius 1.0. */
 private const val OUTDOOR_80_MM_PER_NORM_UNIT: Float = 400f
 
-/** 122cm WA full face: 610mm at radius 1.0. Mirrors iOS
- *  `TargetGeometry.tenRing.realFaceRadiusMm = 610`. */
-private const val TEN_RING_MM_PER_NORM_UNIT: Float = 610f
+/** 40cm WA indoor 10-ring face: 200mm at radius 1.0. Used for 20yd / 18m
+ *  indoor 10-ring rounds where the physical printed face is 40cm. */
+private const val TEN_RING_40CM_MM_PER_NORM_UNIT: Float = 200f
+
+/** 80cm WA outdoor 10-ring face: 400mm at radius 1.0. Same physical face
+ *  the SixRing Outdoor80 variant uses; surfaced separately so the
+ *  distance switch stays readable. */
+private const val TEN_RING_80CM_MM_PER_NORM_UNIT: Float = 400f
+
+/** 122cm WA full face: 610mm at radius 1.0. Default for null / 70m.
+ *  Mirrors iOS `TargetGeometry.tenRing.realFaceRadiusMm = 610`. */
+private const val TEN_RING_122CM_MM_PER_NORM_UNIT: Float = 610f
 
 private val DIVIDER = Color(0x66000000)

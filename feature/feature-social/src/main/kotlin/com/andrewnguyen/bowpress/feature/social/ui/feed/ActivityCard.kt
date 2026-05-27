@@ -1225,11 +1225,15 @@ internal fun feedCardArrowDotRadiusPx(
  * dot scales physically with the printed face the archer shot:
  *  - SixRing, 50m/70m → Outdoor80 → 400mm
  *  - SixRing, anything else → Vegas 40cm → 20 / R10_RADIUS ≈ 123.53mm
- *  - TenRing → 122cm WA full face → 610mm
+ *  - TenRing, 20yd → 40cm WA face → 200mm
+ *  - TenRing, 50m → 80cm WA face → 400mm
+ *  - TenRing, 70m / null → 122cm WA full face → 610mm
  *
- * TenRing previously reused Vegas's 123.5mm here — that made dots ~5x
- * wider than iOS on a single 10-ring face (the 20yd practice round
- * case). 610mm matches iOS's `tenRing.realFaceRadiusMm`.
+ * TenRing was previously distance-agnostic (always 610mm), but that's
+ * wrong for the common 20yd indoor 10-ring face — a 5mm shaft on a
+ * 40cm face is 5/200 of the face radius, not 5/610. Mirrors iOS commit
+ * adding `tenRingIndoor` (40cm) / `tenRingOutdoor80` (80cm) presets to
+ * `TargetGeometry.preset(.tenRing, distance:)`.
  */
 internal fun feedCardMmPerNormUnit(
     face: BPTargetFaceType,
@@ -1245,8 +1249,11 @@ internal fun feedCardMmPerNormUnit(
             com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20, null,
             -> 20.0 / (119.0 / 735.0)
         }
-        // 122cm WA full face → 610mm radius.
-        BPTargetFaceType.TenRing -> 610.0
+        BPTargetFaceType.TenRing -> when (parsed) {
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.YARDS_20 -> 200.0
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_50 -> 400.0
+            com.andrewnguyen.bowpress.core.model.ShootingDistance.METERS_70, null -> 610.0
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.core.designsystem.bp
 
+import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -75,19 +76,57 @@ class BPPlottedTargetDotSizingTest {
     }
 
     @Test
-    fun `single-face TenRing uses the 122cm WA face's 610mm normaliser`() {
-        // iOS parity — `TargetGeometry.tenRing.realFaceRadiusMm = 610`
-        // (the physical 122cm full face). A 6mm shaft on an 84px-radius
-        // face renders 6/610 * 84 ≈ 0.826px. The earlier Android
-        // convention shared Vegas's ≈123.5mm here, which made every
-        // 10-ring dot ~5x bigger than iOS once a real session started
-        // hitting this path.
-        val rTenRing = singleFaceDotRadiusPx(
+    fun `single-face TenRing at null distance defaults to 122cm WA face`() {
+        // The 122cm full face (610mm radius) is the default when distance
+        // is unknown — matches iOS `TargetGeometry.tenRing` /
+        // `preset(.tenRing, distance: nil)`.
+        val r = singleFaceDotRadiusPx(
             faceRadiusPx = 84f, shaftMm = 6f,
             faceType = TargetFaceType.TEN_RING,
             sixRingStyle = BPSixRingStyle.Vegas, // ignored for TEN_RING
+            distance = null,
             minDotRadiusPx = 0f,
         )
-        assertThat(rTenRing).isWithin(0.001f).of(6f / 610f * 84f)
+        assertThat(r).isWithin(0.001f).of(6f / 610f * 84f)
+    }
+
+    @Test
+    fun `single-face TenRing at 20yd uses the 40cm indoor face`() {
+        // 40cm indoor face → 200mm radius; 6mm shaft → 6/200 * 84 = 2.52px.
+        // Mirrors iOS commit adding the .tenRing indoor preset.
+        val r = singleFaceDotRadiusPx(
+            faceRadiusPx = 84f, shaftMm = 6f,
+            faceType = TargetFaceType.TEN_RING,
+            sixRingStyle = BPSixRingStyle.Vegas,
+            distance = ShootingDistance.YARDS_20,
+            minDotRadiusPx = 0f,
+        )
+        assertThat(r).isWithin(0.001f).of(6f / 200f * 84f)
+    }
+
+    @Test
+    fun `single-face TenRing at 50m uses the 80cm WA face`() {
+        // 80cm outdoor face → 400mm radius; same as the SixRing Outdoor80
+        // physical face. 6mm shaft → 6/400 * 84 = 1.26px.
+        val r = singleFaceDotRadiusPx(
+            faceRadiusPx = 84f, shaftMm = 6f,
+            faceType = TargetFaceType.TEN_RING,
+            sixRingStyle = BPSixRingStyle.Vegas,
+            distance = ShootingDistance.METERS_50,
+            minDotRadiusPx = 0f,
+        )
+        assertThat(r).isWithin(0.001f).of(6f / 400f * 84f)
+    }
+
+    @Test
+    fun `single-face TenRing at 70m stays on the 122cm full face`() {
+        val r = singleFaceDotRadiusPx(
+            faceRadiusPx = 84f, shaftMm = 6f,
+            faceType = TargetFaceType.TEN_RING,
+            sixRingStyle = BPSixRingStyle.Vegas,
+            distance = ShootingDistance.METERS_70,
+            minDotRadiusPx = 0f,
+        )
+        assertThat(r).isWithin(0.001f).of(6f / 610f * 84f)
     }
 }

@@ -352,9 +352,14 @@ fun FriendSessionDetailScreen(
                                     // on the Vegas 6-zone default.
                                     sixRingStyle = com.andrewnguyen.bowpress.core.designsystem.bp.BPSixRingStyle
                                         .forDistance(shotSession.distance),
+                                    // Distance picks the right 10-ring face
+                                    // size: 20yd → 40cm indoor, 50m → 80cm,
+                                    // 70m / null → 122cm. Mirrors iOS
+                                    // `TargetGeometry.preset(.tenRing, distance:)`.
+                                    distance = shotSession.distance,
                                     // §B1 — shaft diameter sizes the plot
                                     // dot against the printed face. Null on
-                                    // a pre-B1 detail payload → 6mm default.
+                                    // a pre-B1 detail payload → 5mm default.
                                     arrowDiameterMm = detail.arrowDiameterMm,
                                     modifier = Modifier
                                         .fillMaxWidth()
