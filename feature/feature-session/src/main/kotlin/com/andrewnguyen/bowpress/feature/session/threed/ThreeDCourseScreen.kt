@@ -58,7 +58,7 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreeDCourseScreen(
-    onCourseEnded: () -> Unit,
+    onCourseEnded: (wasShared: Boolean) -> Unit,
     viewModel: ThreeDCourseViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -68,8 +68,12 @@ fun ThreeDCourseScreen(
     val context = LocalContext.current
 
     // Once the session row is gone (finished or discarded), leave the screen.
+    // `lastFinishWasShared` is written by `finishCourse(extras)` when the
+    // archer picks Public — the host uses it to route to the Social feed
+    // instead of the Log tab. Discards / legacy notes-only finishes leave
+    // it at false and fall through to the standard Log path.
     LaunchedEffect(state.session) {
-        if (state.session == null) onCourseEnded()
+        if (state.session == null) onCourseEnded(state.lastFinishWasShared)
     }
 
     // Ask for location the first time the course screen appears.

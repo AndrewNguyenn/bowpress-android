@@ -70,6 +70,16 @@ data class SessionUiState(
     val currentArrows: List<ArrowPlot> = emptyList(),
     // Completed ends for the active session, in endNumber order.
     val completedEnds: List<SessionEnd> = emptyList(),
+
+    /**
+     * Audience the archer picked on the most recent finish — read by
+     * `ActiveSessionScreen` when [activeSession] transitions to null so it
+     * can route Public finishes to the Social feed and Private ones to the
+     * Log tab. Stays `false` for discards, legacy nil-extras finishes, and
+     * any external null transition (e.g. a session deleted from another
+     * device), all of which should fall through to the standard Log path.
+     */
+    val lastFinishWasShared: Boolean = false,
 ) {
     val isSessionActive: Boolean get() = activeSession != null
     val hasPendingConfigChange: Boolean

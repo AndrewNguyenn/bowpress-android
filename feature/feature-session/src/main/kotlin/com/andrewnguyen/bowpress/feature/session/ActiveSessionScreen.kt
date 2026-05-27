@@ -87,7 +87,7 @@ import java.time.Instant
 @Composable
 fun ActiveSessionScreen(
     sessionId: String,
-    onSessionEnded: () -> Unit,
+    onSessionEnded: (wasShared: Boolean) -> Unit,
     viewModel: SessionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -104,8 +104,13 @@ fun ActiveSessionScreen(
     var sawActive by remember { mutableStateOf(false) }
     if (state.activeSession != null) sawActive = true
     val justEnded = sawActive && state.activeSession == null
+    // Single nav-out path. Reads the audience pick the view model wrote on
+    // finish (`SessionUiState.lastFinishWasShared`) so the host can route
+    // Public finishes to the Social feed. Discards / legacy nil-extras
+    // finishes / external null transitions all leave the field at its
+    // default false and fall through to the standard Log path.
     LaunchedEffect(justEnded) {
-        if (justEnded) onSessionEnded()
+        if (justEnded) onSessionEnded(state.lastFinishWasShared)
     }
     val active = state.activeSession ?: return
 
@@ -267,14 +272,18 @@ fun ActiveSessionScreen(
                 scope.launch {
                     viewModel.endSession(extras = extras)
                     showEndSheet = false
-                    onSessionEnded()
+                    // Navigation is handled by the `justEnded` LaunchedEffect
+                    // above — single observer pattern. SessionViewModel
+                    // latches `lastFinishWasShared` before its first suspend
+                    // so the LaunchedEffect sees the right audience by the
+                    // time `activeSession` becomes null.
                 }
             },
             onDiscard = {
                 scope.launch {
                     viewModel.discardActiveSession()
                     showEndSheet = false
-                    onSessionEnded()
+                    // Same single-path note as onFinish.
                 }
             },
             onClose = { showEndSheet = false },

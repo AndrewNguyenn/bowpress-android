@@ -44,6 +44,13 @@ data class ThreeDCourseUiState(
      * carries the real bow name instead of a placeholder.
      */
     val bow: Bow? = null,
+    /**
+     * Audience the archer picked on Sign & Save — read by
+     * `ThreeDCourseScreen` when [session] transitions to null so it can
+     * route Public finishes to the Social feed and Private / legacy /
+     * discard paths to the Log tab. Mirrors [SessionUiState.lastFinishWasShared].
+     */
+    val lastFinishWasShared: Boolean = false,
 ) {
     val isCourseActive: Boolean get() = session != null
     val scoringSystem: ThreeDScoringSystem get() = session?.scoringSystem ?: ThreeDScoringSystem.ASA
@@ -271,6 +278,11 @@ class ThreeDCourseViewModel @Inject constructor(
         // the same with shareSnapshot / shareArrows.
         val totalScore = state.totalScore
         val stationCount = state.stations.size
+        // Record the audience pick before the endSession write triggers the
+        // active-session flow to emit null — the screen's LaunchedEffect
+        // reads this on the same recomposition that observes `session = null`
+        // and routes Public finishes to the Social feed.
+        _uiState.update { it.copy(lastFinishWasShared = extras.audience.shouldShare) }
         viewModelScope.launch {
             // First photo doubles as the session's local target-paper image
             // — the Log thumbnail listens to TargetPhotoStore so the
@@ -321,6 +333,10 @@ class ThreeDCourseViewModel @Inject constructor(
     /** Abandon the course — delete the session row and its stations. */
     fun discardCourse() {
         val session = _uiState.value.session ?: return
+        // Reset the audience latch synchronously, mirroring SessionViewModel
+        // — keeps the ThreeDCourseUiState contract honest if a prior Public
+        // finish on a hoisted VM left the flag at true.
+        _uiState.update { it.copy(lastFinishWasShared = false) }
         viewModelScope.launch {
             _uiState.value.stations.forEach {
                 CourseStationPhotoStore.deleteAll(appContext, it.id)

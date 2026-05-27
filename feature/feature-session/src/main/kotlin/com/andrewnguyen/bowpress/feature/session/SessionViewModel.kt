@@ -305,6 +305,12 @@ class SessionViewModel @Inject constructor(
                 selectedBow = bow,
                 selectedArrow = arrow,
                 userOverrodeFace = false,
+                // Reset the finish-audience latch so a prior Public finish on
+                // a shared VM instance can't leak into this fresh session's
+                // discard path. Today the VM is per-NavBackStackEntry so the
+                // flag would already be at its default, but locking it here
+                // keeps the SessionUiState contract honest.
+                lastFinishWasShared = false,
             )
         }
     }
@@ -372,6 +378,8 @@ class SessionViewModel @Inject constructor(
                 completedEnds = emptyList(),
                 // Clear the manual-override flag so the next setup gets a fresh smart default.
                 userOverrodeFace = false,
+                // Reset the finish-audience latch — see [startThreeDCourse].
+                lastFinishWasShared = false,
             )
         }
     }
@@ -622,7 +630,22 @@ class SessionViewModel @Inject constructor(
         val arrows = state.currentArrows
         val trailingEnd = state.currentEndArrows
         val trailingEndNumber = state.currentEndNumber
-        _uiState.update { it.copy(isLoading = true, error = null) }
+        // Latch the audience pick synchronously, BEFORE any suspend point.
+        // `sessionRepo.endSession` (below) triggers Room's reactive
+        // invalidation, which fans into the `observeActiveSession` collector
+        // at the top of this class and writes `activeSession = null` — the
+        // signal that the screen's `LaunchedEffect(justEnded)` reacts to.
+        // If we wrote `lastFinishWasShared` only in the terminal state
+        // update at the bottom of this function, the collector would beat
+        // us to setting activeSession=null with a stale `false`, and the
+        // screen would route Public finishes to Log. Write it first.
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                error = null,
+                lastFinishWasShared = extras?.audience?.shouldShare == true,
+            )
+        }
         // Auto-complete any in-progress end so the finished session has clean,
         // fully-stamped ends — no trailing batch of endId-less arrows in the
         // log. Goes straight through completeEndWith with the captured
@@ -675,6 +698,10 @@ class SessionViewModel @Inject constructor(
                 currentArrows = emptyList(),
                 completedEnds = emptyList(),
                 userOverrodeFace = false,
+                // lastFinishWasShared was written above, BEFORE the
+                // sessionRepo.endSession suspend, to win the race against
+                // the observeActiveSession collector. Don't re-write it
+                // here — the value latched up front is the canonical one.
             )
         }
 
@@ -765,6 +792,12 @@ class SessionViewModel @Inject constructor(
      */
     suspend fun discardActiveSession() {
         val session = _uiState.value.activeSession ?: return
+        // Synchronously latch the audience flag to false before the suspend
+        // — same race-avoidance pattern as [endSession]. Without this, a
+        // stale `true` from a prior finish could leak through the
+        // observeActiveSession-driven null transition and route the
+        // discarded session to the Social feed.
+        _uiState.update { it.copy(lastFinishWasShared = false) }
         runCatching { sessionRepo.deleteSession(session.id) }
         _uiState.update {
             it.copy(
