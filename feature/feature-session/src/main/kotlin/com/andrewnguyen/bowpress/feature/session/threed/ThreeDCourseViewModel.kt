@@ -88,10 +88,11 @@ class ThreeDCourseViewModel @Inject constructor(
     private val courseStationRepo: CourseStationRepository,
     private val socialSessionSharer: SocialSessionSharer,
     private val bowRepo: BowRepository,
+    // Process-singletons — see [MotionAngleReader] for the `SensorManager`
+    // 128-listener-per-process cap that drove this scoping.
+    val locationTracker: CourseLocationTracker,
+    val motionReader: MotionAngleReader,
 ) : ViewModel() {
-
-    val locationTracker = CourseLocationTracker(appContext)
-    val motionReader = MotionAngleReader(appContext)
 
     private val _uiState = MutableStateFlow(ThreeDCourseUiState())
     val uiState: StateFlow<ThreeDCourseUiState> = _uiState.asStateFlow()

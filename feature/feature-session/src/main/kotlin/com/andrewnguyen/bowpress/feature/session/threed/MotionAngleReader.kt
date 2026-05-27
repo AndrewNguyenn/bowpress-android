@@ -6,6 +6,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,8 +20,17 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * On hardware without a gravity sensor `isAvailable` is false and the capture
  * screen falls back to a manual angle stepper.
+ *
+ * Process-singleton: `SensorManager` caps registered listeners at 128 distinct
+ * objects per process, so a per-VM reader leaked the cap when a course screen
+ * was entered ~64 times in one process. One singleton keeps the listener
+ * count for this app's incline reads at 1, no matter how many
+ * `ThreeDCourseViewModel`s come and go.
  */
-class MotionAngleReader(context: Context) : SensorEventListener {
+@Singleton
+class MotionAngleReader @Inject constructor(
+    @ApplicationContext context: Context,
+) : SensorEventListener {
 
     private val sensorManager =
         context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -34,13 +46,22 @@ class MotionAngleReader(context: Context) : SensorEventListener {
 
     val roundedAngle: Int get() = Math.round(_angleDegrees.value).toInt()
 
+    private var registered = false
+
     fun start() {
+        if (registered) return
+        // Singleton scope — drop the smoothed value from any prior course so
+        // the next capture screen doesn't open showing the last angle.
+        _angleDegrees.value = 0.0
         val sensor = gravitySensor ?: return
         sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+        registered = true
     }
 
     fun stop() {
+        if (!registered) return
         sensorManager?.unregisterListener(this)
+        registered = false
     }
 
     override fun onSensorChanged(event: SensorEvent) {

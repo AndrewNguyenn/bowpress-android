@@ -12,6 +12,9 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import androidx.core.content.ContextCompat
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,8 +28,14 @@ import kotlinx.coroutines.flow.update
  *
  * On an emulator without a simulated location, `hasFix` stays false and the
  * course map falls back to a synthesized layout.
+ *
+ * Process-singleton — see [MotionAngleReader] for the per-process
+ * `SensorManager` listener cap that drove this scoping.
  */
-class CourseLocationTracker(private val context: Context) : LocationListener, SensorEventListener {
+@Singleton
+class CourseLocationTracker @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : LocationListener, SensorEventListener {
 
     private val _breadcrumb = MutableStateFlow<List<GeoPoint>>(emptyList())
     val breadcrumb: StateFlow<List<GeoPoint>> = _breadcrumb.asStateFlow()
@@ -64,6 +73,18 @@ class CourseLocationTracker(private val context: Context) : LocationListener, Se
     private var gpsRegistered = false
 
     fun start() {
+        if (tracking) return
+        // Singleton scope — wipe state from any prior course so a fresh start
+        // doesn't inherit the last course's breadcrumb / distance / heading.
+        // Gated on `!tracking` so a defensive re-start mid-course can't drop
+        // the in-progress route.
+        _breadcrumb.value = emptyList()
+        _current.value = null
+        _hasFix.value = false
+        _heading.value = null
+        _distanceMeters.value = 0.0
+        lastRawLocation = null
+
         tracking = true
         if (!sensorsRegistered) {
             sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { rotation ->
