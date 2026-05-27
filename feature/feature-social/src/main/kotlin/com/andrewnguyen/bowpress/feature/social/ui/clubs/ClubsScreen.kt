@@ -226,7 +226,11 @@ fun ClubsScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(invitesState.clubInvites, key = { it.id }) { invite ->
+                // Namespace the key: LazyColumn requires unique keys across
+                // ALL items in the same column, and invite ids can collide
+                // with club ids (an invitation row sometimes shares a uuid
+                // with the club it points to). Prefix to keep them disjoint.
+                items(invitesState.clubInvites, key = { "invite-${it.id}" }) { invite ->
                     InvitationRow(
                         invitation = invite,
                         onAccept = {
@@ -255,7 +259,7 @@ fun ClubsScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(state.clubs, key = { it.id }) { club ->
+                items(state.clubs, key = { "club-${it.id}" }) { club ->
                     ClubRow(club = club, onClick = { onClubClick(club.id) })
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 }

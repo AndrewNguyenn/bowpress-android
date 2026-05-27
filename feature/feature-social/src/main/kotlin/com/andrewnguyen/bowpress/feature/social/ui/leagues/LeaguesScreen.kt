@@ -117,7 +117,9 @@ fun LeaguesScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(invitesState.leagueInvites, key = { it.id }) { invite ->
+                // Namespace the key — see ClubsScreen for the full rationale;
+                // invite ids and league ids can collide in the same LazyColumn.
+                items(invitesState.leagueInvites, key = { "invite-${it.id}" }) { invite ->
                     InvitationRow(
                         invitation = invite,
                         onAccept = {
@@ -164,7 +166,7 @@ fun LeaguesScreen(
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = AppLine, thickness = 1.dp)
                 }
-                items(state.leagues, key = { it.id }) { league ->
+                items(state.leagues, key = { "league-${it.id}" }) { league ->
                     LeagueRow(league = league, onClick = { onLeagueClick(league.id) })
                     HorizontalDivider(color = AppLine2, thickness = 1.dp)
                 }
