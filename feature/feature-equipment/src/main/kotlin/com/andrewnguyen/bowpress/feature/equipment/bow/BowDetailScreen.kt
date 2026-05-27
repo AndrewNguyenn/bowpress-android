@@ -1,5 +1,6 @@
 package com.andrewnguyen.bowpress.feature.equipment.bow
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -115,68 +116,69 @@ fun BowDetailScreen(
         containerColor = com.andrewnguyen.bowpress.core.designsystem.AppPaper2,
         contentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
         topBar = {
-            TopAppBar(
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = com.andrewnguyen.bowpress.core.designsystem.AppPaper2,
-                    titleContentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
-                    navigationIconContentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
-                    actionIconContentColor = com.andrewnguyen.bowpress.core.designsystem.AppInk,
-                ),
-                title = { /* iOS renders the title as a large heading inside the body, not in the topbar */ },
-                navigationIcon = {
-                    // iOS 26 back affordance: a small chevron inside a circular
-                    // surface. Keep IconButton on the outside so the touch target
-                    // stays at the M3 48dp minimum + we still get a ripple; the
-                    // 36dp Surface is purely the visual chrome.
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.padding(start = 4.dp),
+            // Custom 48dp Row instead of Material's TopAppBar (which is fixed
+            // at 64dp): iOS BowDetailView uses SwiftUI's tighter ~44pt nav
+            // chrome, and the M3 default left a visible gap above the
+            // in-body large-title heading. Status-bar inset is applied
+            // manually since we're no longer using a Material container that
+            // handles the inset for us.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(com.andrewnguyen.bowpress.core.designsystem.AppPaper2)
+                    .statusBarsPadding()
+                    .height(48.dp)
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // iOS 26 back affordance: a small chevron inside a circular
+                // surface. Keep IconButton on the outside so the touch target
+                // stays at the M3 48dp minimum + we still get a ripple; the
+                // 36dp Surface is purely the visual chrome.
+                IconButton(onClick = onBack) {
+                    androidx.compose.material3.Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = AppCream,
+                        modifier = Modifier.size(36.dp),
                     ) {
-                        androidx.compose.material3.Surface(
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                            color = AppCream,
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = AppPondDk,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = AppPondDk,
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
                     }
-                },
-                actions = {
-                    if (editState.isSaving) {
-                        CircularProgressIndicator(
-                            color = BowPressColors.Accent,
-                            modifier = Modifier.size(24.dp).padding(end = 12.dp),
-                        )
-                    } else {
-                        FilledTonalButton(
-                            onClick = editViewModel::save,
-                            enabled = !editState.isLoading && editState.bow != null,
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = AppCream,
-                                contentColor = AppPondDk,
-                            ),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                horizontal = 14.dp,
-                                vertical = 6.dp,
-                            ),
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .testTag("save_bow_button"),
-                        ) { Text("Save", style = MaterialTheme.typography.labelLarge) }
-                    }
-                    // iOS BowDetailView surfaces deletion as a destructive button at
-                    // the bottom of the form (BowDetailView.swift:181-191), not a
-                    // topbar action — the bottom row is rendered inside BowDetailBody.
-                },
-            )
+                }
+                Spacer(Modifier.weight(1f))
+                if (editState.isSaving) {
+                    CircularProgressIndicator(
+                        color = BowPressColors.Accent,
+                        modifier = Modifier.size(24.dp).padding(end = 12.dp),
+                    )
+                } else {
+                    FilledTonalButton(
+                        onClick = editViewModel::save,
+                        enabled = !editState.isLoading && editState.bow != null,
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = AppCream,
+                            contentColor = AppPondDk,
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 14.dp,
+                            vertical = 6.dp,
+                        ),
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .testTag("save_bow_button"),
+                    ) { Text("Save", style = MaterialTheme.typography.labelLarge) }
+                }
+                // iOS BowDetailView surfaces deletion as a destructive button at
+                // the bottom of the form (BowDetailView.swift:181-191), not a
+                // topbar action — the bottom row is rendered inside BowDetailBody.
+            }
         },
     ) { padding ->
         when {
@@ -265,8 +267,8 @@ private fun BowDetailBody(
             ),
             maxLines = 2,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            // top = 0 — Material's TopAppBar already provides the gap above
-            // the in-body title; an extra inset just double-stacks.
+            // top = 0 — the Scaffold's topBar Row already sits above us with
+            // status-bar inset baked in. Any extra inset double-stacks.
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 12.dp),
         )
 
