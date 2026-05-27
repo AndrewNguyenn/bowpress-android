@@ -282,7 +282,9 @@ private fun TitleHeader(title: String, distance: String?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 14.dp),
+            // top = 0 — Material's TopAppBar already provides the gap above the
+            // title; the iOS 18pt top inset is folded into the system bar height.
+            .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
