@@ -265,7 +265,9 @@ private fun BowDetailBody(
             ),
             maxLines = 2,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+            // top = 0 — Material's TopAppBar already provides the gap above
+            // the in-body title; an extra inset just double-stacks.
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 12.dp),
         )
 
         UnitToggle(
