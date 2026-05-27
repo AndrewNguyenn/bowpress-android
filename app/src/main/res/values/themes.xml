@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.BowPress" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.BowPress" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- AppPaper window background so the first-frame Activity surface
+             matches the composable splash and avoids any white flash before
+             Compose mounts. -->
+        <item name="android:windowBackground">@color/app_paper</item>
+    </style>
+
+    <!-- Launch theme — extends Theme.SplashScreen so the SplashScreen API
+         (androidx.core:core-splashscreen) takes over the system splash on
+         Android 12+ and emulates it on older releases. We paint the splash
+         background with AppPaper and use a fully-transparent icon so the
+         system splash blends seamlessly into the composable splash that
+         takes over once Compose draws its first frame. -->
+    <style name="Theme.BowPress.Launch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/app_paper</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.BowPress</item>
+    </style>
 
     <!-- uCrop requires an AppCompat theme. Colors are overridden programmatically
          via UCrop.Options so only the window/toolbar chrome matters here. -->

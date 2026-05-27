@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Adaptive-icon background layer. Solid AppPaper fill — the mark itself lives
-  entirely in ic_launcher_foreground.xml. 108×108dp canvas with Android's
-  66×66dp safe zone in the center.
+  Adaptive-icon background layer. Solid deep-pond fill so the launcher
+  icon matches the iOS AppIcon ground. The mark itself lives entirely
+  in ic_launcher_foreground.xml.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -11,5 +11,5 @@
     android:viewportHeight="108">
     <path
         android:pathData="M0,0 L108,0 L108,108 L0,108 Z"
-        android:fillColor="#EEF2EC" />
+        android:fillColor="@color/ic_launcher_background" />
 </vector>

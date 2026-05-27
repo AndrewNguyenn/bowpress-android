@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Kenrokuen paper ground for the adaptive launcher icon. Pulled out into its
-  own color resource so the foreground vector can refer to it symbolically
-  (Android Studio's Asset Studio also expects this file name).
+  Adaptive-icon background. Matches the iOS AppIcon ground (deep pond)
+  so launcher visual parity holds between platforms.
 -->
 <resources>
-    <color name="ic_launcher_background">#EEF2EC</color>
+    <color name="ic_launcher_background">#2D5A6B</color>
 </resources>

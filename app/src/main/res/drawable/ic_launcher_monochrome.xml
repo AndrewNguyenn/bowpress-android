@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Android 13+ themed-icon monochrome layer. Same mark, but silhouette-only —
-  the system tints it to match the user's wallpaper theme. No pond-gradient
-  fills: just stroked rings + the lacquer diagonal + the maple centroid.
-
-  The maple dot is kept filled (small visual anchor) — the rest are
-  stroked in black so Android's tinter blends them into the active theme.
+  Android 13+ themed-icon monochrome layer. Silhouette version of the iOS
+  AppIcon mark — 4 stroked ring outlines, a filled inner disc (the yellow
+  bullseye in the colored icon), and the maple bullseye dot. The system
+  tints the whole layer to match the active wallpaper theme.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -19,33 +17,28 @@
         android:strokeWidth="0.9"
         android:fillColor="#00000000" />
     <path
-        android:pathData="M54,26 a28,28 0 1,0 0,56 a28,28 0 1,0 0,-56 Z"
+        android:pathData="M54,25 a29,29 0 1,0 0,58 a29,29 0 1,0 0,-58 Z"
         android:strokeColor="#000000"
         android:strokeWidth="0.9"
         android:fillColor="#00000000" />
     <path
-        android:pathData="M54,34 a20,20 0 1,0 0,40 a20,20 0 1,0 0,-40 Z"
+        android:pathData="M54,32 a22,22 0 1,0 0,44 a22,22 0 1,0 0,-44 Z"
         android:strokeColor="#000000"
         android:strokeWidth="0.9"
         android:fillColor="#00000000" />
     <path
-        android:pathData="M54,42 a12,12 0 1,0 0,24 a12,12 0 1,0 0,-24 Z"
-        android:strokeColor="#000000"
-        android:strokeWidth="0.9"
-        android:fillColor="#00000000" />
-    <path
-        android:pathData="M54,50 a4,4 0 1,0 0,8 a4,4 0 1,0 0,-8 Z"
+        android:pathData="M54,39 a15,15 0 1,0 0,30 a15,15 0 1,0 0,-30 Z"
         android:strokeColor="#000000"
         android:strokeWidth="0.9"
         android:fillColor="#00000000" />
 
     <path
-        android:pathData="M38,38 L54,54"
+        android:pathData="M54,41 a13,13 0 1,0 0,26 a13,13 0 1,0 0,-26 Z"
         android:strokeColor="#000000"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
+        android:strokeWidth="0.9"
+        android:fillColor="#00000000" />
 
     <path
-        android:pathData="M58,58 m-1.8,0 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0 Z"
+        android:pathData="M54,54 m-1.8,0 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0 Z"
         android:fillColor="#000000" />
 </vector>

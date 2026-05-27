@@ -10,7 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.core.graphics.toColorInt
+import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.andrewnguyen.bowpress.core.designsystem.BowPressTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -18,12 +19,18 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must be called before super.onCreate(). Installs the SplashScreen
+        // API so Theme.BowPress.Launch (the transparent-icon-on-AppPaper
+        // splash) cleanly hands off to Theme.BowPress without a flash, and
+        // the system splash blends into HydrationSplashScreen on Compose's
+        // first frame.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         // Kenrokuen is light-mode only — force the status + nav bars to the
         // AppPaper ground so the system chrome blends into the first row of
         // the splash / scaffold. `SystemBarStyle.light(...)` asks Android to
         // draw dark icons on top, which is what we want on a paper surface.
-        val paperScrim = AppPaperArgb
+        val paperScrim = ContextCompat.getColor(this, R.color.app_paper)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(paperScrim, paperScrim),
             navigationBarStyle = SystemBarStyle.light(paperScrim, paperScrim),
@@ -41,12 +48,5 @@ class MainActivity : ComponentActivity() {
                 BowPressApp()
             }
         }
-    }
-
-    private companion object {
-        // Mirrors core-designsystem/Color.kt AppPaper (#EEF2EC). Duplicated
-        // here because enableEdgeToEdge runs before Compose theming is set
-        // up — we only need the raw argb int.
-        val AppPaperArgb: Int = "#EEF2EC".toColorInt()
     }
 }

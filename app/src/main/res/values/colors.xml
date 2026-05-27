@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kenrokuen paper ground. Owned here (not in ic_launcher_background.xml) so
+  the launcher icon's adaptive-icon background can change independently of
+  the splash / window background without dragging the other along.
+-->
+<resources>
+    <color name="app_paper">#EEF2EC</color>
+</resources>
