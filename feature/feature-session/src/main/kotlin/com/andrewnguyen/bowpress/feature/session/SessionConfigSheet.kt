@@ -62,7 +62,7 @@ fun SessionConfigSheet(
             Spacer(Modifier.height(4.dp))
             bowConfigs.forEach { cfg ->
                 ConfigRow(
-                    title = cfg.label ?: "Config · ${UnitFormatting.length(cfg.drawLength, unitSystem, digits = 1)}",
+                    title = cfg.label ?: "Config · ${UnitFormatting.length(cfg.drawLength, unitSystem, digits = 2)}",
                     isSelected = cfg.id == selectedBowConfigId,
                     onClick = { selectedBowConfigId = cfg.id },
                 )

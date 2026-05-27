@@ -150,7 +150,7 @@ private fun ReadOnlyBody(
         SectionHeader("Bow Setup")
         SectionCard {
             if (EquipmentFieldRules.isVisible(Field.DRAW_LENGTH, bowType, isSetup, rearStabSide)) {
-                LabeledValueRow("Draw Length", UnitFormatting.length(config.drawLength, unitSystem, digits = 1))
+                LabeledValueRow("Draw Length", UnitFormatting.length(config.drawLength, unitSystem, digits = 2))
             }
             if (bowType == BowType.COMPOUND) {
                 config.letOffPct?.let { LabeledValueRow("Let-off", UnitFormatting.percent(it)) }
