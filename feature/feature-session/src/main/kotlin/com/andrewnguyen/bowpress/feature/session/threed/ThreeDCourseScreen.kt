@@ -67,13 +67,19 @@ fun ThreeDCourseScreen(
     val unitSystem = LocalUnitSystem.current
     val context = LocalContext.current
 
-    // Once the session row is gone (finished or discarded), leave the screen.
+    // Mirrors `sawActive` in ActiveSessionScreen.kt — gate the nav-out on
+    // having ever seen a non-null session so the initial null state, before
+    // the VM's active-session flow hydrates, doesn't bounce the user back to
+    // home and produce a stage/course flicker.
+    var sawSession by remember { mutableStateOf(false) }
+    if (state.session != null) sawSession = true
+    val justEnded = sawSession && state.session == null
     // `lastFinishWasShared` is written by `finishCourse(extras)` when the
     // archer picks Public — the host uses it to route to the Social feed
     // instead of the Log tab. Discards / legacy notes-only finishes leave
     // it at false and fall through to the standard Log path.
-    LaunchedEffect(state.session) {
-        if (state.session == null) onCourseEnded(state.lastFinishWasShared)
+    LaunchedEffect(justEnded) {
+        if (justEnded) onCourseEnded(state.lastFinishWasShared)
     }
 
     // Ask for location the first time the course screen appears.
