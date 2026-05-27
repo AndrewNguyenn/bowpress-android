@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.Location
 import androidx.core.content.ContextCompat
+import com.andrewnguyen.bowpress.core.model.ArcheryPoi
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -44,9 +45,6 @@ import java.util.Locale
  * Places SDK behind the same suspend signature.
  */
 object NearestRangeFinder {
-
-    /** 0.25 mi in metres — strict POI cutoff. */
-    private const val RADIUS_METERS = 402.336
 
     /** Hard cap on the one-shot fix + geocode chain. */
     private const val TIMEOUT_MS = 10_000L
@@ -88,12 +86,14 @@ object NearestRangeFinder {
     /**
      * Strict archery-POI search around [fix]. Returns a `SessionLocation`
      * whose `name` is the matched POI's primary line, or null when none of
-     * the candidates within [RADIUS_METERS] looks like an archery range.
+     * the candidates within `ArcheryPoi.RADIUS_METERS` looks like an archery
+     * range.
      *
-     * The implementation queries the platform `Geocoder`'s
-     * `getFromLocationName("archery", ...)` with a small bias box. Geocoder
-     * is rate-limited and offline-friendly; failure is treated as "no
-     * archery POI" and falls through to the reverse-geocode tier.
+     * The Geocoder query + lat/lng extraction stays here (platform I/O);
+     * the name filter + radius cut + proximity rank live in
+     * `ArcheryPoi.pickNearest` so they can't drift between this auto-tag
+     * path and the manual `LocationTagPicker.nearestArcheryPoiName`. Both
+     * call sites are covered by `ArcheryPoiTest`.
      */
     private suspend fun nearestArcheryPoi(
         context: Context,
@@ -102,12 +102,12 @@ object NearestRangeFinder {
         if (!Geocoder.isPresent()) return@withContext null
         val geocoder = Geocoder(context, Locale.getDefault())
         runCatching {
-            // ~2km bias box around the fix — the geocoder won't strictly clip
-            // to it but ranks results by proximity. The final cut is applied
-            // by [RADIUS_METERS] below.
+            // ~2km bias box around the fix — the geocoder won't strictly
+            // clip to it but ranks results by proximity. The ranker
+            // applies the strict radius cut.
             val degBias = 0.02
             @Suppress("DEPRECATION")
-            val candidates = geocoder.getFromLocationName(
+            val addresses = geocoder.getFromLocationName(
                 "archery",
                 /* maxResults = */ 8,
                 /* lowerLeftLatitude  = */ fix.latitude - degBias,
@@ -115,25 +115,22 @@ object NearestRangeFinder {
                 /* upperRightLatitude = */ fix.latitude + degBias,
                 /* upperRightLongitude= */ fix.longitude + degBias,
             ).orEmpty()
-            candidates
-                .mapNotNull { addr ->
-                    val name = addr.featureName ?: addr.thoroughfare ?: addr.locality
-                    val lat = if (addr.hasLatitude()) addr.latitude else return@mapNotNull null
-                    val lon = if (addr.hasLongitude()) addr.longitude else return@mapNotNull null
-                    if (name.isNullOrBlank()) return@mapNotNull null
-                    val cleaned = name.trim()
-                    if (!cleaned.lowercase().contains("archery") && !cleaned.lowercase().contains("range")) {
-                        return@mapNotNull null
-                    }
-                    val dest = Location("poi").apply { latitude = lat; longitude = lon }
-                    val d = fix.distanceTo(dest)
-                    if (d > RADIUS_METERS) null
-                    else Triple(cleaned, dest, d)
-                }
-                .minByOrNull { it.third }
-                ?.let { (name, dest, _) ->
-                    SessionLocation(name = name, latitude = dest.latitude, longitude = dest.longitude)
-                }
+            val candidates = addresses.mapNotNull { addr ->
+                if (!addr.hasLatitude() || !addr.hasLongitude()) return@mapNotNull null
+                val name = (addr.featureName ?: addr.thoroughfare ?: addr.locality)
+                    ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                ArcheryPoi.Candidate(name = name, latitude = addr.latitude, longitude = addr.longitude)
+            }
+            val pickedName = ArcheryPoi.pickNearest(
+                candidates = candidates,
+                anchorLat = fix.latitude,
+                anchorLng = fix.longitude,
+            ) ?: return@runCatching null
+            // The ranker hands back the winning name; recover its
+            // coordinates from the matched candidate so the SessionLocation
+            // carries the POI's lat/lng (not the archer's fix).
+            val winner = candidates.first { it.name.trim() == pickedName }
+            SessionLocation(name = pickedName, latitude = winner.latitude, longitude = winner.longitude)
         }.getOrNull()
     }
 

@@ -63,6 +63,7 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
+import com.andrewnguyen.bowpress.core.model.ArcheryPoi
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -148,7 +149,14 @@ fun LocationTagPicker(
                 .debounce(450)
                 .collect { center ->
                     isResolving = true
-                    val name = reverseGeocode(context, center)
+                    // POI snap first — when the archer drops the pin at
+                    // an actual range, tag it with the range's name
+                    // ("Queens Archery") instead of the underlying street
+                    // address CLGeocoder / Geocoder would otherwise give
+                    // back ("170-16 39th Ave"). Mirrors the auto-tag path
+                    // at session finalization (NearestRangeFinder).
+                    val name = nearestArcheryPoiName(context, center)
+                        ?: reverseGeocode(context, center)
                     isResolving = false
                     // Don't clobber a name the archer typed since this started.
                     if (name != null && !userEditedName) placeName = name
@@ -671,5 +679,43 @@ private suspend fun reverseGeocode(
                 ?: a.locality
                 ?: a.adminArea
         }
+    }.getOrNull()
+}
+
+/**
+ * Strict archery-POI snap around [point]. Returns the matched POI's name
+ * (e.g. "Queens Archery") when an "archery"/"range"-named candidate sits
+ * within ~0.25 mi of the dragged map centre; null otherwise so the caller
+ * falls through to the generic reverse-geocode.
+ *
+ * The Geocoder query + candidate harvest is platform I/O; the name filter
+ * + radius cut + proximity rank are delegated to `ArcheryPoi.pickNearest`
+ * — the same pure ranker the session-end auto-tag (`NearestRangeFinder`)
+ * uses, so the picker's "drop pin at the range" gesture and the finish
+ * sheet's "tap End → save" path can't drift on what counts as a match.
+ */
+private suspend fun nearestArcheryPoiName(
+    context: android.content.Context,
+    point: GeoPoint,
+): String? = withContext(Dispatchers.IO) {
+    if (!Geocoder.isPresent()) return@withContext null
+    runCatching {
+        val degBias = 0.02 // ~2km box around the centre; ranker applies the strict cut
+        @Suppress("DEPRECATION")
+        val addresses = Geocoder(context, Locale.getDefault()).getFromLocationName(
+            "archery",
+            /* maxResults = */ 8,
+            /* lowerLeftLatitude  = */ point.latitude - degBias,
+            /* lowerLeftLongitude = */ point.longitude - degBias,
+            /* upperRightLatitude = */ point.latitude + degBias,
+            /* upperRightLongitude= */ point.longitude + degBias,
+        ).orEmpty()
+        val candidates = addresses.mapNotNull { addr ->
+            if (!addr.hasLatitude() || !addr.hasLongitude()) return@mapNotNull null
+            val name = (addr.featureName ?: addr.thoroughfare ?: addr.locality)
+                ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            ArcheryPoi.Candidate(name = name, latitude = addr.latitude, longitude = addr.longitude)
+        }
+        ArcheryPoi.pickNearest(candidates, anchorLat = point.latitude, anchorLng = point.longitude)
     }.getOrNull()
 }
