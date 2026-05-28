@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.export.ExportJobScheduler
 import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
@@ -55,6 +56,7 @@ class AppStateViewModel @Inject constructor(
     private val appSnackbarBus: AppSnackbarBus,
     private val localHydration: LocalHydration,
     private val sessionRepository: SessionRepository,
+    private val exportJobScheduler: ExportJobScheduler,
 ) : ViewModel() {
 
     init {
@@ -234,6 +236,12 @@ class AppStateViewModel @Inject constructor(
             // so the Session log, Analytics, and detail screens have arrow data
             // on first launch / second device. Mirrors iOS LocalHydration.
             runCatching { localHydration.hydrateFromApi() }
+            // Phase B — belt-and-suspenders resume of any finish-time share
+            // job that was persisted to Room but whose WorkManager request
+            // wasn't enqueued before a process kill. (WorkManager already
+            // re-runs work it did persist; this only covers the
+            // enqueue-but-not-scheduled gap.)
+            runCatching { exportJobScheduler.resumePendingJobs() }
             pushInitializer.start()
             refreshSocialPendingCount()
             _uiState.value = _uiState.value.copy(isHydrating = false)
