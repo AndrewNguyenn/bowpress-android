@@ -78,6 +78,19 @@ import com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader
 private val GUTTER = 1.dp
 
 /**
+ * How [PhotoStrip] sizes itself against its parent's proposed frame:
+ *
+ *   [Aspect] — the strip carries an `aspectRatio` per layout so the row's
+ *     height is a fixed fraction of its width. The default — matches every
+ *     previous caller.
+ *   [Pane]   — the strip drops the aspect ratio and fills both width and
+ *     height of the proposed frame. Used by the balanced feed card's
+ *     dual-carousel right pane where the parent already pins the height
+ *     at 300dp.
+ */
+enum class PhotoStripFillMode { Aspect, Pane }
+
+/**
  * The count-flexed layout of a photo strip. Decided purely by [readyCount] —
  * the number of `ready` photos — so it is unit-testable without Compose.
  *
@@ -149,12 +162,29 @@ internal fun PhotoStrip(
     loader: SessionPhotoLoader,
     onOpenViewer: (startIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
+    fillMode: PhotoStripFillMode = PhotoStripFillMode.Aspect,
 ) {
     val layout = photoStripLayout(readyPhotos.size) ?: return
+
+    // In Aspect mode each layout case carries its own aspect-ratio
+    // modifier so the strip carves a fixed-proportion row out of its
+    // parent's width. In Pane mode every cell modifier drops the
+    // aspect ratio in favour of `fillMaxSize` so the strip eats the
+    // entire proposed frame (the balanced card's 300dp stage).
+    val rowAspectModifier: Modifier = when (fillMode) {
+        PhotoStripFillMode.Aspect -> Modifier
+        PhotoStripFillMode.Pane -> Modifier.fillMaxSize()
+    }
+    fun cellAspect(ratio: Float): Modifier =
+        when (fillMode) {
+            PhotoStripFillMode.Aspect -> Modifier.aspectRatio(ratio)
+            PhotoStripFillMode.Pane -> Modifier.fillMaxSize()
+        }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (fillMode == PhotoStripFillMode.Pane) Modifier.fillMaxHeight() else Modifier)
             .background(AppLine) // shows through the 1dp gutters as a hairline
             .testTag(TestTags.FeedRowPhotoStrip),
     ) {
@@ -162,23 +192,34 @@ internal fun PhotoStrip(
             is PhotoStripLayout.Single -> Cell(
                 sharedSessionId, readyPhotos[0], loader,
                 onClick = { onOpenViewer(0) },
-                modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(cellAspect(4f / 3f)),
             )
 
             is PhotoStripLayout.Pair -> Row(
+                modifier = rowAspectModifier,
                 horizontalArrangement = Arrangement.spacedBy(GUTTER),
             ) {
                 readyPhotos.take(2).forEachIndexed { i, photo ->
                     Cell(
                         sharedSessionId, photo, loader,
                         onClick = { onOpenViewer(i) },
-                        modifier = Modifier.weight(1f).aspectRatio(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(cellAspect(1f)),
                     )
                 }
             }
 
             is PhotoStripLayout.Trio -> Row(
-                modifier = Modifier.height(IntrinsicSize.Min),
+                modifier = when (fillMode) {
+                    // Aspect: the Row's height comes from the right
+                    // column's two stacked squares (IntrinsicSize.Min).
+                    // Pane: the parent already pins the height — fill it.
+                    PhotoStripFillMode.Aspect -> Modifier.height(IntrinsicSize.Min)
+                    PhotoStripFillMode.Pane -> Modifier.fillMaxSize()
+                },
                 horizontalArrangement = Arrangement.spacedBy(GUTTER),
             ) {
                 // Big left cell — the design's `grid-row:span 2`. The Row is
@@ -194,32 +235,47 @@ internal fun PhotoStrip(
                     )
                 }
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(GUTTER),
                 ) {
                     readyPhotos.subList(1, 3).forEachIndexed { i, photo ->
                         Cell(
                             sharedSessionId, photo, loader,
                             onClick = { onOpenViewer(i + 1) },
-                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                            modifier = when (fillMode) {
+                                PhotoStripFillMode.Aspect ->
+                                    Modifier.fillMaxWidth().aspectRatio(1f)
+                                PhotoStripFillMode.Pane ->
+                                    Modifier.fillMaxWidth().weight(1f)
+                            },
                         )
                     }
                 }
             }
 
             is PhotoStripLayout.Grid -> Column(
+                modifier = rowAspectModifier,
                 verticalArrangement = Arrangement.spacedBy(GUTTER),
             ) {
                 // 2×2 — rows of two 1:1 cells. The 4th visible cell carries the
                 // "+N more" overlay when there are more than 4 photos.
                 for (rowIndex in 0..1) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(GUTTER)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(GUTTER),
+                        modifier = when (fillMode) {
+                            PhotoStripFillMode.Aspect -> Modifier
+                            PhotoStripFillMode.Pane ->
+                                Modifier.fillMaxWidth().weight(1f)
+                        },
+                    ) {
                         for (colIndex in 0..1) {
                             val cellIndex = rowIndex * 2 + colIndex
                             val isLast = cellIndex == 3
                             val showOverflow = isLast && layout.overflow > 0
                             Box(
-                                modifier = Modifier.weight(1f).aspectRatio(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(cellAspect(1f)),
                             ) {
                                 Cell(
                                     sharedSessionId, readyPhotos[cellIndex], loader,

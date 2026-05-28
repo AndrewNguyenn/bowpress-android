@@ -57,7 +57,6 @@ class ActivityPreviewTest {
     @Test
     fun `isEmpty is true only for None`() {
         assertThat(ActivityPreview.None.isEmpty).isTrue()
-        assertThat(ActivityPreview.Photo.isEmpty).isFalse()
         assertThat(
             ActivityPreview.Target(distance = "20yd", score = 285, endRings = null).isEmpty,
         ).isFalse()
@@ -67,13 +66,15 @@ class ActivityPreviewTest {
     }
 
     @Test
-    fun `a session with a target-paper photo picks the photo preview`() {
-        // sess_devon_1 is the mock session registered in TargetPhotoCatalog;
-        // the photo preview wins over the range discipline preview.
+    fun `a range session with a target-paper photo still picks the target preview`() {
+        // sess_devon_1 was the catalog-registered photo session; before
+        // the balanced feed card it took precedence and produced [Photo].
+        // The new range body absorbs photos into its dual-carousel right
+        // pane, so the row still picks [Target] and the scorecard renders.
         val preview = activityPreview(
             item(session(discipline = "range", sessionId = "sess_devon_1")),
         )
-        assertThat(preview).isEqualTo(ActivityPreview.Photo)
+        assertThat(preview).isInstanceOf(ActivityPreview.Target::class.java)
     }
 
     @Test

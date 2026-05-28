@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -20,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -79,6 +82,7 @@ import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ActivityKind
+import com.andrewnguyen.bowpress.core.model.ActivityPhoto
 import com.andrewnguyen.bowpress.core.model.ActivitySession
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.SessionLocation
@@ -89,7 +93,6 @@ import com.andrewnguyen.bowpress.core.model.Zone
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 import com.andrewnguyen.bowpress.feature.social.ui.achievements.AchievementBadgeChip
 import com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionBodyText
-import com.andrewnguyen.bowpress.feature.social.ui.session.FeedPhotoGallery
 import com.andrewnguyen.bowpress.feature.social.ui.session.SessionPhotoLoader
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -159,7 +162,7 @@ fun ActivityCard(
     // in this `LazyColumn` item's composition would be torn down the moment
     // the card scrolls off-screen, dismissing it mid-look. No-op default so
     // previews / non-photo callers need not wire it.
-    onOpenPhotoViewer: (sharedSessionId: String, photos: List<com.andrewnguyen.bowpress.core.model.ActivityPhoto>, startIndex: Int) -> Unit = { _, _, _ -> },
+    onOpenPhotoViewer: (sharedSessionId: String, photos: List<ActivityPhoto>, startIndex: Int) -> Unit = { _, _, _ -> },
     // Mentions contract §3.2 — tapping an `@handle` in the post title opens
     // that archer's profile. No-op default so previews / non-mention callers
     // need not wire it.
@@ -208,33 +211,28 @@ fun ActivityCard(
         )
         // Header bottom hairline.
         HorizontalDivider(color = AppLine2, thickness = 1.dp)
-        ActivityCardBody(item, preview, photoLoader)
-        // Section 4 — the photo strip. When the shared session has attached
-        // photos it sits between the score body and the kudos / reactions row,
-        // hairline-separated by a top border. No photos → no strip, no extra
-        // hairline. The strip is additive: a photographed range session still
-        // shows its 50/50 score body above.
+        // The `ready`-filtered, position-sorted photo list — computed once
+        // and shared with the body's dual carousel and (via the
+        // open-viewer event) the screen's viewer, so cell-tap indices line
+        // up with the viewer's pages.
         val session = item.session
-        // The `ready`-filtered, position-sorted photo list — computed once and
-        // shared with the strip and (via the open-viewer event) the screen's
-        // viewer, so cell-tap indices line up with the viewer's pages.
         val readyPhotos = remember(session?.photos) {
             session?.photos
                 ?.filter { it.status == com.andrewnguyen.bowpress.core.model.PhotoStatus.ready }
                 ?.sortedBy { it.position }
                 .orEmpty()
         }
-        if (session != null && photoLoader != null && readyPhotos.isNotEmpty()) {
-            HorizontalDivider(color = AppLine, thickness = 1.dp)
-            PhotoStrip(
-                sharedSessionId = session.sharedSessionId,
-                readyPhotos = readyPhotos,
-                loader = photoLoader,
-                onOpenViewer = { index ->
+        ActivityCardBody(
+            item = item,
+            preview = preview,
+            photoLoader = photoLoader,
+            readyPhotos = readyPhotos,
+            onOpenPhotoViewer = { index ->
+                if (session != null) {
                     onOpenPhotoViewer(session.sharedSessionId, readyPhotos, index)
-                },
-            )
-        }
+                }
+            },
+        )
         // The reactions bar shows ONLY on a session card AND only when a
         // caller supplies a [Reactions] bundle. iOS parity (A5): the Log
         // tab reuses ActivityCard but never carries reactions on its local
@@ -244,14 +242,38 @@ fun ActivityCard(
         if (item.session != null && reactions != null) {
             // Reactions bar — top hairline, then the borderless action row.
             HorizontalDivider(color = AppLine2, thickness = 1.dp)
+            // Derive the right-side tag from the card kind: a range
+            // session with media reads "Session", a range without media
+            // reads "Scorecard", a 3D course reads "Course". `hasMedia`
+            // expands to include the video tile when that ships on
+            // Android (iOS already factors video presence in here).
+            val hasMedia = readyPhotos.isNotEmpty()
+            val cardTag = cardKindTag(item, hasMedia = hasMedia)
             ReactionsBar(
                 item = item,
                 onToggleLike = reactions.onToggleLike,
                 onOpenComments = reactions.onOpenComments,
                 selfActor = reactions.selfActor,
+                tag = cardTag,
             )
         }
     }
+}
+
+/**
+ * Resolves the right-side reactions-bar label for a feed card. Mirrors iOS
+ * `cardTag` in `SocialTabView.swift`: a range session with media reads
+ * "Session", a range without media reads "Scorecard", a 3D course reads
+ * "Course", a non-session row passes through as null. The caller owns the
+ * `hasMedia` definition (today: photos only; tomorrow: photos OR video).
+ */
+private fun cardKindTag(
+    item: ActivityItem,
+    hasMedia: Boolean,
+): String? {
+    val session = item.session ?: return null
+    if (session.isCourse) return "Course"
+    return if (hasMedia) "Session" else "Scorecard"
 }
 
 // ── Header ───────────────────────────────────────────────────────────────────
@@ -379,8 +401,9 @@ private fun ActivityCardHeader(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            // Migration 0039 — the post caption, a 2-line truncated line under
-            // the headline; `@mentions` render as tappable pond-toned spans.
+            // Migration 0039 — the post caption, a 2-line truncated line
+            // under the headline; `@mentions` render as tappable pond-toned
+            // spans.
             val description = item.session?.description
             if (!description.isNullOrBlank()) {
                 MentionBodyText(
@@ -393,8 +416,8 @@ private fun ActivityCardHeader(
                 )
             }
             // Equipment-inline strip — bow · type · arrow, one truncated
-            // mono row beneath the description. The composable renders
-            // nothing when no equipment metadata ships on the session.
+            // mono row beneath the description. Reads as metadata, not
+            // a container.
             EquipmentInlineLine(
                 bowName = item.session?.bowName,
                 bowType = item.session?.bowType?.label,
@@ -515,6 +538,8 @@ private fun ActivityCardBody(
     item: ActivityItem,
     preview: ActivityPreview,
     photoLoader: SessionPhotoLoader?,
+    readyPhotos: List<ActivityPhoto>,
+    onOpenPhotoViewer: (startIndex: Int) -> Unit,
 ) {
     when (preview) {
         is ActivityPreview.Target -> RangeSessionBody(
@@ -536,24 +561,18 @@ private fun ActivityCardBody(
             // Migration 0038 — a triangle/vertical layout swaps the single
             // face for the real 3-spot Vegas card. Null → single-face path.
             targetLayout = item.session?.targetLayout,
+            // Range cards absorb their media into the dual-carousel right
+            // pane — the standalone PhotoStrip band above the reactions
+            // row is gone, so a media-bearing range row is one block.
+            sharedSessionId = item.session?.sharedSessionId,
+            readyPhotos = readyPhotos,
+            photoLoader = photoLoader,
+            onOpenPhotoViewer = onOpenPhotoViewer,
         )
         is ActivityPreview.Course -> CourseCardBody(
             score = preview.score,
             stations = preview.stations,
         )
-        is ActivityPreview.Photo -> {
-            val session = item.session
-            val photos = session?.photos.orEmpty()
-            if (session != null && photoLoader != null && photos.isNotEmpty()) {
-                PhotoCardBody(
-                    sharedSessionId = session.sharedSessionId,
-                    photos = photos,
-                    loader = photoLoader,
-                )
-            } else {
-                TextCardBody(item)
-            }
-        }
         // None — a short italic text body. The headline carried the verb; the
         // body restates the activity's own `meta` line (or the session's mono
         // stat line) plus any achievement badges.
@@ -588,6 +607,10 @@ private fun RangeSessionBody(
     face: String?,
     arrowDiameterMm: Double?,
     targetLayout: TargetLayout?,
+    sharedSessionId: String? = null,
+    readyPhotos: List<ActivityPhoto> = emptyList(),
+    photoLoader: SessionPhotoLoader? = null,
+    onOpenPhotoViewer: (startIndex: Int) -> Unit = {},
 ) {
     val ends = endRings.orEmpty()
     // §B2 — structured field is authoritative; fall back to the legacy
@@ -596,177 +619,325 @@ private fun RangeSessionBody(
     // §B3 — 6-ring at 50/70m → outdoor80 7-zone variant; everything else
     // (20yd or unknown) → Vegas 6-zone. tenRing is distance-invariant.
     val sixRingStyle = sixRingVisualStyleForFeed(distance)
-    Row(
+    val hasMedia = sharedSessionId != null && photoLoader != null && readyPhotos.isNotEmpty()
+    // 300dp balanced stage — design `BowPress Feed.html`. No media → static
+    // split [targets | rule | scorecard]; media → dual carousel with the
+    // photos in the right pane.
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AppPaper2)
-            .height(IntrinsicSize.Min),
+            .height(BalancedFeedLayout.stageHeight)
+            .background(AppPaper2),
     ) {
-        // Left — the WA target face with arrows plotted as ink dots.
-        // fillMaxHeight makes the cell fill the (taller) scorecard column's
-        // height so the target sits vertically centred, not toward the top.
-        // Multi-spot skips the 12/18dp gutter so the 3-spot card can reach
-        // the column edges, matching iOS where `.padding(.vertical, 18)
-        // .padding(.horizontal, 12)` only wraps the single-face ZStack.
-        val isMulti = targetLayout != null && targetLayout.isMultiSpot
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .heightIn(min = 230.dp)
-                .padding(
-                    vertical = if (isMulti) 0.dp else 18.dp,
-                    horizontal = if (isMulti) 0.dp else 12.dp,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (isMulti && targetLayout != null) {
-                // 3-spot card — same renderer the detail screen uses, so
-                // a Vegas triangle/vertical session looks the same in the
-                // feed as it does when opened. Arrows come from the real
-                // plotPoints (each bucketed to its nearest spot by
-                // BPPlottedTarget → MultiSpotGeometry.assignArrows); an
-                // empty plotPoints just renders the empty 3-spot face,
-                // which still beats fake-clustering arrows on one bullseye.
-                BPPlottedTarget(
-                    arrows = multiSpotArrows(ends, plotPoints),
-                    // BPPlottedTarget wants the core-model enum, not the
-                    // design-system BPTargetFaceType the single-face path
-                    // uses. The structured field is authoritative; fall
-                    // back to the legacy label heuristic (mirrors iOS
-                    // `targetFaceType ?? TargetFaceType.matching(label:)
-                    // ?? .tenRing`).
-                    faceType = structuredFaceType
-                        ?: TargetFaceType.matching(face)
-                        ?: TargetFaceType.TEN_RING,
-                    layout = targetLayout,
-                    sixRingStyle = sixRingStyle,
-                    // §B1 — shaft diameter from the feed payload sizes the
-                    // dot against the 180mm Vegas spot. The dot formula in
-                    // BPPlottedTarget reads the Canvas pixel size at draw
-                    // time (shaftMm / 180 * spotRadiusPx), so it scales
-                    // proportionally as the face grows from 168 → 320dp —
-                    // no math change needed here. FEED_MIN_DOT_RADIUS
-                    // mirrors iOS `minDotSize: 3` (diameter).
-                    arrowDiameterMm = arrowDiameterMm,
-                    minDotRadius = FEED_MIN_DOT_RADIUS,
-                    // Match iOS `SessionHeatMapView ... .scaleEffect(1.12)
-                    // .frame(maxWidth: 320, maxHeight: 320)` — fill the
-                    // column width up to a 320dp cap, then overflow 12%
-                    // so the spots reach the column edges. Drops the
-                    // previous fixed 168dp pin that left the 3-spot card
-                    // visibly smaller than its iOS counterpart.
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .widthIn(max = 320.dp)
-                        .scale(1.12f),
-                )
-            } else {
-                // The design ships a ~188dp face; the 50/50 column at phone
-                // width can't fit that, so the face renders at
-                // TARGET_FACE_SIZE — the size iOS `ActivityCardRangeBody`
-                // settled on. `BPTargetFace` is fixed-size.
-                BPTargetFace(
-                    size = TARGET_FACE_SIZE,
-                    face = resolvedFaceType,
-                    sixRingStyle = sixRingStyle,
-                ) {
-                    // The friend's arrows — the real plotted positions from the
-                    // feed payload when present, else a deterministic scatter
-                    // within each scoring ring's band.
-                    ArrowPlotOverlay(
+        if (hasMedia && sharedSessionId != null && photoLoader != null) {
+            DualCarouselStage(
+                distance = distance,
+                score = score,
+                maxScore = maxScore,
+                xCount = xCount,
+                ends = ends,
+                plotPoints = plotPoints,
+                resolvedFaceType = resolvedFaceType,
+                structuredFaceType = structuredFaceType,
+                face = face,
+                arrowDiameterMm = arrowDiameterMm,
+                targetLayout = targetLayout,
+                sixRingStyle = sixRingStyle,
+                sharedSessionId = sharedSessionId,
+                readyPhotos = readyPhotos,
+                photoLoader = photoLoader,
+                onOpenPhotoViewer = onOpenPhotoViewer,
+            )
+        } else {
+            StaticSplitStage(
+                distance = distance,
+                score = score,
+                maxScore = maxScore,
+                xCount = xCount,
+                ends = ends,
+                plotPoints = plotPoints,
+                resolvedFaceType = resolvedFaceType,
+                structuredFaceType = structuredFaceType,
+                face = face,
+                arrowDiameterMm = arrowDiameterMm,
+                targetLayout = targetLayout,
+                sixRingStyle = sixRingStyle,
+            )
+        }
+    }
+}
+
+/** Static [targets | rule | scorecard] split — no-media shape. */
+@Composable
+private fun StaticSplitStage(
+    distance: String?,
+    score: Int,
+    maxScore: Int,
+    xCount: Int,
+    ends: List<List<Int>>,
+    plotPoints: List<List<Double>>,
+    resolvedFaceType: BPTargetFaceType,
+    structuredFaceType: TargetFaceType?,
+    face: String?,
+    arrowDiameterMm: Double?,
+    targetLayout: TargetLayout?,
+    sixRingStyle: BPSixRingStyle,
+) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            TargetsPane(
+                resolvedFaceType = resolvedFaceType,
+                structuredFaceType = structuredFaceType,
+                face = face,
+                ends = ends,
+                plotPoints = plotPoints,
+                arrowDiameterMm = arrowDiameterMm,
+                targetLayout = targetLayout,
+                sixRingStyle = sixRingStyle,
+                distance = distance,
+            )
+        }
+        Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(AppLine))
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            ScorecardPane(
+                distance = distance,
+                score = score,
+                maxScore = maxScore,
+                xCount = xCount,
+                ends = ends,
+            )
+        }
+    }
+}
+
+/**
+ * Dual-carousel shape — left pane swipes [scorecard ↔ targets], right pane
+ * carries the photo grid (Android has no video tile yet — when one lands,
+ * the right pane gains a [video, photos] swipe like iOS). Both panes share
+ * the 300dp stage height.
+ */
+@Composable
+private fun DualCarouselStage(
+    distance: String?,
+    score: Int,
+    maxScore: Int,
+    xCount: Int,
+    ends: List<List<Int>>,
+    plotPoints: List<List<Double>>,
+    resolvedFaceType: BPTargetFaceType,
+    structuredFaceType: TargetFaceType?,
+    face: String?,
+    arrowDiameterMm: Double?,
+    targetLayout: TargetLayout?,
+    sixRingStyle: BPSixRingStyle,
+    sharedSessionId: String,
+    readyPhotos: List<ActivityPhoto>,
+    photoLoader: SessionPhotoLoader,
+    onOpenPhotoViewer: (startIndex: Int) -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        BalancedFeedPager(
+            slides = listOf(
+                BalancedFeedPagerSlide(id = "scorecard", kind = null) {
+                    ScorecardPane(
+                        distance = distance,
+                        score = score,
+                        maxScore = maxScore,
+                        xCount = xCount,
+                        ends = ends,
+                    )
+                },
+                BalancedFeedPagerSlide(id = "targets", kind = null) {
+                    TargetsPane(
+                        resolvedFaceType = resolvedFaceType,
+                        structuredFaceType = structuredFaceType,
+                        face = face,
                         ends = ends,
                         plotPoints = plotPoints,
                         arrowDiameterMm = arrowDiameterMm,
-                        mmPerNormUnit = feedCardMmPerNormUnit(resolvedFaceType, distance),
+                        targetLayout = targetLayout,
+                        sixRingStyle = sixRingStyle,
+                        distance = distance,
                     )
+                },
+            ),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            dotsLight = true,
+        )
+        Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(AppLine))
+        // Right pane — photos only (no video on Android yet). Single
+        // slide → no dot row + no chip.
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            PhotoStrip(
+                sharedSessionId = sharedSessionId,
+                readyPhotos = readyPhotos,
+                loader = photoLoader,
+                onOpenViewer = onOpenPhotoViewer,
+                fillMode = PhotoStripFillMode.Pane,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TargetsPane(
+    resolvedFaceType: BPTargetFaceType,
+    structuredFaceType: TargetFaceType?,
+    face: String?,
+    ends: List<List<Int>>,
+    plotPoints: List<List<Double>>,
+    arrowDiameterMm: Double?,
+    targetLayout: TargetLayout?,
+    sixRingStyle: BPSixRingStyle,
+    distance: String?,
+) {
+    val isMulti = targetLayout != null && targetLayout.isMultiSpot
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppPaper2)
+            .padding(
+                vertical = if (isMulti) 0.dp else 10.dp,
+                horizontal = if (isMulti) 0.dp else 10.dp,
+            )
+            .testTag(TestTags.FeedRowPreview),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (isMulti && targetLayout != null) {
+            // 3-spot card — same renderer the detail screen uses, so a
+            // Vegas triangle/vertical session looks the same in the feed
+            // as it does when opened. Arrows come from the real plotPoints
+            // (each bucketed to its nearest spot by BPPlottedTarget →
+            // MultiSpotGeometry.assignArrows); an empty plotPoints just
+            // renders the empty 3-spot face, which still beats fake-
+            // clustering arrows on one bullseye.
+            BPPlottedTarget(
+                arrows = multiSpotArrows(ends, plotPoints),
+                // BPPlottedTarget wants the core-model enum, not the
+                // design-system BPTargetFaceType the single-face path
+                // uses. The structured field is authoritative; fall back
+                // to the legacy label heuristic.
+                faceType = structuredFaceType
+                    ?: TargetFaceType.matching(face)
+                    ?: TargetFaceType.TEN_RING,
+                layout = targetLayout,
+                sixRingStyle = sixRingStyle,
+                arrowDiameterMm = arrowDiameterMm,
+                minDotRadius = FEED_MIN_DOT_RADIUS,
+                // Match iOS `scaleEffect(1.12).frame(maxWidth: 320,
+                // maxHeight: 320)` — fill the column width up to a 320dp
+                // cap, then overflow 12% so the spots reach the column
+                // edges.
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 320.dp)
+                    .scale(1.12f),
+            )
+        } else {
+            // The design ships a ~188dp face; the 50/50 column at phone
+            // width can't fit that, so the face renders at
+            // TARGET_FACE_SIZE — the size iOS settled on. `BPTargetFace`
+            // is fixed-size.
+            BPTargetFace(
+                size = TARGET_FACE_SIZE,
+                face = resolvedFaceType,
+                sixRingStyle = sixRingStyle,
+            ) {
+                // The friend's arrows — the real plotted positions from
+                // the feed payload when present, else a deterministic
+                // scatter within each scoring ring's band.
+                ArrowPlotOverlay(
+                    ends = ends,
+                    plotPoints = plotPoints,
+                    arrowDiameterMm = arrowDiameterMm,
+                    mmPerNormUnit = feedCardMmPerNormUnit(resolvedFaceType, distance),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Scorecard pane — score header (deep score · italic /max · maple X-count),
+ * range sub-line, per-end colour-washed ledger. The header sits at the top
+ * of the pane; the ledger fills the rest. Matches iOS `scorecardPane`.
+ */
+@Composable
+private fun ScorecardPane(
+    distance: String?,
+    score: Int,
+    maxScore: Int,
+    xCount: Int,
+    ends: List<List<Int>>,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppPaper2)
+            .padding(horizontal = 11.dp, vertical = 11.dp),
+    ) {
+        // Hero score: 34sp upright Fraunces deep + 16sp italic /max ink-3
+        // + 16sp italic maple `Nx` chip. Rendered as one AnnotatedString so
+        // `maxLines = 1` + `softWrap = false` keep the whole expression on
+        // one typographic baseline.
+        val showsMax = maxScore >= score && maxScore > 0
+        val scoreA11y = buildString {
+            append("Score ")
+            append(score)
+            if (showsMax) append(" of ").append(maxScore)
+            if (xCount > 0 && showsMax) append(", ").append(xCount).append(" X")
+        }
+        val annotatedScore = buildAnnotatedString {
+            withStyle(
+                frauncesDisplay(34.sp, italic = false, weight = FontWeight.Medium)
+                    .toSpanStyle().copy(color = AppDeep),
+            ) { append("$score") }
+            if (showsMax) {
+                withStyle(
+                    frauncesDisplay(16.sp, italic = true, weight = FontWeight.Normal)
+                        .toSpanStyle().copy(color = AppInk3),
+                ) { append(" /$maxScore") }
+                if (xCount > 0) {
+                    withStyle(
+                        frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
+                            .toSpanStyle().copy(color = AppMaple),
+                    ) { append("  ${xCount}x") }
                 }
             }
         }
-        Box(
+        Text(
+            text = annotatedScore,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
             modifier = Modifier
-                .width(1.dp)
-                .fillMaxHeight()
-                .background(AppLine),
+                .semantics(mergeDescendants = true) { contentDescription = scoreA11y },
         )
-        // Right — range eyebrow, hero score, per-end scorecard.
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(14.dp),
-        ) {
-            Text(
-                text = rangeEyebrow(distance),
-                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
-            )
-            // Hero score on one line: an upright Fraunces numeral in --deep,
-            // then a quiet italic " / " + upright max, then a maple X-count
-            // chip. Rendered as a single Text from an AnnotatedString so
-            // `maxLines = 1` + `softWrap = false` keep the whole expression on
-            // one typographic baseline — a prior Row-of-Texts laid out the
-            // last child ("  $xCount") with a near-zero width remaining and
-            // its leading spaces forced the digits onto a second line.
-            //
-            // Chip sizes match the design's literal 26 / 15 (Feed Tile ·
-            // Equipment Inline.html). Proportional scale-up against the 48sp
-            // score was wide enough to push the italic "X" off the line for
-            // 3-digit + 2-digit totals like 299 /300  22X.
-            val showsMax = maxScore >= score
-            val scoreA11y = buildString {
-                append("Score ")
-                append(score)
-                if (showsMax) append(" of ").append(maxScore)
-                if (xCount > 0 && showsMax) append(", ").append(xCount).append(" X")
+        Spacer(Modifier.height(4.dp))
+        // `RANGE · {dist}` — uppercase 8sp eyebrow that now sits BELOW the
+        // score (design moved it down so the target column owns the full
+        // stage height in the static-split shape).
+        Text(
+            text = rangeEyebrow(distance),
+            style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.18.em),
+        )
+        if (ends.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            // Vertical scroll on the ledger is gated on > 10 ends so the
+            // common case (a 10-end Vegas indoor / 6-end Olympic outdoor)
+            // doesn't fight the parent `HorizontalPager`'s drag with a
+            // nested scrollable. Past 10 ends the ledger overflows the
+            // 300dp pane — turn scroll on so ends 11+ are reachable.
+            val ledgerModifier = if (ends.size > 10) {
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            } else {
+                Modifier.fillMaxWidth().weight(1f)
             }
-            val annotatedScore = buildAnnotatedString {
-                withStyle(
-                    frauncesDisplay(48.sp, italic = false, weight = FontWeight.Medium)
-                        .toSpanStyle().copy(color = AppDeep),
-                ) { append("$score") }
-                // The "/ max" tail shows only when the max is coherent — a
-                // stale arrowCount could otherwise produce an impossible
-                // fraction (e.g. 285/270), so fall back to the bare score.
-                if (showsMax) {
-                    withStyle(
-                        frauncesDisplay(22.sp, italic = true, weight = FontWeight.Normal)
-                            .toSpanStyle().copy(color = AppInk3),
-                    ) { append(" / ") }
-                    withStyle(
-                        frauncesDisplay(22.sp, italic = false, weight = FontWeight.Medium)
-                            .toSpanStyle().copy(color = AppInk3),
-                    ) { append("$maxScore") }
-                    // X-count chip — rides the score baseline as a maple peer
-                    // of the total. Hidden when the archer hit no Xs so a no-X
-                    // row reads clean instead of trailing a bare "0X". Gated on
-                    // showsMax too because the chip needs the /max baseline as
-                    // its visual anchor.
-                    if (xCount > 0) {
-                        withStyle(
-                            frauncesDisplay(26.sp, italic = false, weight = FontWeight.Medium)
-                                .toSpanStyle().copy(color = AppMaple),
-                        ) { append("  $xCount") }
-                        withStyle(
-                            frauncesDisplay(15.sp, italic = true, weight = FontWeight.Medium)
-                                .toSpanStyle().copy(color = AppMaple),
-                        ) { append("X") }
-                    }
-                }
-            }
-            Text(
-                text = annotatedScore,
-                maxLines = 1,
-                softWrap = false,
-                // Clip rather than Visible — at the new 26/15 chip the line
-                // fits comfortably, but a future giant total (60-arrow rounds,
-                // narrow tablets) should be cut off at the column edge rather
-                // than overlap the hairline and bleed into the target column.
-                overflow = TextOverflow.Clip,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .semantics(mergeDescendants = true) { contentDescription = scoreA11y },
-            )
-            if (ends.isNotEmpty()) {
-                EndsTable(ends, modifier = Modifier.padding(top = 14.dp))
+            Box(modifier = ledgerModifier) {
+                EndsTable(ends)
             }
         }
     }
@@ -825,30 +996,6 @@ private fun TextCardBody(item: ActivityItem) {
                 }
             }
         }
-    }
-}
-
-/**
- * The photo body — a photographed session's gallery on the paper-2 ground,
- * inside the card chrome. Mirrors the old `FeedPhotoGallery` placement.
- */
-@Composable
-private fun PhotoCardBody(
-    sharedSessionId: String,
-    photos: List<com.andrewnguyen.bowpress.core.model.ActivityPhoto>,
-    loader: SessionPhotoLoader,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(AppPaper2)
-            .padding(14.dp),
-    ) {
-        FeedPhotoGallery(
-            sharedSessionId = sharedSessionId,
-            photos = photos,
-            loader = loader,
-        )
     }
 }
 
@@ -929,10 +1076,16 @@ internal fun ledgerGlyphSizeSp(arrowsPerEnd: Int): Float = when {
     else -> 13.5f
 }
 
-/** Per-end ledger — end number + arrow ring values, hairline-separated. */
+/**
+ * Per-end ledger — end number + arrow ring values, hairline-separated.
+ * Renders the FULL scorecard so a long indoor round can scroll past 10
+ * inside the scorecard pane (matches iOS). The first 10 ends fit naturally
+ * in the 300dp stage; ends 11+ require the caller's vertical scroll.
+ * Row min-height is tight (20dp) so all 10 fit without forcing a scroll.
+ */
 @Composable
 private fun EndsTable(ends: List<List<Int>>, modifier: Modifier = Modifier) {
-    val rows = ends.take(10)
+    val rows = ends
     // Scale the glyph for the widest end so a 6-arrow indoor end stays legible.
     val widestEnd = rows.maxOfOrNull { it.size } ?: 0
     val glyphSize = ledgerGlyphSizeSp(widestEnd).sp
@@ -959,7 +1112,7 @@ private fun EndsTable(ends: List<List<Int>>, modifier: Modifier = Modifier) {
                         modifier = Modifier
                             .weight(1f)
                             .widthIn(min = 16.dp)
-                            .heightIn(min = 24.dp)
+                            .heightIn(min = 20.dp)
                             .background(ringTint(ring)),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -1016,6 +1169,7 @@ private fun ReactionsBar(
     onToggleLike: suspend (String, Boolean) -> ToggleLikeResponse,
     onOpenComments: (String) -> Unit,
     selfActor: ActivityActor?,
+    tag: String? = null,
 ) {
     val scope = rememberCoroutineScope()
     val subjectId = item.resolvedSubjectId
@@ -1101,6 +1255,16 @@ private fun ReactionsBar(
                 testTag = TestTags.FeedRowCommentButton,
                 onClick = { onOpenComments(subjectId) },
             )
+            // The design's right-side `.tag` label naming the card kind
+            // ("Session" / "Scorecard" / "Course"). Hidden when null.
+            if (!tag.isNullOrBlank()) {
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    text = tag.uppercase(),
+                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.20.em),
+                    color = AppInk3,
+                )
+            }
         }
     }
 }

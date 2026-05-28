@@ -64,9 +64,6 @@ sealed interface ActivityPreview {
 
     data object None : ActivityPreview
 
-    /** A target-paper photo the actor attached to the session. */
-    data object Photo : ActivityPreview
-
     /**
      * A range session — the distance + score and the per-end scorecard
      * (first 10 ends as arrow ring values).
@@ -99,9 +96,10 @@ sealed interface ActivityPreview {
  */
 fun activityPreview(item: ActivityItem): ActivityPreview {
     val session = item.session ?: return ActivityPreview.None
-    // Photo precedence — a photographed session shows the photo over the
-    // discipline preview, matching iOS.
-    if (TargetPhotoCatalog.hasPhoto(session.sessionId)) return ActivityPreview.Photo
+    // The balanced feed card absorbs photos into the range body's
+    // dual-carousel right pane — a range session with photos still picks
+    // [Target] and renders the scorecard alongside the gallery. [Photo]
+    // is vestigial (ActivityCardBody keeps a fallback for it).
     return if (session.isCourse) {
         // The feed payload ships the course's stations so the preview renders
         // the real map; empty → CourseBlockPreview fallback (mirrors iOS).
