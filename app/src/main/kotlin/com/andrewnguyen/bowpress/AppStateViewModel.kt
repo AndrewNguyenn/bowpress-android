@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.repository.SessionRepository
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.data.repository.SuggestionRepository
 import com.andrewnguyen.bowpress.core.data.repository.ThemePreferencesRepository
@@ -53,6 +54,7 @@ class AppStateViewModel @Inject constructor(
     private val socialBadgeRefreshBus: SocialBadgeRefreshBus,
     private val appSnackbarBus: AppSnackbarBus,
     private val localHydration: LocalHydration,
+    private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     init {
@@ -199,6 +201,11 @@ class AppStateViewModel @Inject constructor(
 
     fun onSignedOut() {
         userRepository.signOut()
+        // Cancel any in-flight session-finalize PUT so it can't ride
+        // the next account's bearer when the next user signs in. The
+        // network layer would 401 + swallow via runCatching, but
+        // belt-and-suspenders.
+        sessionRepository.cancelInFlight()
         _uiState.value = AppUiState(
             isAuthenticated = false,
             currentUser = null,

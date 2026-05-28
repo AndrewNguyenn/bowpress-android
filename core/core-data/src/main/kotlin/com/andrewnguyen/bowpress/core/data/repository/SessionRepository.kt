@@ -11,9 +11,17 @@ import com.andrewnguyen.bowpress.core.model.ShootingSession
 import com.andrewnguyen.bowpress.core.network.BowPressApi
 import com.andrewnguyen.bowpress.core.network.EndSessionRequest
 import com.andrewnguyen.bowpress.core.network.UpdateSessionRequest
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,6 +35,41 @@ class SessionRepository @Inject constructor(
     private val api: BowPressApi,
     private val syncService: BackgroundSyncService,
 ) {
+    /**
+     * App-process-scoped CoroutineScope for fire-and-forget background
+     * work whose failure must not propagate to the awaiting caller's
+     * UI. Specifically: the [endSession] network PUT — it triggers the
+     * backend analytics-pipeline workflow and can take 5–30s on poor
+     * LTE, but the finish sheet shouldn't block on it.
+     *
+     * SessionRepository is @Singleton so the scope shares the process
+     * lifetime — matches [PushInitializer]'s pattern. SupervisorJob so a
+     * failed child doesn't cancel the scope; the explicit
+     * [CoroutineExceptionHandler] is the safety net for non-suspending
+     * throws that escape `runCatching` (e.g. WorkManager.IllegalState
+     * from an instrumented-test Application setup) so the default
+     * handler doesn't crash the process.
+     */
+    private val externalScope: CoroutineScope =
+        CoroutineScope(
+            SupervisorJob() +
+                Dispatchers.IO +
+                CoroutineExceptionHandler { _, t ->
+                    Log.w("SessionRepository", "external scope work failed", t)
+                },
+        )
+
+    /**
+     * Cancel every in-flight background job (currently: the [endSession]
+     * PUT). Call on sign-out so a session finalize PUT from the previous
+     * account doesn't ride the new account's bearer when the next user
+     * signs in. Uses `cancelChildren` so the scope stays alive for the
+     * next session in the same process — matches the contract
+     * [BackgroundSyncService.cancelAll] offers for WorkManager work.
+     */
+    fun cancelInFlight() {
+        externalScope.coroutineContext.cancelChildren()
+    }
     /**
      * Only completed sessions — iOS filters `endedAt != nil` in `LocalStore.fetchSessions`.
      * `arrowCount` is recomputed from the live plot table so it reflects reality even
@@ -59,11 +102,55 @@ class SessionRepository @Inject constructor(
         syncService.enqueueSync()
     }
 
+    /**
+     * Finalize the session locally. The Room write is awaited (the
+     * caller's UI relies on the row being marked `endedAt` immediately so
+     * the Log row + finish-sheet dismiss can fire), but the
+     * `api.endSession` PUT — which kicks the backend analytics-pipeline
+     * workflow and can take 5–30s on poor LTE — is fired-and-forgot via
+     * [externalScope] so the finish sheet doesn't sit blocked staring at
+     * the network round-trip.
+     *
+     * The bg launch re-marks `pendingSync = true` on PUT failure so a
+     * concurrent [updateSession] that succeeded and `markSynced`-d the
+     * row in between can't strand the dropped endedAt write — the drain
+     * (which re-POSTs the full DTO including endedAt) needs to see the
+     * row in its next pass.
+     */
     suspend fun endSession(sessionId: String, endedAt: Instant, notes: String) {
         val existing = dao.findById(sessionId) ?: return
         dao.upsert(existing.copy(endedAt = endedAt, notes = notes, pendingSync = true))
-        runCatching { api.endSession(sessionId, EndSessionRequest(endedAt, notes)) }
-        syncService.enqueueSync()
+        externalScope.launch {
+            val ok = runCatching {
+                api.endSession(sessionId, EndSessionRequest(endedAt, notes))
+            }
+                // Coroutines orthodoxy: never silently absorb cancellation.
+                // On [cancelInFlight] the suspend point throws
+                // CancellationException, which we re-throw so the scope
+                // tear-down skips the re-mark + enqueueSync below (both
+                // would also throw CE if the scope is mid-cancel).
+                .onFailure { if (it is CancellationException) throw it }
+                .isSuccess
+            if (!ok) {
+                // Re-mark pending defensively. A concurrent updateSession
+                // may have markSynced'd the row between our suspending
+                // upsert above and this point; without the re-mark its
+                // success would silently strand our failed endedAt PUT.
+                // The drain (`flushPendingSync`) re-POSTs the full DTO
+                // including `endedAt` so a dropped PUT eventually heals.
+                runCatching {
+                    dao.findById(sessionId)?.let { row ->
+                        if (!row.pendingSync) {
+                            dao.upsert(row.copy(pendingSync = true))
+                        }
+                    }
+                }.onFailure {
+                    if (it is CancellationException) throw it
+                    Log.w("SessionRepository", "re-mark pendingSync failed", it)
+                }
+            }
+            syncService.enqueueSync()
+        }
     }
 
     /**
