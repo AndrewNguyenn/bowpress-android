@@ -26,13 +26,19 @@ import java.util.UUID
  * profile avatars, which render in a circular frame and must look right at
  * any scale.
  *
- * `.Free` lets the archer drag the crop box to any aspect — used for session
- * photos, where a wide target paper, a tall arrow-on-foam close-up, and a
- * square stage shot are all valid.
+ * `.Free` is uCrop's free-drag mode (no aspect ratio constraint). The pre-
+ * 2026-05 Edit gallery used this; kept around so older call sites compile.
+ *
+ * `.SessionMedia` opens at 4:5 portrait (matching FeedVideoTile's portrait
+ * floor + iOS's CropperView default) and exposes a curated ratio picker
+ * for 4:5 / 1:1 / 4:3 / 3:2 / 16:9 — same envelope as iOS. Free drag is
+ * disabled so the archer can't pull the crop box into extreme aspects
+ * (20:1 slivers etc) like uCrop's free mode allows.
  */
 enum class PhotoCropMode {
     Square,
     Free,
+    SessionMedia,
 }
 
 /**
@@ -141,6 +147,9 @@ internal class UCropContract(private val context: Context) : ActivityResultContr
             // gives a faithful preview without inflating the cache file.
             setCompressionQuality(92)
             setHideBottomControls(false)
+            // Free drag only enabled in the .Free legacy mode. SessionMedia
+            // locks to the curated ratio picker (free drag would let the
+            // archer pull the box into extreme aspects).
             setFreeStyleCropEnabled(input.mode == PhotoCropMode.Free)
             // Kenrokuen palette so the cropper doesn't look like a foreign
             // surface dropped on top of the Compose app. uCrop themes via
@@ -149,11 +158,26 @@ internal class UCropContract(private val context: Context) : ActivityResultContr
             setStatusBarColor(AppInk.toArgb())
             setActiveControlsWidgetColor(AppPondDk.toArgb())
             setToolbarWidgetColor(AppInk.toArgb())
+            if (input.mode == PhotoCropMode.SessionMedia) {
+                // Curated aspect picker for session photos — same
+                // envelope as iOS's CropperView bounds (portrait floor →
+                // landscape ceiling). Default index 0 = 4:5 portrait,
+                // matching FeedVideoTile's portrait floor.
+                setAspectRatioOptions(
+                    /* selectedByDefault = */ 0,
+                    com.yalantis.ucrop.model.AspectRatio("4:5", 4f, 5f),
+                    com.yalantis.ucrop.model.AspectRatio("1:1", 1f, 1f),
+                    com.yalantis.ucrop.model.AspectRatio("4:3", 4f, 3f),
+                    com.yalantis.ucrop.model.AspectRatio("3:2", 3f, 2f),
+                    com.yalantis.ucrop.model.AspectRatio("16:9", 16f, 9f),
+                )
+            }
         }
         val builder = UCrop.of(input.source, dest).withOptions(options)
         val configured = when (input.mode) {
             PhotoCropMode.Square -> builder.withAspectRatio(1f, 1f)
             PhotoCropMode.Free -> builder
+            PhotoCropMode.SessionMedia -> builder.withAspectRatio(4f, 5f)
         }
         return configured.getIntent(context)
     }

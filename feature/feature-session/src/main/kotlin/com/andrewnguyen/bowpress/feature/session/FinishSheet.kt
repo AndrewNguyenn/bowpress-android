@@ -73,7 +73,10 @@ import com.andrewnguyen.bowpress.core.designsystem.photo.TargetPhotoStore
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.location.LocationTagPicker
-// Cropper imports dropped — FinishSheet no longer routes through uCrop.
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PendingCropImage
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropMode
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperHost
+import com.andrewnguyen.bowpress.feature.social.ui.photo.PhotoCropperLaunch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -155,28 +158,53 @@ fun FinishSheet(
     var showLocationPicker by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
 
-    // System multi-pick photo picker — caps at the remaining slot count
-    // (max 4 photos total, matching iOS `maxMediaSlots = 4`). Photos go
-    // straight to decode + downscale — the cropper step was producing
-    // unwanted 1:1 outputs even when the user never adjusted the crop
-    // box, and the user expectation is "post my photos as-is". The
-    // post-share Edit sheet still offers per-photo crop after the fact.
+    // FIFO of photos waiting for a crop step after a multi-pick.
+    // `currentCrop` is what actually drives `PhotoCropperHost` so the
+    // launcher rearms on each new pending image (mirrors iOS's
+    // `.fullScreenCover(item: $currentCrop)` re-present trick).
+    val cropQueue = remember { androidx.compose.runtime.mutableStateListOf<PendingCropImage>() }
+    var currentCrop by remember { mutableStateOf<PendingCropImage?>(null) }
+
+    // System multi-pick photo picker. Picked URIs are enqueued into
+    // `cropQueue`; the host below opens uCrop one photo at a time
+    // with the SessionMedia ratio picker (4:5 default, plus 1:1 /
+    // 4:3 / 3:2 / 16:9 — mirrors iOS's CropperView bounds). The
+    // cropped result then decodes + downscales onto `photos.value`,
+    // and the next photo in the queue becomes `currentCrop`.
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(FINISH_PHOTOS_MAX),
     ) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         val room = (FINISH_PHOTOS_MAX - photos.value.size).coerceAtLeast(0)
         if (room == 0) return@rememberLauncherForActivityResult
-        val incoming = uris.take(room)
-        for (uri in incoming) {
+        cropQueue.addAll(uris.take(room).map { PendingCropImage(source = it) })
+        if (currentCrop == null) {
+            currentCrop = cropQueue.firstOrNull()
+        }
+    }
+
+    // Drains the cropper queue. Each cropped URI decodes +
+    // downscales onto `photos.value`; on cancel the photo is
+    // skipped. After each crop completes the next pending image
+    // promotes to `currentCrop` (via a recomposition tick driven by
+    // the state change), and `PhotoCropperHost`'s id-keyed
+    // LaunchedEffect re-fires the launcher.
+    PhotoCropperHost(
+        launch = PhotoCropperLaunch(image = currentCrop, mode = PhotoCropMode.SessionMedia),
+    ) { croppedUri ->
+        currentCrop = null
+        if (cropQueue.isNotEmpty()) cropQueue.removeAt(0)
+        if (croppedUri != null && photos.value.size < FINISH_PHOTOS_MAX) {
             scope.launch {
-                val (bytes, thumb) = decodeAndDownscale(context, uri)
+                val (bytes, thumb) = decodeAndDownscale(context, croppedUri)
                 if (bytes != null && thumb != null && photos.value.size < FINISH_PHOTOS_MAX) {
                     photos.value = photos.value + bytes
                     thumbnails.value = thumbnails.value + thumb
                 }
             }
         }
+        // Promote the next pending image on the next composition.
+        currentCrop = cropQueue.firstOrNull()
     }
 
     ModalBottomSheet(
