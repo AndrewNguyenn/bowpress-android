@@ -120,8 +120,6 @@ class ArrowDetailViewModel @Inject constructor(
     fun updateShaftDiameter(v: String) = _state.update { it.copy(shaftDiameterText = v) }
     fun updateNotes(v: String) = _state.update { it.copy(notes = v) }
 
-    fun dismissSavedBanner() = _state.update { it.copy(showSavedBanner = false) }
-
     fun save() {
         val current = _state.value
         val arrow = current.arrow ?: return

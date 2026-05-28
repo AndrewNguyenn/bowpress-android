@@ -42,7 +42,6 @@ import com.andrewnguyen.bowpress.core.designsystem.BowPressColors
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystem
 import com.andrewnguyen.bowpress.core.designsystem.LocalUnitSystemSetter
 import com.andrewnguyen.bowpress.core.designsystem.UnitToggle
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,11 +54,11 @@ fun ArrowDetailScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isDeleted) { if (state.isDeleted) onBack() }
+    // Diverges from iOS — iOS keeps the form open with a "Saved" banner; on
+    // Android the form-screen-without-dismiss reads as "Save did nothing" per
+    // user feedback. Pop back on save success the same way BowConfigEdit does.
     LaunchedEffect(state.showSavedBanner) {
-        if (state.showSavedBanner) {
-            delay(2_000)
-            viewModel.dismissSavedBanner()
-        }
+        if (state.showSavedBanner) onBack()
     }
 
     Scaffold(
@@ -127,9 +126,6 @@ fun ArrowDetailScreen(
                     totalWeightText = state.totalWeightText, onTotalWeight = viewModel::updateTotalWeight,
                     notes = state.notes, onNotes = viewModel::updateNotes,
                 )
-                if (state.showSavedBanner) {
-                    Text("Saved", color = BowPressColors.Accent, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
-                }
                 state.errorMessage?.let { msg ->
                     Text(msg, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
