@@ -164,6 +164,12 @@ fun ActivityCard(
     // the card scrolls off-screen, dismissing it mid-look. No-op default so
     // previews / non-photo callers need not wire it.
     onOpenPhotoViewer: (sharedSessionId: String, photos: List<ActivityPhoto>, startIndex: Int) -> Unit = { _, _, _ -> },
+    // Issue 2 — the feed video tile bundle. nil/missing → no video slide
+    // on the right pane; the dual carousel then collapses to photos only
+    // (or the static-split shape if there are no photos either). The
+    // feed screen builds this per row and owns the fullscreen-cover
+    // state. Mirrors iOS `videoAttachment`.
+    videoAttachment: VideoAttachment? = null,
     // Mentions contract §3.2 — tapping an `@handle` in the post title opens
     // that archer's profile. No-op default so previews / non-mention callers
     // need not wire it.
@@ -242,6 +248,7 @@ fun ActivityCard(
                     onOpenPhotoViewer(session.sharedSessionId, readyPhotos, index)
                 }
             },
+            videoAttachment = videoAttachment,
         )
         // The reactions bar shows ONLY on a session card AND only when a
         // caller supplies a [Reactions] bundle. iOS parity (A5): the Log
@@ -255,9 +262,8 @@ fun ActivityCard(
             // Derive the right-side tag from the card kind: a range
             // session with media reads "Session", a range without media
             // reads "Scorecard", a 3D course reads "Course". `hasMedia`
-            // expands to include the video tile when that ships on
-            // Android (iOS already factors video presence in here).
-            val hasMedia = readyPhotos.isNotEmpty()
+            // factors in the video tile (now wired) AND photos.
+            val hasMedia = readyPhotos.isNotEmpty() || videoAttachment != null
             val cardTag = cardKindTag(item, hasMedia = hasMedia)
             ReactionsBar(
                 item = item,
@@ -559,6 +565,7 @@ private fun ActivityCardBody(
     photoLoader: SessionPhotoLoader?,
     readyPhotos: List<ActivityPhoto>,
     onOpenPhotoViewer: (startIndex: Int) -> Unit,
+    videoAttachment: VideoAttachment?,
 ) {
     when (preview) {
         is ActivityPreview.Target -> RangeSessionBody(
@@ -587,6 +594,7 @@ private fun ActivityCardBody(
             readyPhotos = readyPhotos,
             photoLoader = photoLoader,
             onOpenPhotoViewer = onOpenPhotoViewer,
+            videoAttachment = videoAttachment,
         )
         is ActivityPreview.Course -> CourseCardBody(
             score = preview.score,
@@ -630,6 +638,7 @@ private fun RangeSessionBody(
     readyPhotos: List<ActivityPhoto> = emptyList(),
     photoLoader: SessionPhotoLoader? = null,
     onOpenPhotoViewer: (startIndex: Int) -> Unit = {},
+    videoAttachment: VideoAttachment? = null,
 ) {
     val ends = endRings.orEmpty()
     // §B2 — structured field is authoritative; fall back to the legacy
@@ -638,17 +647,19 @@ private fun RangeSessionBody(
     // §B3 — 6-ring at 50/70m → outdoor80 7-zone variant; everything else
     // (20yd or unknown) → Vegas 6-zone. tenRing is distance-invariant.
     val sixRingStyle = sixRingVisualStyleForFeed(distance)
-    val hasMedia = sharedSessionId != null && photoLoader != null && readyPhotos.isNotEmpty()
+    val hasPhotos = sharedSessionId != null && photoLoader != null && readyPhotos.isNotEmpty()
+    val hasVideo = videoAttachment != null
+    val hasMedia = hasPhotos || hasVideo
     // 300dp balanced stage — design `BowPress Feed.html`. No media → static
-    // split [targets | rule | scorecard]; media → dual carousel with the
-    // photos in the right pane.
+    // split [targets | rule | scorecard]; media → dual carousel with
+    // [video, photos] (in either combination) in the right pane.
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(BalancedFeedLayout.stageHeight)
             .background(AppPaper2),
     ) {
-        if (hasMedia && sharedSessionId != null && photoLoader != null) {
+        if (hasMedia) {
             DualCarouselStage(
                 distance = distance,
                 score = score,
@@ -666,6 +677,7 @@ private fun RangeSessionBody(
                 readyPhotos = readyPhotos,
                 photoLoader = photoLoader,
                 onOpenPhotoViewer = onOpenPhotoViewer,
+                videoAttachment = videoAttachment,
             )
         } else {
             StaticSplitStage(
@@ -685,6 +697,19 @@ private fun RangeSessionBody(
         }
     }
 }
+
+/**
+ * The wire shape a feed-screen-level caller hands the [ActivityCard] so the
+ * inline video tile can play and the host owns the fullscreen-cover state.
+ * Mirrors iOS `ActivityCardVideoAttachment`.
+ */
+data class VideoAttachment(
+    val sessionId: String?,
+    val video: com.andrewnguyen.bowpress.core.model.ActivityVideo,
+    val timeRef: FeedVideoTimeRef,
+    val isFullscreenOpen: Boolean,
+    val onTap: () -> Unit,
+)
 
 /** Static [targets | rule | scorecard] split — no-media shape. */
 @Composable
@@ -749,11 +774,47 @@ private fun DualCarouselStage(
     arrowDiameterMm: Double?,
     targetLayout: TargetLayout?,
     sixRingStyle: BPSixRingStyle,
-    sharedSessionId: String,
+    sharedSessionId: String?,
     readyPhotos: List<ActivityPhoto>,
-    photoLoader: SessionPhotoLoader,
+    photoLoader: SessionPhotoLoader?,
     onOpenPhotoViewer: (startIndex: Int) -> Unit,
+    videoAttachment: VideoAttachment?,
 ) {
+    val hasVideo = videoAttachment != null
+    val hasPhotos = sharedSessionId != null && photoLoader != null && readyPhotos.isNotEmpty()
+    // Right-pane slides — video first (the bigger visual signal), then
+    // photos. Stable per-kind ids so the recycle bucket preserves the
+    // ExoPlayer Coordinator when the user swipes back to video.
+    val rightSlides = buildList {
+        if (hasVideo && videoAttachment != null) {
+            add(
+                BalancedFeedPagerSlide(id = "video", kind = "Video") {
+                    FeedVideoTile(
+                        sessionId = videoAttachment.sessionId,
+                        video = videoAttachment.video,
+                        timeRef = videoAttachment.timeRef,
+                        isFullscreenOpen = videoAttachment.isFullscreenOpen,
+                        onTap = videoAttachment.onTap,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                },
+            )
+        }
+        if (hasPhotos && sharedSessionId != null && photoLoader != null) {
+            val photoLabel = if (readyPhotos.size == 1) "1 photo" else "${readyPhotos.size} photos"
+            add(
+                BalancedFeedPagerSlide(id = "photos", kind = photoLabel) {
+                    PhotoStrip(
+                        sharedSessionId = sharedSessionId,
+                        readyPhotos = readyPhotos,
+                        loader = photoLoader,
+                        onOpenViewer = onOpenPhotoViewer,
+                        fillMode = PhotoStripFillMode.Pane,
+                    )
+                },
+            )
+        }
+    }
     Row(modifier = Modifier.fillMaxSize()) {
         BalancedFeedPager(
             slides = listOf(
@@ -784,15 +845,16 @@ private fun DualCarouselStage(
             dotsLight = true,
         )
         Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(AppLine))
-        // Right pane — photos only (no video on Android yet). Single
-        // slide → no dot row + no chip.
+        // Right pane — [video, photos] in any non-empty combination.
+        // Always wrapped in BalancedFeedPager (even at slideCount=1) so
+        // the horizontal axis isolates the inner ScrollViews / Player
+        // gestures from the outer LazyColumn (same trick the static
+        // split uses for the scorecard).
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            PhotoStrip(
-                sharedSessionId = sharedSessionId,
-                readyPhotos = readyPhotos,
-                loader = photoLoader,
-                onOpenViewer = onOpenPhotoViewer,
-                fillMode = PhotoStripFillMode.Pane,
+            BalancedFeedPager(
+                slides = rightSlides,
+                modifier = Modifier.fillMaxSize(),
+                dotsLight = false,
             )
         }
     }

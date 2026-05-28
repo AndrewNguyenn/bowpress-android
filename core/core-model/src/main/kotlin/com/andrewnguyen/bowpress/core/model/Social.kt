@@ -1006,6 +1006,52 @@ data class ActivityPhoto(
 )
 
 /**
+ * Status of a shared-session video. Mirrors iOS
+ * `SharedSessionVideo.Status` and the API wire string set.
+ *
+ * Wire values: `pending` | `processing` | `ready` | `failed`. The
+ * Cloudflare Stream UID is reserved at upload start (pending), iOS
+ * acks the finalize step (processing), and the Stream webhook flips
+ * status to ready (playable) or failed (transcode error / 24h max-pending
+ * deadline). Defaults to [unknown] so the network Json's
+ * `coerceInputValues` maps an unrecognised future status here instead of
+ * failing the decode.
+ */
+@Serializable
+enum class VideoStatus {
+    pending, processing, ready, failed,
+    // Forward-compat fallback.
+    unknown,
+}
+
+/**
+ * Mirrors API contract `ActivityVideo` — the wire subset of a shared-
+ * session video carried on feed rows and the shared-session detail
+ * payload. Playback (Cloudflare Stream HLS) targets [playbackUrl]; the
+ * URL is populated only once [status] reaches [VideoStatus.ready]. The
+ * [streamId] is the Stream UID — used to look the video up in the
+ * local cache for owner-side instant playback before transcode completes.
+ */
+@Serializable
+data class ActivityVideo(
+    val id: String,
+    val streamId: String,
+    val status: VideoStatus = VideoStatus.unknown,
+    val durationSeconds: Double? = null,
+    val playbackUrl: String? = null,
+) {
+    companion object {
+        /**
+         * Filters to videos that are actually playable, preserving the
+         * server's natural order. Used by both the feed tile and the
+         * detail gallery so the two surfaces agree.
+         */
+        fun readyOrdered(videos: List<ActivityVideo>): List<ActivityVideo> =
+            videos.filter { it.status == VideoStatus.ready }
+    }
+}
+
+/**
  * Mirrors API contract §4 `SharedSessionPhoto` — the full photo record
  * returned by the photo upload / list endpoints.
  */
@@ -1067,6 +1113,13 @@ data class ActivitySession(
     // Social Feed V2 (contract §4) — the multi-photo gallery, ordered by
     // position. Empty on a session with no photos or a pre-V2 feed payload.
     val photos: List<ActivityPhoto> = emptyList(),
+    // Issue 2 — attached videos for the muted-autoplay feed tile. Empty on
+    // a session with no videos or a pre-video feed payload. Status flips
+    // from `pending` (Stream UID reserved) → `processing` (iOS finalize
+    // ACK) → `ready` (Stream webhook). Only `ready` videos carry a
+    // [ActivityVideo.playbackUrl]; the iOS / Android tile falls back to
+    // a local cache for the owner's own pending videos.
+    val videos: List<ActivityVideo> = emptyList(),
     // Migration 0039 — the post's free-text caption (may contain @mentions),
     // or null. Drives the truncated description line on the feed card.
     val description: String? = null,
@@ -1168,6 +1221,9 @@ data class SharedSessionDetail(
     // Social Feed V2 (contract §4) — the multi-photo gallery, ordered by
     // position. Empty on a session with no photos or a pre-V2 payload.
     val photos: List<ActivityPhoto> = emptyList(),
+    // Issue 2 — attached videos. Same shape + ordering as on the feed
+    // ActivitySession; the detail screen reuses the feed tile.
+    val videos: List<ActivityVideo> = emptyList(),
     // Social Feed V2 Part 2 (contract §5.4) — like/comment counts so the
     // detail screen shows the same affordances as the feed row. `subjectId`
     // is the like/comment subject. All defaulted so a pre-§5 detail payload

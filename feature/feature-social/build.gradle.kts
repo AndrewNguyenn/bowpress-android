@@ -41,6 +41,15 @@ dependencies {
     // mirroring iOS's Mantis configuration. Mantis = uCrop on Android.
     implementation(libs.ucrop)
 
+    // Issue 2 — feed video tile + fullscreen player. ExoPlayer = AVPlayer
+    // analogue (muted inline autoplay + audio in fullscreen); media3-ui's
+    // PlayerView is the View we wrap in AndroidView. HLS module is
+    // load-bearing for Cloudflare Stream (m3u8) playback. All three pin
+    // to the same Media3 version in libs.versions.toml.
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.ui)
+
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.turbine)

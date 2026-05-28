@@ -104,6 +104,14 @@ fun FeedScreen(
     // card off-screen does not tear down the viewer mid-look.
     var photoViewer by remember { mutableStateOf<PhotoViewerRequest?>(null) }
 
+    // Issue 2 — the open fullscreen video target + the per-card time-ref
+    // bag. Same screen-scope ownership rationale as photoViewer: a tile
+    // scrolling out of the LazyColumn mid-playback would otherwise tear
+    // down the cover.
+    var videoFullscreen by remember { mutableStateOf<FullscreenVideoTarget?>(null) }
+    val feedVideoTimes = remember { FeedVideoTimeStore() }
+    val androidContext = androidx.compose.ui.platform.LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -241,6 +249,70 @@ fun FeedScreen(
                 val openComments: (String) -> Unit = { subjectId ->
                     onCommentsClick(subjectId, item.actorUserId)
                 }
+                // Issue 2 — build the per-row video resolution. The first
+                // playable video on the session feeds the inline tile;
+                // multi-video posts surface the rest in the detail screen.
+                // Local-first URL resolution mirrors iOS: an own-side
+                // pending video reads from LocalVideoStore so the tile
+                // plays the moment the archer lands on the feed; friend-
+                // side rows wait for `playbackUrl` (Stream `ready`).
+                //
+                // `remember` keys EXCLUDE the fullscreen-target — opening
+                // fullscreen on one row must not invalidate the cached
+                // resolution for every other row (which would re-stat
+                // LocalVideoStore on the disk path, ×N rows, every tap).
+                // `isFullscreenOpen` is computed fresh below, outside the
+                // remember.
+                val isOwnPost = item.actorUserId == state.myProfile?.userId
+                val resolved: VideoResolution? = remember(
+                    item.id,
+                    item.session?.videos,
+                    isOwnPost,
+                ) {
+                    val session = item.session ?: return@remember null
+                    val firstReady = session.videos
+                        .firstOrNull { it.status == com.andrewnguyen.bowpress.core.model.VideoStatus.ready && !it.playbackUrl.isNullOrBlank() }
+                    val firstAny = session.videos.firstOrNull()
+                    val video: com.andrewnguyen.bowpress.core.model.ActivityVideo
+                    val uri: android.net.Uri?
+                    if (firstReady != null) {
+                        video = firstReady
+                        uri = firstReady.playbackUrl?.let(android.net.Uri::parse)
+                    } else if (isOwnPost && firstAny != null && com.andrewnguyen.bowpress.core.data.social.LocalVideoStore.hasVideo(
+                            androidContext, session.sessionId, firstAny.streamId,
+                        )
+                    ) {
+                        video = firstAny
+                        uri = com.andrewnguyen.bowpress.core.data.social.LocalVideoStore.uri(
+                            androidContext, session.sessionId, firstAny.streamId,
+                        )
+                    } else {
+                        return@remember null
+                    }
+                    val safeUri = uri ?: return@remember null
+                    VideoResolution(
+                        sessionId = session.sessionId,
+                        sessionKey = session.sharedSessionId,
+                        video = video,
+                        uri = safeUri,
+                    )
+                }
+                val videoAttachment: VideoAttachment? = resolved?.let { res ->
+                    val timeRef = feedVideoTimes.ref(res.sessionKey)
+                    VideoAttachment(
+                        sessionId = res.sessionId,
+                        video = res.video,
+                        timeRef = timeRef,
+                        isFullscreenOpen = videoFullscreen?.sessionKey == res.sessionKey,
+                        onTap = {
+                            videoFullscreen = FullscreenVideoTarget(
+                                uri = res.uri,
+                                sessionKey = res.sessionKey,
+                                initialPositionMs = timeRef.observedTimeMs,
+                            )
+                        },
+                    )
+                }
                 // Social Activity Card · 50/50 — every feed row renders inside
                 // the one card chrome; ActivityCard picks the body (the 50/50
                 // target+ledger for a range session, the course map for a 3D
@@ -286,6 +358,7 @@ fun FeedScreen(
                     // sessionId; only an own in-flight share has a job, so a
                     // friend's row resolves to null and shows no chip.
                     uploadJob = item.session?.sessionId?.let { exportJobs[it] },
+                    videoAttachment = videoAttachment,
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
             }
@@ -401,6 +474,16 @@ fun FeedScreen(
             onDismiss = { photoViewer = null },
         )
     }
+
+    // Issue 2 — fullscreen video player. Same screen-scope ownership so
+    // the source tile scrolling off-list mid-playback can't dismiss.
+    videoFullscreen?.let { target ->
+        FullscreenVideoPlayer(
+            target = target,
+            timeRef = feedVideoTimes.ref(target.sessionKey),
+            onDismiss = { videoFullscreen = null },
+        )
+    }
 }
 
 /**
@@ -412,6 +495,23 @@ private data class PhotoViewerRequest(
     val sharedSessionId: String,
     val photos: List<com.andrewnguyen.bowpress.core.model.ActivityPhoto>,
     val startIndex: Int,
+)
+
+/**
+ * Issue 2 — the URL resolution for a single feed row's video. Computed
+ * once per row (and memoised across recompositions), used both to build
+ * the inline `VideoAttachment` and to seed the fullscreen target on tap.
+ * Split from `VideoAttachment` so the latter's `isFullscreenOpen` /
+ * `onTap` can re-derive from the screen-level fullscreen state without
+ * invalidating the cached resolution. Mirrors the spirit of iOS's
+ * computed `videoAttachment` block where the URL is one
+ * memo'd lookup and the open-flag is read fresh.
+ */
+private data class VideoResolution(
+    val sessionId: String,
+    val sessionKey: String,
+    val video: com.andrewnguyen.bowpress.core.model.ActivityVideo,
+    val uri: android.net.Uri,
 )
 
 /**

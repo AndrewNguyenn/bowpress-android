@@ -152,6 +152,10 @@ ucrop = { group = "com.github.yalantis", name = "ucrop", version.ref = "ucrop" }
 # sheet's preview pane; Transformer runs the frame-accurate trim export
 # (passthrough — no re-encode). Mirrors iOS YP's in-picker trim.
 androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "androidxMedia3" }
+# HLS source module — Cloudflare Stream serves .m3u8 playlists, and Media3
+# only links HLS support when this is on the classpath. Without it,
+# ExoPlayer fails the HLS URL with "format not supported".
+androidx-media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "androidxMedia3" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "androidxMedia3" }
 androidx-media3-transformer = { group = "androidx.media3", name = "media3-transformer", version.ref = "androidxMedia3" }
 androidx-media3-effect = { group = "androidx.media3", name = "media3-effect", version.ref = "androidxMedia3" }

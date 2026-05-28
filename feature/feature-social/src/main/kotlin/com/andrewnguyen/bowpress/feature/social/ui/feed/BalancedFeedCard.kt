@@ -137,27 +137,24 @@ private fun ChipOverlay(
 ) {
     val active = slides.getOrNull(pagerState.currentPage) ?: slides.firstOrNull()
     val kind = active?.kind?.takeIf { it.isNotEmpty() } ?: return
-    val backgroundColor = if (dotsLight) AppPaper.copy(alpha = 0.9f) else AppInk.copy(alpha = 0.62f)
-    val borderColor = if (dotsLight) AppLine else AppPaper.copy(alpha = 0.22f)
-    val textColor = if (dotsLight) AppInk2 else AppPaper
+    // Lower-key chip — no filled background, just a quiet color label
+    // pinned to the corner so the photo / video underneath reads first.
+    // The user explicitly asked for the chips to step out of the way of
+    // the content; the dot row below still indicates page state, so the
+    // chip's only job is naming the slide kind for accessibility +
+    // momentary discoverability.
+    val textColor = if (dotsLight) AppInk3 else AppPaper.copy(alpha = 0.8f)
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         contentAlignment = Alignment.TopEnd,
     ) {
-        Box(
-            modifier = Modifier
-                .background(backgroundColor, RectangleShape)
-                .border(1.dp, borderColor)
-                .padding(horizontal = 6.dp, vertical = 3.dp),
-        ) {
-            Text(
-                text = kind.uppercase(),
-                style = interUI(8.sp, FontWeight.SemiBold).copy(letterSpacing = 0.20.em),
-                color = textColor,
-            )
-        }
+        Text(
+            text = kind.uppercase(),
+            style = interUI(7.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.18.em),
+            color = textColor,
+        )
     }
 }
 
