@@ -178,7 +178,10 @@ fun ActiveSessionScreen(
             )
 
             // In-progress end arrows — quick live feedback for the end being
-            // plotted right now (not the whole session).
+            // plotted right now (not the whole session). Strip is read-only;
+            // a mis-tapped arrow in the current end is fixed via UNDO LAST,
+            // not the per-arrow edit sheet (which is wired through the
+            // completed-ends scorecard below). Mirrors iOS.
             if (breakdown.inProgressArrows.isNotEmpty()) {
                 RecentArrowsStrip(
                     arrows = breakdown.inProgressArrows,
@@ -296,10 +299,10 @@ fun ActiveSessionScreen(
     }
 
     // End-actions dialog — delete a completed end. Mirrors iOS's
-    // confirmationDialog for an end (SessionView.swift). "Add an arrow"
-    // requires a target-tap surface; on Android a mis-tapped arrow is fixed
-    // by tapping the shot cell to open the ArrowEditSheet (re-score or
-    // delete) — see the report for this deviation.
+    // confirmationDialog for an end (SessionView.swift). iOS additionally
+    // offers "Add an arrow" via AddArrowSheet, which Android doesn't have
+    // yet — on Android, a mis-tapped arrow in a completed end is fixed by
+    // tapping the shot cell to open the ArrowEditSheet (re-score / delete).
     endActionsTarget?.let { endId ->
         val end = state.completedEnds.firstOrNull { it.id == endId }
         if (end == null) {
@@ -321,10 +324,10 @@ fun ActiveSessionScreen(
     // (SessionView.swift). Arrow number is the global 1-based
     // chronological index across the whole session so the caption stays
     // stable regardless of how ends group.
+    // currentArrows is already ORDER BY shotAt ASC (ArrowPlotDao) so the
+    // mapIndexed index is the global 1-based chronological number.
     val arrowNumbers = remember(state.currentArrows) {
-        state.currentArrows.sortedBy { it.shotAt }
-            .mapIndexed { i, p -> p.id to (i + 1) }
-            .toMap()
+        state.currentArrows.mapIndexed { i, p -> p.id to (i + 1) }.toMap()
     }
     editingArrowId?.let { id ->
         val arrow = state.currentArrows.firstOrNull { it.id == id }
