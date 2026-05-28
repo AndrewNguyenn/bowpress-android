@@ -41,3 +41,6 @@ SOCIAL_DESIGN.html
 
 # Claude Design handoff bundle — not part of the repo
 .design-3d-bottomsheet/
+
+# Claude Code worktrees — embedded git repos under .claude/worktrees/
+.claude/
