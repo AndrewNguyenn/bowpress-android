@@ -407,30 +407,25 @@ internal fun DrawScope.drawArrowDot(
     }
 }
 
-/** Arrow-dot fill colour — matches iOS `ArrowDot.dotColor` (appTarget* tokens). */
-private fun ringDotColor(ring: Int): Color = when (ring) {
-    11 -> AppTgtYellow   // X — appTargetGold == appTgtYellow on iOS
-    10, 9 -> AppTgtYellow
-    8, 7 -> AppTgtRed
-    6, 5 -> AppTgtBlue
-    4, 3 -> AppTgtBlack
-    2, 1 -> AppTgtWhite
-    else -> Color.Gray
-}
+/** Arrow-dot fill — solid ink on every ring. Diverges from iOS (which colour-
+ *  matches the dot to its ring) because on Android the matched-colour dot was
+ *  routinely invisible against the band it landed on, especially on wider
+ *  faces. The analytics/history view (`BPPlottedTarget.drawArrowDot`) already
+ *  uses this same black fill. */
+@Suppress("UNUSED_PARAMETER")
+private fun ringDotColor(ring: Int): Color = AppTgtBlack
 
-/** Dot outline — only the white/black rings 1–4; null = no outline (iOS .clear). */
+/** Light outline only on the black scoring bands (rings 3, 4) so the black
+ *  dot doesn't disappear there. Everywhere else the black-on-coloured contrast
+ *  is enough; no outline. */
 private fun ringDotOutline(ring: Int): Color? = when (ring) {
-    1, 2 -> AppTgtBlack.copy(alpha = 0.85f)
     3, 4 -> AppTgtWhite.copy(alpha = 0.9f)
     else -> null
 }
 
-/** Index-number colour — dark ink on light fills, white on dark fills (iOS). */
-private fun ringDotTextColor(ring: Int): Color = when (ring) {
-    9, 10, 11 -> AppTgtBlack    // dark ink on yellow / gold
-    1, 2 -> AppTgtBlack         // dark ink on white
-    else -> Color.White         // white on black / blue / red
-}
+/** Index-number colour — white on the black dot. */
+@Suppress("UNUSED_PARAMETER")
+private fun ringDotTextColor(ring: Int): Color = Color.White
 
 private val WHITE = Color(0xFFFFFDF7)
 
