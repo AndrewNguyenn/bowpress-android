@@ -11,6 +11,7 @@ import com.andrewnguyen.bowpress.core.database.dao.ArrowPlotDao
 import com.andrewnguyen.bowpress.core.database.dao.BlockDao
 import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.CourseStationDao
+import com.andrewnguyen.bowpress.core.database.dao.ExportJobDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
@@ -30,6 +31,7 @@ import com.andrewnguyen.bowpress.core.database.entities.BowConfigEntity
 import com.andrewnguyen.bowpress.core.database.entities.BowEntity
 import com.andrewnguyen.bowpress.core.database.entities.ClubEntity
 import com.andrewnguyen.bowpress.core.database.entities.CourseStationEntity
+import com.andrewnguyen.bowpress.core.database.entities.ExportJobEntity
 import com.andrewnguyen.bowpress.core.database.entities.FriendshipEntity
 import com.andrewnguyen.bowpress.core.database.entities.InvitationEntity
 import com.andrewnguyen.bowpress.core.database.entities.LeagueEntity
@@ -86,8 +88,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         AchievementEntity::class,
         // 3D Course stations — added v15
         CourseStationEntity::class,
+        // Phase B — durable finish-time export + share jobs — added v20
+        ExportJobEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
     autoMigrations = [
         // 5→6: added sight_marks table. Pure additive.
@@ -141,6 +145,10 @@ import com.andrewnguyen.bowpress.core.database.entities.SuggestionEntity
         // SQL DEFAULT 'PUBLIC' / 'OPEN' so legacy rows decode as the iOS
         // backward-compat default (parity E8 / iOS #33/#34).
         AutoMigration(from = 18, to = 19),
+        // 19→20: added the export_jobs table (Phase B). Pure additive — Room
+        // derives the CREATE TABLE from the new entity; no column changes
+        // elsewhere.
+        AutoMigration(from = 19, to = 20),
     ],
 )
 @TypeConverters(Converters::class)
@@ -152,6 +160,7 @@ abstract class BowPressDatabase : RoomDatabase() {
     abstract fun arrowPlotDao(): ArrowPlotDao
     abstract fun sessionEndDao(): SessionEndDao
     abstract fun courseStationDao(): CourseStationDao
+    abstract fun exportJobDao(): ExportJobDao
     abstract fun suggestionDao(): SuggestionDao
     abstract fun sightMarkDao(): SightMarkDao
 

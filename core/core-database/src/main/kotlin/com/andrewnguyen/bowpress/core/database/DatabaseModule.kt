@@ -11,6 +11,7 @@ import com.andrewnguyen.bowpress.core.database.dao.BowConfigDao
 import com.andrewnguyen.bowpress.core.database.dao.BowDao
 import com.andrewnguyen.bowpress.core.database.dao.ClubDao
 import com.andrewnguyen.bowpress.core.database.dao.CourseStationDao
+import com.andrewnguyen.bowpress.core.database.dao.ExportJobDao
 import com.andrewnguyen.bowpress.core.database.dao.FriendshipDao
 import com.andrewnguyen.bowpress.core.database.dao.InvitationDao
 import com.andrewnguyen.bowpress.core.database.dao.LeagueDao
@@ -48,6 +49,7 @@ object DatabaseModule {
     @Provides fun provideArrowPlotDao(db: BowPressDatabase): ArrowPlotDao = db.arrowPlotDao()
     @Provides fun provideSessionEndDao(db: BowPressDatabase): SessionEndDao = db.sessionEndDao()
     @Provides fun provideCourseStationDao(db: BowPressDatabase): CourseStationDao = db.courseStationDao()
+    @Provides fun provideExportJobDao(db: BowPressDatabase): ExportJobDao = db.exportJobDao()
     @Provides fun provideSuggestionDao(db: BowPressDatabase): SuggestionDao = db.suggestionDao()
     @Provides fun provideSightMarkDao(db: BowPressDatabase): SightMarkDao = db.sightMarkDao()
 
