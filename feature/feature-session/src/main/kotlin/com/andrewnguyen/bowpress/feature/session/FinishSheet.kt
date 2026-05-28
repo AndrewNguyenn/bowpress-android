@@ -259,7 +259,16 @@ fun FinishSheet(
                 }
             }
 
-            SectionField(label = "ADD PHOTO / VIDEO", optional = true) {
+            // `used` in the label so the cap is visually obvious as soon
+            // as the archer picks one. Keeps the literal "optional" while
+            // empty (the capacity meter is hidden in that state anyway,
+            // and showing "0/4" alongside "optional" was redundant).
+            val used = photos.value.size
+            SectionField(
+                label = "ADD PHOTO / VIDEO",
+                optional = used == 0,
+                optionalSuffix = if (used == 0) null else "$used/$FINISH_PHOTOS_MAX",
+            ) {
                 PhotoGrid(
                     thumbnails = thumbnails.value,
                     canAdd = photos.value.size < FINISH_PHOTOS_MAX,
@@ -275,6 +284,7 @@ fun FinishSheet(
                         thumbnails.value = thumbnails.value.toMutableList().also { it.removeAt(idx) }
                     },
                 )
+                if (used > 0) PhotoCapacityMeter(used = used)
             }
 
             SectionField(label = "AUDIENCE", emphasizedSuffix = "WHO SEES THIS") {
@@ -533,6 +543,13 @@ private fun SectionField(
     label: String,
     optional: Boolean = false,
     emphasizedSuffix: String? = null,
+    /**
+     * Replaces the literal "optional" trailing text when set. Used by the
+     * media field to surface the running count ("0/4", "3/4") inline with
+     * the label so the cap stops being a silent picker rule. Null falls
+     * back to the [optional] boolean's plain "optional" affordance.
+     */
+    optionalSuffix: String? = null,
     content: @Composable () -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 14.dp)) {
@@ -555,8 +572,12 @@ private fun SectionField(
                     )
                 }
             }
-            if (optional) {
-                Text(
+            when {
+                optionalSuffix != null -> Text(
+                    text = optionalSuffix,
+                    style = frauncesDisplay(11.5.sp, italic = true).copy(color = AppInk3),
+                )
+                optional -> Text(
                     text = "optional",
                     style = frauncesDisplay(11.5.sp, italic = true).copy(color = AppInk3),
                 )
@@ -566,6 +587,40 @@ private fun SectionField(
         content()
     }
     Box(Modifier.fillMaxWidth().height(1.dp).background(AppLine2))
+}
+
+/**
+ * 4-square capacity meter — pond-dark squares for filled photo slots,
+ * paper-2 outline for empty slots. Surfaces the [FINISH_PHOTOS_MAX] cap
+ * without forcing the archer to count tiles. Mirrors iOS' meter; Android
+ * has no video slot so the maple square the iOS design uses for the
+ * video slot isn't rendered here. Skipped entirely when the grid is
+ * empty (no signal yet) and when the section is collapsed.
+ */
+@Composable
+private fun PhotoCapacityMeter(used: Int) {
+    val room = (FINISH_PHOTOS_MAX - used).coerceAtLeast(0)
+    Row(
+        modifier = Modifier.padding(top = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            repeat(FINISH_PHOTOS_MAX) { idx ->
+                val on = idx < used
+                Box(
+                    Modifier
+                        .size(9.dp)
+                        .background(if (on) AppPondDk else AppPaper2)
+                        .border(1.dp, if (on) AppPondDk else AppLine),
+                )
+            }
+        }
+        Text(
+            text = "$used of $FINISH_PHOTOS_MAX slots · ${if (room == 0) "full" else "$room left"}",
+            style = jetbrainsMono(10.sp).copy(color = AppInk3),
+        )
+    }
 }
 
 // ── Location row + clear link (C3) ───────────────────────────────────────────
