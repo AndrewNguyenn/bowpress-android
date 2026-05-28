@@ -53,6 +53,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppInk
 import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
+import com.andrewnguyen.bowpress.core.designsystem.AppMaple
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPine
@@ -165,6 +166,7 @@ fun SessionHomeScreen(
             BowField(
                 bow = state.selectedBow,
                 arrow = state.selectedArrow,
+                warning = equipmentWarning(state),
                 onClick = { showBowPicker = true },
             )
             HairlineDivider()
@@ -368,9 +370,23 @@ private fun NameField(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun BowField(bow: Bow?, arrow: ArrowConfiguration?, onClick: () -> Unit) {
+private fun BowField(
+    bow: Bow?,
+    arrow: ArrowConfiguration?,
+    warning: String?,
+    onClick: () -> Unit,
+) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
         FieldLabel("BOW", hint = "tap to change")
+        if (warning != null) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = warning,
+                style = frauncesDisplay(14.sp, italic = true, weight = FontWeight.Medium)
+                    .copy(color = AppMaple),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Spacer(Modifier.height(10.dp))
         Row(
             modifier = Modifier
@@ -422,6 +438,29 @@ private fun bowSpecLine(bow: Bow?, arrow: ArrowConfiguration?): String {
     val parts = mutableListOf(bow.bowType.label.uppercase())
     if (arrow != null) parts += arrow.label.uppercase()
     return parts.joinToString(" · ")
+}
+
+// Inline reason the Begin CTA is currently gated by bow/arrow state.
+// Distinguishes "nothing configured yet" (send to Equipment) from
+// "configured but unselected" (just pick one) so the fix path is
+// obvious from the setup screen instead of buried in the picker sheet.
+// Mirrors iOS `equipmentWarning` in SessionView.swift.
+private fun equipmentWarning(state: SessionUiState): String? {
+    val noBowsConfigured = state.bows.isEmpty()
+    val noArrowsConfigured = state.arrowConfigs.isEmpty()
+    if (noBowsConfigured && noArrowsConfigured) {
+        return "Add a bow and an arrow in Equipment before you can begin."
+    }
+    if (noBowsConfigured) return "Add a bow in Equipment before you can begin."
+    if (noArrowsConfigured) return "Add an arrow in Equipment before you can begin."
+    val missingBow = state.selectedBow == null
+    val missingArrow = state.selectedArrow == null
+    return when {
+        missingBow && missingArrow -> "Pick a bow and an arrow before you can begin."
+        missingBow -> "Pick a bow before you can begin."
+        missingArrow -> "Pick an arrow before you can begin."
+        else -> null
+    }
 }
 
 // ---------------------------------------------------------------------------
