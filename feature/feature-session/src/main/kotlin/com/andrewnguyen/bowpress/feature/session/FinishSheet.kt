@@ -147,7 +147,19 @@ fun FinishSheet(
 
     // ── Draft state ─────────────────────────────────────────────────────────
 
-    var title by remember { mutableStateOf(initialTitle) }
+    // Single sheet-open timestamp threaded through the Hero, the title seed,
+    // and the title placeholder — mirrors iOS, which carries one `endedAt`
+    // through all three so the time-of-day bucket can't disagree across them.
+    val endedAt = remember { Instant.now() }
+
+    // Pre-fill the title with the time-of-day suggestion when the session is
+    // untitled — matches iOS, where `presentFinishSheet` seeds the draft with
+    // `timeOfDaySuggestion(for:)` so an unedited finish saves e.g. "Afternoon
+    // shooting session" rather than an empty title. The placeholder below
+    // still shows the same suggestion if the archer clears the field.
+    var title by remember {
+        mutableStateOf(initialTitle.ifBlank { timeOfDaySuggestion(endedAt) })
+    }
     var description by remember { mutableStateOf(initialDescription) }
     var audience by remember { mutableStateOf(FinishAudience.Public) }
     var location by remember { mutableStateOf(initialLocation) }
@@ -222,7 +234,7 @@ fun FinishSheet(
 
             Hero(
                 mode = mode,
-                endedAt = remember { Instant.now() },
+                endedAt = endedAt,
             )
 
             MetaStrip(mode = mode, bowName = bowName, arrowSummary = arrowSummary)
@@ -239,7 +251,7 @@ fun FinishSheet(
                     decorationBox = { inner ->
                         if (title.isEmpty()) {
                             Text(
-                                text = remember { timeOfDaySuggestion(Instant.now()) },
+                                text = timeOfDaySuggestion(endedAt),
                                 style = frauncesDisplay(22.sp, italic = true)
                                     .copy(color = AppInk3),
                             )
@@ -973,7 +985,8 @@ private fun hhmm(instant: Instant): String {
 }
 
 /**
- * Time-of-day default title placeholder. Mirrors iOS
+ * Time-of-day default title — pre-fills the title field for an untitled
+ * session and backs the placeholder. Mirrors iOS
  * `FinishSheet.timeOfDaySuggestion(for:)`.
  */
 internal fun timeOfDaySuggestion(instant: Instant): String {

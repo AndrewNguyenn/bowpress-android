@@ -2,6 +2,8 @@ package com.andrewnguyen.bowpress.feature.session
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * Pure-Kotlin coverage for the C1 [FinishExtras] / [ShareOutcome] /
@@ -62,5 +64,32 @@ class FinishExtrasTest {
         )
         val b = a.copy(audience = FinishAudience.Private)
         assertThat(a).isNotEqualTo(b)
+    }
+
+    // Builds an Instant that lands on `hour` in the system default zone, so the
+    // round-trip through `timeOfDaySuggestion` (which reads the local hour) is
+    // deterministic regardless of where the test runs.
+    private fun suggestionAtHour(hour: Int): String {
+        val instant = LocalDateTime.of(2026, 5, 28, hour, 0)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+        return timeOfDaySuggestion(instant)
+    }
+
+    @Test
+    fun `time of day suggestion buckets mirror iOS`() {
+        // 5..10 Morning, 11..13 Midday, 14..17 Afternoon, 18..21 Evening,
+        // else Night — same boundaries as iOS FinishSheet.timeOfDaySuggestion.
+        assertThat(suggestionAtHour(5)).isEqualTo("Morning shooting session")
+        assertThat(suggestionAtHour(10)).isEqualTo("Morning shooting session")
+        assertThat(suggestionAtHour(11)).isEqualTo("Midday shooting session")
+        assertThat(suggestionAtHour(13)).isEqualTo("Midday shooting session")
+        assertThat(suggestionAtHour(14)).isEqualTo("Afternoon shooting session")
+        assertThat(suggestionAtHour(17)).isEqualTo("Afternoon shooting session")
+        assertThat(suggestionAtHour(18)).isEqualTo("Evening shooting session")
+        assertThat(suggestionAtHour(21)).isEqualTo("Evening shooting session")
+        assertThat(suggestionAtHour(22)).isEqualTo("Night shooting session")
+        assertThat(suggestionAtHour(4)).isEqualTo("Night shooting session")
+        assertThat(suggestionAtHour(0)).isEqualTo("Night shooting session")
     }
 }
