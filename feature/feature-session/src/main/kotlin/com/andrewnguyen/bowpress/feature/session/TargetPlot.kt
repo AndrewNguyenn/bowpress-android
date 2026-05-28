@@ -330,13 +330,20 @@ private fun DrawScope.drawExistingArrows(
     multiSpot: MultiSpotGeometry?,
 ) {
     val radiusPx = minOf(size.width, size.height) / 2f
-    // 8 dp diameter floor mirrors iOS `displayedDotSize = max(arrowDotSize, 8)`
-    // (pt). On the SixRingOutdoor 80cm face (mmPerNormUnit=400) the raw
-    // geometric diameter is ~5.6 px on a 3x device — well under the floor —
-    // so a px-based floor of 8 collapses to ~2.7 dp and the dot disappears.
-    val dotRadiusPx = (arrowDiameterMm / geometry.mmPerNormUnit * radiusPx)
-        .toFloat()
-        .coerceAtLeast(8.dp.toPx()) / 2f
+    // Match iOS `arrowDotSize` (TargetPlotView.swift:369). The archer reads
+    // ring overlap relative to the *spot* on a multi-spot card, not the whole
+    // 40cm paper — so the dot is sized against the 180mm spot, not the
+    // 123.5mm face. Reusing the single-face formula here made the dot ~25–80%
+    // too large on multispot, most visibly under the 2.5× pen lens.
+    // 8 dp diameter floor mirrors iOS `displayedDotSize = max(arrowDotSize, 8)`.
+    val dotDiamPx = if (multiSpot != null) {
+        val faceEdgePx = minOf(size.width, size.height)
+        val spotDiameterPx = 2.0 * multiSpot.radiusNorm * faceEdgePx
+        (arrowDiameterMm / multiSpot.spotDiameterMm * spotDiameterPx).toFloat()
+    } else {
+        (arrowDiameterMm / geometry.mmPerNormUnit * radiusPx).toFloat()
+    }
+    val dotRadiusPx = dotDiamPx.coerceAtLeast(8.dp.toPx()) / 2f
 
     if (multiSpot != null) {
         multiSpot.assignArrows(arrows).forEach { perSpot ->

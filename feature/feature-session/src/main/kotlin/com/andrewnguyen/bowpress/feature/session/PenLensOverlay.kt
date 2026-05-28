@@ -88,7 +88,17 @@ internal fun buildPenLensSnapshot(
         val dotNormRadius = (arrowDiameterMm / 2.0) / geometry.mmPerNormUnit
         geometry.classifyWithDotRadius(plotX, plotY, dotNormRadius).ring
     }
-    val arrowDotPx = ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
+    // Mirror iOS `arrowDotSize` (TargetPlotView.swift:369) — multispot dots
+    // size to the *spot*, not the face, because that's where the archer reads
+    // ring overlap. Without this branch the lens at 2.5× zoom shows a wildly
+    // oversized dot on every multispot session.
+    val arrowDotPx = if (multiSpot != null) {
+        val faceEdgePx = faceSizePx
+        val spotDiameterPx = 2.0 * multiSpot.radiusNorm * faceEdgePx
+        (arrowDiameterMm / multiSpot.spotDiameterMm * spotDiameterPx).toFloat()
+    } else {
+        ((arrowDiameterMm / geometry.mmPerNormUnit) * radiusPx).toFloat()
+    }
     return PenLensSnapshot(
         touchPx = Offset(faceOriginInWindow.x + touch.x, faceOriginInWindow.y + touch.y),
         faceOriginPx = faceOriginInWindow,
