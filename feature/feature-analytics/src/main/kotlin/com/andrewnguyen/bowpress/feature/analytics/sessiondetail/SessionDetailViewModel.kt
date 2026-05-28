@@ -14,7 +14,7 @@ import com.andrewnguyen.bowpress.core.model.SessionEnd
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.TargetLayout
-import com.andrewnguyen.bowpress.core.model.Zone
+import com.andrewnguyen.bowpress.feature.session.TargetGeometry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -130,113 +130,52 @@ class SessionDetailViewModel @Inject constructor(
      * `HistoricalSessionsView.replotArrow` — keeps the existing id, sessionId,
      * config/end refs, and timestamp; only ring/zone/plotX/plotY change.
      *
-     * When [plotX]/[plotY] are passed null (the keypad re-score path with no
-     * positional information), snap the plot to the **midline** of the new
-     * ring along the existing bearing — without this, precision stats
-     * (meanDist, group σ) would compute from a position that doesn't
-     * correspond to the score, silently desyncing the heatmap from the
-     * displayed ring.
+     * Keypad re-score path (null [plotX]/[plotY]):
+     *  - If the existing position is already inside the new ring's band,
+     *    the dot is preserved verbatim — the archer's drop position
+     *    doesn't move when the keypad pick agrees with where the dot
+     *    already sat (iOS issue #3 / troy.jpeg).
+     *  - Otherwise snap to the midline of the new ring along the existing
+     *    bearing so the persisted position classifies back to the new
+     *    ring on the next render.
+     *
+     * Positional path (non-null [plotX]/[plotY]): use those coordinates.
+     *
+     * Zone is always derived from the final coordinates so the persisted
+     * zone tag and (plotX, plotY) stay consistent (iOS issue #13).
      */
-    fun replotArrow(arrowId: String, ring: Int, zone: Zone, plotX: Double?, plotY: Double?) {
+    fun replotArrow(arrowId: String, ring: Int, plotX: Double?, plotY: Double?) {
         viewModelScope.launch {
             val current = _state.value.arrows.firstOrNull { it.id == arrowId } ?: return@launch
-            val (snappedX, snappedY) = if (plotX != null && plotY != null) {
-                plotX to plotY
+            // §B3 — distance-aware geometry so 50/70m sixRing routes through
+            // the 7-zone (Outdoor80) thresholds, not the indoor Vegas
+            // thresholds.
+            val geometry = TargetGeometry.forFace(_state.value.faceType, _state.value.distance)
+            val (finalX, finalY, finalZone) = if (plotX != null && plotY != null) {
+                Triple(plotX, plotY, geometry.classify(plotX, plotY).zone)
             } else {
-                snapToRingMidline(
-                    ring = ring,
-                    currentX = current.plotX,
-                    currentY = current.plotY,
-                    faceType = _state.value.faceType,
-                    distance = _state.value.distance,
-                )
+                val snapped = geometry.snapToRingMidline(ring, current.plotX, current.plotY)
+                if (snapped == null) {
+                    Triple(current.plotX, current.plotY, current.zone)
+                } else {
+                    Triple(
+                        snapped.first,
+                        snapped.second,
+                        geometry.classify(snapped.first, snapped.second).zone,
+                    )
+                }
             }
             val updated = current.copy(
                 ring = ring,
-                zone = zone,
-                plotX = snappedX,
-                plotY = snappedY,
+                zone = finalZone,
+                plotX = finalX,
+                plotY = finalY,
             )
             plotRepo.savePlot(updated)
             _state.update { st ->
                 st.copy(arrows = st.arrows.map { if (it.id == arrowId) updated else it })
             }
         }
-    }
-
-    /**
-     * Snap (plotX, plotY) to the geometric midpoint of [ring]'s band along
-     * the current bearing. Falls back to a straight-down bearing when the
-     * current plot has no position (so the dot lands somewhere visible on
-     * the heatmap rather than at origin).
-     */
-    private fun snapToRingMidline(
-        ring: Int,
-        currentX: Double?,
-        currentY: Double?,
-        faceType: TargetFaceType,
-        distance: ShootingDistance?,
-    ): Pair<Double, Double> {
-        val (inner, outer) = ringBand(ring, faceType, distance)
-        val midRadius = (inner + outer) / 2.0
-        val curX = currentX ?: 0.0
-        val curY = currentY ?: 1.0 // arbitrary south bearing
-        val curMag = kotlin.math.hypot(curX, curY)
-        return if (curMag < 1e-6) {
-            0.0 to midRadius
-        } else {
-            midRadius * curX / curMag to midRadius * curY / curMag
-        }
-    }
-
-    /**
-     * Inner / outer normalised radius for a given ring on the given face.
-     * Numbers come from the same threshold tables `TargetGeometry` uses for
-     * classification — so a re-score that lands at the midline classifies
-     * back to the same ring on the next render.
-     */
-    private fun ringBand(
-        ring: Int,
-        faceType: TargetFaceType,
-        distance: ShootingDistance?,
-    ): Pair<Double, Double> {
-        // §B3 — route through the distance-aware geometry so a 50/70m
-        // sixRing session snaps to the 7-zone (Outdoor80) thresholds and
-        // ring 5 lands at the right midline, instead of being clamped to
-        // the Vegas 6-ring outer edge.
-        val geometry = com.andrewnguyen.bowpress.feature.session.TargetGeometry
-            .forFace(faceType, distance)
-        return ringBandFromGeometry(ring, geometry)
-    }
-
-    /**
-     * Derive the inner/outer band for a numbered scoring ring on a given
-     * geometry. Walks the geometry's [thresholds] (innermost-first: X, then
-     * the inner-most numeric ring, ..., outer-most). The same code path
-     * correctly handles 6-zone, 7-zone, and 10-zone faces from a single
-     * source — mirrors the `band(forRing:)` helper iOS uses (commit b53b748).
-     */
-    private fun ringBandFromGeometry(
-        ring: Int,
-        geometry: com.andrewnguyen.bowpress.feature.session.TargetGeometry,
-    ): Pair<Double, Double> {
-        if (ring >= 11) return 0.0 to geometry.thresholds[0]
-        val innermost = geometry.innermostNumericRing
-        val outermost = geometry.outerRingValue
-        if (ring !in outermost..innermost) {
-            // Out of range for this face — treat as a miss. Park the dot
-            // just past the FULL canvas edge (1.0..1.05), not just past
-            // the outer scoring band — matches the legacy ringBand
-            // behavior, which always landed misses at the canvas edge
-            // regardless of where the outer scoring ring sat (Vegas's
-            // outer ring 6 sits at 0.808, well inside 1.0).
-            return 1.0 to 1.05
-        }
-        // ring = innermost - (i - 1) ⇒ i = innermost - ring + 1.
-        val i = innermost - ring + 1
-        val inner = geometry.thresholds[i - 1]
-        val outer = geometry.thresholds[i]
-        return inner to outer
     }
 
     /** Mirrors iOS `deleteArrow(id:)` — local + remote cleanup. */

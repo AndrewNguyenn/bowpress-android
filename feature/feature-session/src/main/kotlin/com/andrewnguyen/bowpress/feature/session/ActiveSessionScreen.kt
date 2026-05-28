@@ -98,6 +98,11 @@ fun ActiveSessionScreen(
     // The completed end whose actions dialog is open (add a missed arrow /
     // delete the end), keyed by end id. Mirrors iOS endActionsTarget.
     var endActionsTarget by remember { mutableStateOf<String?>(null) }
+    // The id of the arrow whose ArrowEditSheet is open. Tapping a shot cell
+    // in the live scorecard previously deleted the arrow with no
+    // confirmation — this opens the per-arrow re-score / delete sheet
+    // instead, matching iOS `editingArrowId` (SessionView.swift).
+    var editingArrowId by remember { mutableStateOf<String?>(null) }
 
     // Track whether we've ever seen the session as active so a transient null during
     // initial hydration doesn't bounce the user back to the home screen.
@@ -185,7 +190,7 @@ fun ActiveSessionScreen(
 
             // Running ends-history scorecard — every completed end. Mirrors
             // iOS endsHistory. Tapping an end opens its actions; tapping a
-            // shot cell deletes that arrow.
+            // shot cell opens the per-arrow edit sheet (re-score / delete).
             if (breakdown.hasCompletedEnds) {
                 Column(
                     modifier = Modifier
@@ -197,7 +202,7 @@ fun ActiveSessionScreen(
                     EndsScorecard(
                         breakdown = breakdown,
                         onTapEnd = { endId -> endActionsTarget = endId },
-                        onTapArrow = { arrow -> scope.launch { viewModel.deleteArrow(arrow.id) } },
+                        onTapArrow = { arrow -> editingArrowId = arrow.id },
                     )
                 }
             }
@@ -293,8 +298,8 @@ fun ActiveSessionScreen(
     // End-actions dialog — delete a completed end. Mirrors iOS's
     // confirmationDialog for an end (SessionView.swift). "Add an arrow"
     // requires a target-tap surface; on Android a mis-tapped arrow is fixed
-    // by tapping the shot cell to delete it and re-plotting into the live
-    // end — see the report for this deviation.
+    // by tapping the shot cell to open the ArrowEditSheet (re-score or
+    // delete) — see the report for this deviation.
     endActionsTarget?.let { endId ->
         val end = state.completedEnds.firstOrNull { it.id == endId }
         if (end == null) {
@@ -307,6 +312,40 @@ fun ActiveSessionScreen(
                     endActionsTarget = null
                 },
                 onDismiss = { endActionsTarget = null },
+            )
+        }
+    }
+
+    // Per-arrow edit sheet — re-score via keypad or delete with
+    // confirmation. Mirrors iOS ArrowEditSheet on the live session
+    // (SessionView.swift). Arrow number is the global 1-based
+    // chronological index across the whole session so the caption stays
+    // stable regardless of how ends group.
+    val arrowNumbers = remember(state.currentArrows) {
+        state.currentArrows.sortedBy { it.shotAt }
+            .mapIndexed { i, p -> p.id to (i + 1) }
+            .toMap()
+    }
+    editingArrowId?.let { id ->
+        val arrow = state.currentArrows.firstOrNull { it.id == id }
+        val number = arrowNumbers[id]
+        if (arrow == null || number == null) {
+            editingArrowId = null
+        } else {
+            ArrowEditSheet(
+                arrow = arrow,
+                arrowNumber = number,
+                faceType = state.targetFaceType,
+                distance = active.distance,
+                onReplotRing = { ring ->
+                    // Keypad re-score: VM decides whether to keep the
+                    // existing position (in-band) or snap to the new
+                    // ring's midline (out-of-band), and recomputes the
+                    // zone from the final coordinates either way.
+                    scope.launch { viewModel.replotArrow(id, ring, null, null) }
+                },
+                onDelete = { scope.launch { viewModel.deleteArrow(id) } },
+                onDismiss = { editingArrowId = null },
             )
         }
     }

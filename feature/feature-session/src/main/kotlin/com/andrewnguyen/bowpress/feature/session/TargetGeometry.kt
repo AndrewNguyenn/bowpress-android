@@ -10,6 +10,7 @@ import com.andrewnguyen.bowpress.core.model.TargetFaceType
 import com.andrewnguyen.bowpress.core.model.Zone
 import androidx.compose.ui.graphics.Color
 import kotlin.math.atan2
+import kotlin.math.hypot
 import kotlin.math.sqrt
 
 /**
@@ -121,6 +122,59 @@ sealed class TargetGeometry {
         val zone: Zone,
         val normalizedDist: Double,
     )
+
+    /**
+     * Snap a plot toward the midline of [ring]'s band along the current
+     * bearing — or return null when the existing position is already
+     * inside the new ring's band and the caller should preserve it
+     * verbatim. Used by the keypad re-score path: when the archer changes
+     * only the score (not the position), the dot needs to land somewhere
+     * inside the new ring's band so the heatmap and the scored ring agree
+     * on the next render. Falls back to a south bearing when there is no
+     * current position.
+     *
+     * Mirrors iOS `TargetGeometry.snappedPosition(forRing:from:)`
+     * (TargetPlotView.swift): the in-band short-circuit is the "issue
+     * #3 / troy.jpeg" fix — re-scoring within the band must not yank the
+     * dot to the midline (e.g. confirming the same score, or shifting by
+     * one band when the old dot already straddled the boundary). Also
+     * mirrored: ring ≤ 0 (miss) returns null — keep the existing dot
+     * position so a re-score → M doesn't relocate to the canvas edge.
+     */
+    fun snapToRingMidline(ring: Int, currentX: Double?, currentY: Double?): Pair<Double, Double>? {
+        if (ring <= 0) return null
+        val (inner, outer) = ringBand(ring)
+        val curX = currentX ?: 0.0
+        val curY = currentY ?: 1.0 // arbitrary south bearing
+        val curMag = hypot(curX, curY)
+        // In-band short-circuit — preserves the archer's drop position
+        // (and zone) when the keypad pick already matches the band.
+        if (currentX != null && currentY != null && curMag >= inner && curMag < outer) return null
+        val midRadius = (inner + outer) / 2.0
+        return if (curMag < 1e-4) {
+            0.0 to midRadius
+        } else {
+            midRadius * curX / curMag to midRadius * curY / curMag
+        }
+    }
+
+    /**
+     * Inner/outer normalised radius for a numbered scoring [ring] on this
+     * geometry. Walks the geometry's [thresholds] (innermost-first: X,
+     * then the innermost numeric ring, ..., outer-most). The same code
+     * path handles 6-zone, 7-zone, and 10-zone faces from a single
+     * source. Mirrors iOS `band(forRing:)` (commit b53b748). A miss (ring
+     * out of range for the face) parks the dot just past the FULL canvas
+     * edge (1.0..1.05) — matches the legacy ringBand which always landed
+     * misses at the canvas edge regardless of where the outer scoring
+     * band sat (Vegas's outer ring 6 sits at 0.808, well inside 1.0).
+     */
+    private fun ringBand(ring: Int): Pair<Double, Double> {
+        if (ring >= 11) return 0.0 to thresholds[0]
+        if (ring !in outerRingValue..innermostNumericRing) return 1.0 to 1.05
+        val i = innermostNumericRing - ring + 1
+        return thresholds[i - 1] to thresholds[i]
+    }
 
     // ------------------------------------------------------------------------
     // Face presets

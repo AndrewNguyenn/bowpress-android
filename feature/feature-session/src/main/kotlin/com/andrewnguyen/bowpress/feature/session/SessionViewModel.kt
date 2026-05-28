@@ -551,28 +551,49 @@ class SessionViewModel @Inject constructor(
     }
 
     // NOTE: iOS `addArrowToEnd` (slotting a recovery arrow into an
-    // already-completed end) is intentionally NOT ported yet. It needs a
-    // target-tap surface, and the only such edit sheet — ArrowEditSheet —
-    // lives in feature-analytics, which already depends on feature-session;
-    // importing it back would be a dependency cycle. Rather than leave an
-    // unreachable suspend function, the VM method was removed. The live
-    // scorecard already supports delete-a-shot-cell + re-plot into the live
-    // end as the Android recovery path. Restore addArrowToEnd when a shared
-    // edit sheet exists in core-designsystem.
+    // already-completed end) is intentionally NOT ported yet. The Android
+    // ArrowEditSheet has no tap-to-replot canvas, so a mis-tapped arrow is
+    // fixed by tapping the shot cell to open the edit sheet → re-score via
+    // the keypad, or delete and re-plot into the live end. Restore
+    // addArrowToEnd when a positional-replot surface lands on Android.
 
     /**
-     * Re-plot an existing arrow at a new (x, y) on the target. Mirrors iOS
-     * `APIClient.plotArrow` upsert path used by the session-detail re-plot sheet —
-     * the plot id is preserved so end membership and analytics keep their identity.
+     * Re-plot an existing arrow. Used by ArrowEditSheet's quick-score keypad
+     * (null plotX/plotY → snap to the new ring's midline, or preserve the
+     * existing position when already in-band) and any future positional-
+     * replot surface (non-null plotX/plotY passed through verbatim). Mirrors
+     * iOS `replotArrow`. The plot id is preserved so end membership and
+     * analytics keep their identity.
+     *
+     * Zone is always derived from the final coordinates here so the
+     * persisted zone tag and the persisted (plotX, plotY) stay consistent
+     * across both keypad and positional paths (iOS issue #13).
      */
-    suspend fun replotArrow(plotId: String, plotX: Double, plotY: Double, ring: Int, zone: Zone) {
-        val plot = _uiState.value.currentArrows.firstOrNull { it.id == plotId } ?: return
+    suspend fun replotArrow(plotId: String, ring: Int, plotX: Double?, plotY: Double?) {
+        val state = _uiState.value
+        val plot = state.currentArrows.firstOrNull { it.id == plotId } ?: return
+        // §B3 — distance-aware so 50/70m sixRing routes through the 7-zone
+        // (Outdoor80) thresholds, not the indoor Vegas thresholds.
+        val geometry = TargetGeometry.forFace(state.targetFaceType, state.activeSession?.distance)
+        val (finalX, finalY, finalZone) = if (plotX != null && plotY != null) {
+            Triple(plotX, plotY, geometry.classify(plotX, plotY).zone)
+        } else {
+            val snapped = geometry.snapToRingMidline(ring, plot.plotX, plot.plotY)
+            if (snapped == null) {
+                // In-band re-score (or miss): keep existing position + zone
+                // verbatim. Matches iOS `snappedPosition` returning nil →
+                // caller reuses the old (x, y, zone).
+                Triple(plot.plotX, plot.plotY, plot.zone)
+            } else {
+                Triple(snapped.first, snapped.second, geometry.classify(snapped.first, snapped.second).zone)
+            }
+        }
         plotRepo.savePlot(
             plot.copy(
                 ring = ring,
-                zone = zone,
-                plotX = plotX,
-                plotY = plotY,
+                zone = finalZone,
+                plotX = finalX,
+                plotY = finalY,
             ),
         )
     }

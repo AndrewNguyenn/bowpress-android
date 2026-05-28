@@ -1,4 +1,4 @@
-package com.andrewnguyen.bowpress.feature.analytics.sessiondetail
+package com.andrewnguyen.bowpress.feature.session
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,8 +45,6 @@ import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.ShootingDistance
 import com.andrewnguyen.bowpress.core.model.TargetFaceType
-import com.andrewnguyen.bowpress.core.model.Zone
-import com.andrewnguyen.bowpress.feature.session.TargetGeometry
 import kotlinx.coroutines.launch
 
 /**
@@ -61,7 +59,10 @@ import kotlinx.coroutines.launch
  *   - Tap-to-replot via target plot is deferred to task #28 (Pen magnifier).
  *     Quick-score keypad is sufficient for re-scoring an arrow; positional
  *     replot lands with the pen magnifier port.
- *   - Re-score keeps the existing plotX/plotY; only the ring/zone change.
+ *   - Re-score → the VM decides the final (plotX, plotY, zone): an in-band
+ *     pick preserves the dot, an out-of-band pick snaps it to the new
+ *     ring's midline along the existing bearing, and zone is recomputed
+ *     from whichever position lands. The sheet only knows the ring.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,7 +70,7 @@ fun ArrowEditSheet(
     arrow: ArrowPlot,
     arrowNumber: Int,
     faceType: TargetFaceType,
-    onReplotRing: (ring: Int, zone: Zone) -> Unit,
+    onReplotRing: (ring: Int) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     // §B3 — distance routes sixRing to the right keypad ladder: 20yd
@@ -128,8 +129,7 @@ fun ArrowEditSheet(
                 faceType = faceType,
                 distance = distance,
                 onPick = { newRing ->
-                    val newZone = zoneForRing(newRing, arrow.zone)
-                    onReplotRing(newRing, newZone)
+                    onReplotRing(newRing)
                     close()
                 },
             )
@@ -246,10 +246,3 @@ private fun ringLabel(ring: Int): String = when (ring) {
     0 -> "M"
     else -> ring.toString()
 }
-
-/**
- * Zone classification: iOS replotArrow keeps the existing zone when only the
- * ring changes via the keypad (the zone tracks positional cardinal/middle/
- * miss-pattern, not the score), so we mirror that here.
- */
-private fun zoneForRing(ring: Int, currentZone: Zone): Zone = currentZone

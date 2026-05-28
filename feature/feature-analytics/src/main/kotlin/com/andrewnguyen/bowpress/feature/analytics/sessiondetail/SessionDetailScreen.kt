@@ -55,6 +55,7 @@ import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.model.ArrowPlot
 import com.andrewnguyen.bowpress.core.model.Scorecard
+import com.andrewnguyen.bowpress.feature.session.ArrowEditSheet
 
 /**
  * Session detail. Mirrors iOS `SessionDetailSheet` after the Kenrokuen
@@ -144,10 +145,11 @@ fun SessionDetailScreen(
             arrowNumber = editing.number,
             faceType = state.faceType,
             distance = state.distance,
-            onReplotRing = { ring, zone ->
-                // Keypad re-score: pass null plot coords so the VM snaps the
-                // dot to the new ring's midline along the existing bearing.
-                viewModel.replotArrow(editing.arrow.id, ring, zone, null, null)
+            onReplotRing = { ring ->
+                // Keypad re-score: VM keeps the existing position when
+                // in-band, snaps to the new ring's midline otherwise, and
+                // recomputes zone from the final coordinates.
+                viewModel.replotArrow(editing.arrow.id, ring, null, null)
             },
             onDelete = { viewModel.deleteArrow(editing.arrow.id) },
             onDismiss = { editingArrow = null },
