@@ -48,7 +48,10 @@ fun AddBowScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.savedBow) {
-        state.savedBow?.let { onBowCreated(it.id) }
+        state.savedBow?.let { bow ->
+            onBowCreated(bow.id)
+            viewModel.consumeSaved()
+        }
     }
 
     Scaffold(
