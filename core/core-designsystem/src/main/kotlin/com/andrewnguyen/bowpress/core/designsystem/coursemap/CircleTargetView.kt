@@ -405,9 +405,24 @@ fun CircleLensView(snapshot: CircleLensSnapshot) {
                 )
             }
             // Maple footprint ring + pin at the lens centre.
+            //
+            // Positioned explicitly with `offset` rather than `align(Center)`
+            // because the sibling Box above uses `requiredSize(zoomedTargetDp)`
+            // (~3120 px, much larger than the lens disc). Compose's Box
+            // measurePolicy reports the LARGEST child's size up the chain,
+            // and `.size(lensSizeDp)` doesn't actually clamp it — so
+            // `.align(Center)` was centering within the zoomed size, not the
+            // lens size, dropping the maple footprint hundreds of pixels
+            // away from the true lens center.
+            val footprintRadiusPx = with(density) { (footprintDp / 2).toPx() }
             Box(
                 modifier = Modifier
-                    .align(Alignment.Center)
+                    .offset {
+                        IntOffset(
+                            x = (lensRadiusPx - footprintRadiusPx).toInt(),
+                            y = (lensRadiusPx - footprintRadiusPx).toInt(),
+                        )
+                    }
                     .size(footprintDp),
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
