@@ -88,15 +88,6 @@ class AddArrowViewModel @Inject constructor(
     fun updateShaftDiameter(v: String) = _state.update { it.copy(shaftDiameterText = v) }
     fun updateNotes(v: String) = _state.update { it.copy(notes = v) }
 
-    /**
-     * Called by the screen after [UiState.savedArrowId] has been observed and
-     * delivered to its `onCreated` callback. Resets the form so the next time
-     * the sheet opens (with the same VM instance — Hilt scopes us to the
-     * `equipment/home` NavBackStackEntry) the user gets a fresh form, and the
-     * stale `savedArrowId` doesn't immediately re-fire the dismiss effect.
-     */
-    fun consumeSaved() = _state.update { UiState() }
-
     fun save(userId: String) {
         val current = _state.value
         if (!current.canSave) return

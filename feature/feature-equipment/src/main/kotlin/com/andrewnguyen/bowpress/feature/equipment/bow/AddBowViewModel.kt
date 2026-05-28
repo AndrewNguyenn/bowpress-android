@@ -43,15 +43,6 @@ class AddBowViewModel @Inject constructor(
     fun dismissError() = _state.update { it.copy(errorMessage = null) }
 
     /**
-     * Called by the screen after [UiState.savedBow] has been observed and the
-     * caller has navigated to bow detail. Resets the form so reopening the
-     * Add Bow sheet (same VM — Hilt scopes it to the equipment/home
-     * NavBackStackEntry) doesn't immediately re-fire `onBowCreated` with the
-     * previous bow's id.
-     */
-    fun consumeSaved() = _state.update { UiState() }
-
-    /**
      * Persist the new bow + seed its initial configuration. Mirrors iOS
      * `AddBowView.save()`: bow + v1 BowConfiguration written locally so a
      * session started immediately has something to anchor to. iOS saves

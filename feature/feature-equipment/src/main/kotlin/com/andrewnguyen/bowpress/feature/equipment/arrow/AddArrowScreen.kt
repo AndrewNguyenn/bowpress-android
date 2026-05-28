@@ -54,10 +54,7 @@ fun AddArrowScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.savedArrowId) {
-        state.savedArrowId?.let { id ->
-            onCreated(id)
-            viewModel.consumeSaved()
-        }
+        state.savedArrowId?.let(onCreated)
     }
 
     Scaffold(

@@ -8,19 +8,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.andrewnguyen.bowpress.feature.equipment.arrow.AddArrowScreen
+import com.andrewnguyen.bowpress.feature.equipment.arrow.AddArrowViewModel
 import com.andrewnguyen.bowpress.feature.equipment.arrow.ArrowDetailScreen
 import com.andrewnguyen.bowpress.feature.equipment.bow.AddBowScreen
+import com.andrewnguyen.bowpress.feature.equipment.bow.AddBowViewModel
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowConfigDetailScreen
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowConfigEditScreen
 import com.andrewnguyen.bowpress.feature.equipment.bow.BowDetailScreen
 import com.andrewnguyen.bowpress.feature.equipment.home.EquipmentHomeScreen
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /**
  * Routes owned by the equipment feature. The top-level `equipment/home` route
@@ -79,12 +83,20 @@ fun NavGraphBuilder.equipmentNavGraph(
         )
 
         if (addBowSheetOpen) {
+            // Per-open ViewModel slot. Without a unique key, hiltViewModel()
+            // returns the same AddBowViewModel across sheet open/close cycles
+            // (it's scoped to this NavBackStackEntry), and any `saved…` signal
+            // left set from the previous save immediately re-fires the dismiss
+            // effect. The key is forgotten when this if-block exits, so the
+            // next open allocates a fresh slot + fresh VM.
+            val sheetKey = remember { UUID.randomUUID().toString() }
             ModalBottomSheet(
                 onDismissRequest = { addBowSheetOpen = false },
                 sheetState = addBowSheetState,
             ) {
                 AddBowScreen(
                     userId = currentUserId(),
+                    viewModel = hiltViewModel<AddBowViewModel>(key = sheetKey),
                     onBowCreated = { id ->
                         scope.launch { addBowSheetState.hide() }
                             .invokeOnCompletion {
@@ -101,12 +113,14 @@ fun NavGraphBuilder.equipmentNavGraph(
         }
 
         if (addArrowSheetOpen) {
+            val sheetKey = remember { UUID.randomUUID().toString() }
             ModalBottomSheet(
                 onDismissRequest = { addArrowSheetOpen = false },
                 sheetState = addArrowSheetState,
             ) {
                 AddArrowScreen(
                     userId = currentUserId(),
+                    viewModel = hiltViewModel<AddArrowViewModel>(key = sheetKey),
                     onCreated = { _ ->
                         // iOS AddArrowView.save() just dismisses — no nav to detail
                         // (unlike AddBow which DOES nav). Mirror iOS so the user
