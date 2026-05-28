@@ -2,9 +2,12 @@ package com.andrewnguyen.bowpress.feature.social.ui.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrewnguyen.bowpress.core.data.export.ExportJobRepository
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
 import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.ExportJob
+import com.andrewnguyen.bowpress.core.model.ExportJobState
 import com.andrewnguyen.bowpress.core.model.Club
 import com.andrewnguyen.bowpress.core.model.Friendship
 import com.andrewnguyen.bowpress.core.model.FriendshipDirection
@@ -18,6 +21,7 @@ import com.andrewnguyen.bowpress.core.model.SocialProfile
 import com.andrewnguyen.bowpress.core.model.ToggleLikeResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -118,6 +122,7 @@ fun League.deadlineWithin(window: Duration): Boolean {
 class FeedViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
     private val socialBadgeRefreshBus: SocialBadgeRefreshBus,
+    exportJobRepository: ExportJobRepository,
 ) : ViewModel() {
 
     /**
@@ -128,6 +133,20 @@ class FeedViewModel @Inject constructor(
             sharedSessionId, photoId ->
         socialRepository.fetchSharedSessionPhotoBytes(sharedSessionId, photoId)
     }
+
+    /**
+     * Phase B — in-flight export jobs keyed by client `sessionId`, so a feed
+     * row can overlay its optimistic upload chip. Kept OUT of the [combine]
+     * that builds [FeedUiState] (that's already at its 5-flow arity limit);
+     * the screen collects this separately and matches it to each card.
+     * Failed jobs are dropped — the chip is for in-flight / just-landed state.
+     */
+    val exportJobsBySession: StateFlow<Map<String, ExportJob>> =
+        exportJobRepository.observeAll()
+            .map { jobs ->
+                jobs.filter { it.state != ExportJobState.Failed }.associateBy { it.sessionId }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _error = MutableStateFlow<String?>(null)
     private val _isLoading = MutableStateFlow(false)

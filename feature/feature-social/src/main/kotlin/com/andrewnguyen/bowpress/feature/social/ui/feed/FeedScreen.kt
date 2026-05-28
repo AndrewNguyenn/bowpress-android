@@ -83,6 +83,9 @@ fun FeedScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val pendingCount by viewModel.pendingCount.collectAsState()
+    // Phase B — in-flight export jobs keyed by sessionId, for the per-card
+    // optimistic upload chip.
+    val exportJobs by viewModel.exportJobsBySession.collectAsState()
     // iOS parity (A3) — swipeable hero carousel under the top nav.
     val feedSummary by viewModel.feedSummary.collectAsState()
 
@@ -279,6 +282,10 @@ fun FeedScreen(
                     onActorClick = if (item.isOwn) null else { actorUserId: String ->
                         if (actorUserId.isNotBlank()) onActorClick(actorUserId)
                     },
+                    // Phase B — the optimistic upload chip. Keyed by the client
+                    // sessionId; only an own in-flight share has a job, so a
+                    // friend's row resolves to null and shows no chip.
+                    uploadJob = item.session?.sessionId?.let { exportJobs[it] },
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
             }

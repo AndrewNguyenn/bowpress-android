@@ -81,6 +81,7 @@ import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
 import com.andrewnguyen.bowpress.core.designsystem.testing.TestTags
 import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityItem
+import com.andrewnguyen.bowpress.core.model.ExportJob
 import com.andrewnguyen.bowpress.core.model.ActivityKind
 import com.andrewnguyen.bowpress.core.model.ActivityPhoto
 import com.andrewnguyen.bowpress.core.model.ActivitySession
@@ -179,15 +180,24 @@ fun ActivityCard(
     // edited / deleted after the row migrated to ActivityCard chrome.
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
+    // Phase B — the optimistic upload chip. Non-null only for an own session
+    // with an in-flight ExportJob (the feed keys it by client sessionId); the
+    // chip overlays the card's top-leading corner and clears when the job
+    // lands. Default null so previews / non-feed callers compile unchanged.
+    uploadJob: ExportJob? = null,
 ) {
     val preview = activityPreview(item)
-    Column(
+    Box(
         modifier = modifier
             // D3 — clamp the card's max width so on tablets / split-screen
             // the photo strip can't drive an oversized layout. Mirrors iOS
             // commit c68e27f. Phones (<720dp) keep fillMaxWidth behaviour.
             .fillMaxWidth()
-            .widthIn(max = 720.dp)
+            .widthIn(max = 720.dp),
+    ) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
             .background(AppPaper)
             .border(1.dp, AppLine)
             .clickable(onClick = onClick)
@@ -255,6 +265,15 @@ fun ActivityCard(
                 onOpenComments = reactions.onOpenComments,
                 selfActor = reactions.selfActor,
                 tag = cardTag,
+            )
+        }
+    }
+        // Phase B — upload-status chip, overlaid on the card's top-leading
+        // corner so it doesn't reflow the header. Cleared when the job lands.
+        uploadJob?.let { job ->
+            FeedUploadChip(
+                job = job,
+                modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
             )
         }
     }
