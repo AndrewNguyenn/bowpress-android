@@ -334,10 +334,12 @@ private fun DrawScope.drawLensFace(snapshot: PenLensSnapshot, sizePx: Float) {
 }
 
 /**
- * Draw one WA face filling [sizePx], no dividers (the lens is already clear).
- * Geometry-driven — walks the geometry's [TargetGeometry.thresholds] painting
- * each band's outer edge in turn from outer-most to inner-most. Mirrors the
- * paint order in [drawTargetFace] (TargetPlot.kt).
+ * Draw one WA face filling [sizePx]. Mirrors [drawTargetFace] (TargetPlot.kt):
+ * colored bands painted outer→inner, then ring dividers / outer edge / X tick
+ * over the top. iOS gets these for free because its lens reuses
+ * `TargetFaceCanvas`; Android renders the lens face manually, so without the
+ * explicit divider calls the lens reads as a solid color disc under the
+ * touch on wider faces (e.g. 50m/70m 80cm).
  */
 private fun DrawScope.drawSingleLensFace(geometry: TargetGeometry, sizePx: Float) {
     val center = Offset(sizePx / 2f, sizePx / 2f)
@@ -354,6 +356,9 @@ private fun DrawScope.drawSingleLensFace(geometry: TargetGeometry, sizePx: Float
             center = center,
         )
     }
+    drawRingDividers(geometry.thresholds.toList(), radius, center)
+    drawOuterEdge(radius, center)
+    drawXTick(geometry.thresholds[0], radius, center)
 }
 
 /**
@@ -367,7 +372,10 @@ private fun DrawScope.drawArrowsAtSize(
     arrowDotPx: Float,
 ) {
     val radius = facePx / 2f
-    val dotRadius = (arrowDotPx / 2f).coerceAtLeast(4f)
+    // 4 dp radius floor (mirrors the 8 dp diameter floor on the underlying
+    // face renderer). The previous 4 px floor collapsed to ~1.3 dp on a 3x
+    // device, making dots inside the lens nearly invisible on wider faces.
+    val dotRadius = (arrowDotPx / 2f).coerceAtLeast(4.dp.toPx())
     val multiSpot = MultiSpotGeometry.preset(snapshot.targetLayout)
     if (multiSpot != null) {
         // Multi-spot: place each arrow on its bucketed spot.

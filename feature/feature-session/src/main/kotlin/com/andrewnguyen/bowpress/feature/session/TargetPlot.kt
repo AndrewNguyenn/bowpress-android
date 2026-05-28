@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlack
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtBlue
 import com.andrewnguyen.bowpress.core.designsystem.AppTgtRed
@@ -258,7 +259,7 @@ private fun DrawScope.drawTargetFace(geometry: TargetGeometry) {
     drawXTick(geometry.thresholds[0], radiusPx, center)
 }
 
-private fun DrawScope.drawRingDividers(
+internal fun DrawScope.drawRingDividers(
     thresholds: List<Double>,
     radiusPx: Float,
     center: Offset,
@@ -274,7 +275,7 @@ private fun DrawScope.drawRingDividers(
     }
 }
 
-private fun DrawScope.drawOuterEdge(radiusPx: Float, center: Offset) {
+internal fun DrawScope.drawOuterEdge(radiusPx: Float, center: Offset) {
     drawCircle(
         color = Color(0xFF333333),
         radius = radiusPx,
@@ -283,7 +284,7 @@ private fun DrawScope.drawOuterEdge(radiusPx: Float, center: Offset) {
     )
 }
 
-private fun DrawScope.drawXTick(xRadius: Double, radiusPx: Float, center: Offset) {
+internal fun DrawScope.drawXTick(xRadius: Double, radiusPx: Float, center: Offset) {
     val tickHalf = (xRadius * radiusPx * 0.35f).toFloat()
     val tickColor = Color(0xFF333333)
     drawLine(
@@ -329,9 +330,13 @@ private fun DrawScope.drawExistingArrows(
     multiSpot: MultiSpotGeometry?,
 ) {
     val radiusPx = minOf(size.width, size.height) / 2f
+    // 8 dp diameter floor mirrors iOS `displayedDotSize = max(arrowDotSize, 8)`
+    // (pt). On the SixRingOutdoor 80cm face (mmPerNormUnit=400) the raw
+    // geometric diameter is ~5.6 px on a 3x device — well under the floor —
+    // so a px-based floor of 8 collapses to ~2.7 dp and the dot disappears.
     val dotRadiusPx = (arrowDiameterMm / geometry.mmPerNormUnit * radiusPx)
         .toFloat()
-        .coerceAtLeast(8f) / 2f
+        .coerceAtLeast(8.dp.toPx()) / 2f
 
     if (multiSpot != null) {
         multiSpot.assignArrows(arrows).forEach { perSpot ->
@@ -385,11 +390,12 @@ internal fun DrawScope.drawArrowDot(
         )
     }
     // Index number — bold rounded font, only when the dot is large enough.
-    if (radius * 2f >= 12f) {
+    // Gate + text-size floor are in dp, not raw px (iOS uses pt; same idea).
+    if (radius * 2f >= 12.dp.toPx()) {
         drawIntoCanvas { canvas ->
             val paint = Paint().apply {
                 color = ringDotTextColor(ring).toArgb()
-                textSize = (radius * 0.9f).coerceAtLeast(7f)
+                textSize = (radius * 0.9f).coerceAtLeast(7.dp.toPx())
                 textAlign = Paint.Align.CENTER
                 typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
                 isAntiAlias = true
