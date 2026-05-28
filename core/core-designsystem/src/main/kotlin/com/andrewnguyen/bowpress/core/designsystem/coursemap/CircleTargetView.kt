@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -341,7 +340,6 @@ fun CircleLensView(snapshot: CircleLensSnapshot) {
         val lensSizePx = maxOf(with(density) { 120.dp.toPx() },
             snapshot.targetSize * LENS_SIZE_RATIO)
         val lensRadiusPx = lensSizePx / 2f
-        val zoomedTargetPx = snapshot.targetSize * LENS_ZOOM
 
         // Prefer the lens above the finger; flip below only if it would clip
         // the screen top.
@@ -359,14 +357,13 @@ fun CircleLensView(snapshot: CircleLensSnapshot) {
                 .coerceAtLeast(lensRadiusPx + edgeBufferPx),
         )
 
-        // Offset the zoomed target so the touch lands at the lens centre.
+        // Touch position relative to the target square's top-left, in pixels.
+        // Used to place the zoomed ring centre so the touched canvas point
+        // lands at the lens centre.
         val touchInTargetX = touch.x - snapshot.targetOriginRoot.x
         val touchInTargetY = touch.y - snapshot.targetOriginRoot.y
-        val contentOffsetX = lensRadiusPx - touchInTargetX * LENS_ZOOM
-        val contentOffsetY = lensRadiusPx - touchInTargetY * LENS_ZOOM
 
         val lensSizeDp = with(density) { lensSizePx.toDp() }
-        val zoomedTargetDp = with(density) { zoomedTargetPx.toDp() }
         val footprintDp = 22.dp
 
         // --- The loupe disc -------------------------------------------------
@@ -384,25 +381,44 @@ fun CircleLensView(snapshot: CircleLensSnapshot) {
                 .background(AppPaper)
                 .border(width = 1.dp, color = AppInk, shape = CircleShape),
         ) {
-            // Magnified slice of the target — a larger CircleTargetView shifted
-            // so the touch point lands at the lens centre. `requiredSize` (not
-            // `size`) so the zoomed target keeps its 2.5x dimensions even when
-            // the parent lens disc's constraints are much smaller; with a
-            // preferred `size` Compose would clamp the child to ~175dp and the
-            // offset would push it entirely outside the lens, leaving the lens
-            // visibly empty under the maple footprint ring.
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(contentOffsetX.toInt(), contentOffsetY.toInt())
+            // Magnified slice of the target — drawn DIRECTLY into a Canvas
+            // sized to the lens disc, with the rings positioned so the touched
+            // canvas point lands at the lens centre. Avoids the
+            // `.offset(...).requiredSize(zoomedTargetDp)` nesting that earlier
+            // fought Compose's layout/clip semantics and left the lens content
+            // visibly misaligned from the touch point.
+            val baseRZoomed = snapshot.targetSize * RADIUS_FRACTION * LENS_ZOOM
+            val canvasCenterInLens = Offset(
+                x = lensRadiusPx + (snapshot.targetSize / 2f - touchInTargetX) * LENS_ZOOM,
+                y = lensRadiusPx + (snapshot.targetSize / 2f - touchInTargetY) * LENS_ZOOM,
+            )
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val bands = snapshot.system.bands
+                val count = bands.size
+                for (index in bands.indices.reversed()) {
+                    val band = bands[index]
+                    val r = baseRZoomed * band.outerFraction.toFloat()
+                    drawCircle(color = AppCream, radius = r, center = canvasCenterInLens)
+                    val depth = if (count > 1) {
+                        (count - 1 - index).toFloat() / (count - 1).toFloat()
+                    } else {
+                        0f
                     }
-                    .requiredSize(zoomedTargetDp),
-            ) {
-                CircleTargetView(
-                    system = snapshot.system,
-                    arrows = emptyList(),
-                    showLabels = false,
-                )
+                    if (depth > 0f) {
+                        drawCircle(
+                            color = AppPondLt.copy(alpha = (depth * 0.5f).coerceIn(0f, 1f)),
+                            radius = r,
+                            center = canvasCenterInLens,
+                        )
+                    }
+                    drawCircle(
+                        color = AppLine,
+                        radius = r,
+                        center = canvasCenterInLens,
+                        style = Stroke(width = if (index == 0) 0.9f else 0.5f),
+                    )
+                }
+                drawCircle(color = AppInk, radius = 1.2f, center = canvasCenterInLens)
             }
             // Maple footprint ring + pin at the lens centre.
             //
