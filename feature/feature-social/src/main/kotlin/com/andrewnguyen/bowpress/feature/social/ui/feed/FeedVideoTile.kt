@@ -1,6 +1,7 @@
 package com.andrewnguyen.bowpress.feature.social.ui.feed
 
 import android.net.Uri
+import android.view.LayoutInflater
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -49,6 +51,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppPine
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.model.ActivityVideo
 import com.andrewnguyen.bowpress.core.model.VideoStatus
+import com.andrewnguyen.bowpress.feature.social.R
 
 // ── FeedVideoTimeRef ─────────────────────────────────────────────────────
 //
@@ -228,6 +231,8 @@ fun FeedVideoTile(
     Box(
         modifier = modifier
             .fillMaxSize()
+            // Belt-and-suspenders clip — see feed_video_player_view.xml.
+            .clipToBounds()
             .background(Color.Black)
             .onGloballyPositioned { coords ->
                 // Match iOS `onScrollVisibilityChange(threshold: 0.5)` —
@@ -252,15 +257,17 @@ fun FeedVideoTile(
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    setShutterBackgroundColor(android.graphics.Color.BLACK)
-                    // Match iOS resizeAspectFill — fill the pane and crop
-                    // overflowing edges, so a portrait card never letter-
-                    // boxes a landscape video horizontally.
-                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    this.player = player
-                }
+                // Inflate from XML so PlayerView uses TextureView (set via
+                // `app:surface_type="texture_view"`) — the default
+                // SurfaceView draws to its own window outside the View
+                // tree's clip, so the ZOOM resize mode's deliberately-
+                // oversized inner AspectRatioFrameLayout bled the video
+                // past the 300dp feed stage. TextureView is a normal View
+                // whose drawing is clipped by its parent.
+                val view = LayoutInflater.from(ctx)
+                    .inflate(R.layout.feed_video_player_view, null) as PlayerView
+                view.player = player
+                view
             },
             modifier = Modifier.fillMaxSize().clickableNoRipple(onTap),
             update = { it.player = player },
