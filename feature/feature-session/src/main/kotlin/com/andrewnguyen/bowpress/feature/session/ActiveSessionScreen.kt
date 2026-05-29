@@ -166,7 +166,10 @@ fun ActiveSessionScreen(
                 arrows = breakdown.inProgressArrows,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    // Snug under the config banner's bottom rule (the section
+                    // divider) — no second rule, no empty band.
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 4.dp, bottom = 14.dp),
             )
 
             TargetSection(
@@ -748,10 +751,12 @@ private fun RecentArrowsStrip(
     modifier: Modifier = Modifier,
 ) {
     Column(
+        // Only a bottom rule (separating the strip from the target). The
+        // section's top divider is the config banner's bottom rule above, so a
+        // top rule here would double up with an empty band between them.
         modifier = modifier
-            .drawTopHairline()
             .drawBottomHairline()
-            .padding(vertical = 12.dp),
+            .padding(bottom = 12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
