@@ -1039,7 +1039,27 @@ data class ActivityVideo(
     val status: VideoStatus = VideoStatus.unknown,
     val durationSeconds: Double? = null,
     val playbackUrl: String? = null,
+    /**
+     * Source pixel dimensions reported by Cloudflare Stream (API
+     * migration 0048). The authoritative aspect for laying out a video
+     * surface, since a streamed HLS asset can't be reliably measured on
+     * the client. null for pre-migration / not-yet-ready videos.
+     */
+    val width: Int? = null,
+    val height: Int? = null,
 ) {
+    /**
+     * width / height as a display aspect when the server reported both
+     * as positive; null → fall back to a measured / fixed aspect. Mirrors
+     * iOS `ActivityVideo.aspectRatio`.
+     */
+    val aspectRatio: Float?
+        get() {
+            val w = width
+            val h = height
+            return if (w != null && h != null && w > 0 && h > 0) w.toFloat() / h.toFloat() else null
+        }
+
     companion object {
         /**
          * Filters to videos that are actually playable, preserving the
