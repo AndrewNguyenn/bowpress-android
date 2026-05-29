@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -790,15 +792,19 @@ private fun RecentArrowsStrip(
 
         // One fixed-width cell per arrow actually plotted in this end — no
         // empty placeholder slots, so a 3-arrow end shows 3 cells. The last
-        // 6 are shown so a long end can't overflow the row.
+        // 6 are shown so a long end can't overflow the row. Cells butt together
+        // with 1dp shared dividers inside a single outer border, like the
+        // scorecard grid — no gaps, no per-cell boxes. IntrinsicSize.Min lets
+        // the dividers fill the cell height.
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .height(IntrinsicSize.Min)
+                .then(if (arrows.isEmpty()) Modifier else Modifier.border(1.dp, AppLine)),
         ) {
             if (arrows.isEmpty()) {
                 // Reserve one cell's height so the strip is the same height
                 // empty as with arrows — the target below never snaps when the
-                // first arrow lands.
+                // first arrow lands. No border while empty.
                 RecentCell(
                     ring = 11,
                     arrowNumber = 1,
@@ -808,6 +814,9 @@ private fun RecentArrowsStrip(
                 val shown = arrows.takeLast(6)
                 val baseNumber = arrows.size - shown.size
                 shown.forEachIndexed { i, arrow ->
+                    if (i > 0) {
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(AppLine))
+                    }
                     RecentCell(
                         ring = arrow.ring,
                         arrowNumber = baseNumber + i + 1,
@@ -836,9 +845,10 @@ private fun RecentCell(
         else -> "$ring" to AppInk
     }
     Column(
+        // No per-cell border — the row draws one outer border + shared
+        // dividers so the tiles connect like the scorecard grid.
         modifier = modifier
             .background(ringTint(ring))
-            .border(1.dp, AppLine)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
