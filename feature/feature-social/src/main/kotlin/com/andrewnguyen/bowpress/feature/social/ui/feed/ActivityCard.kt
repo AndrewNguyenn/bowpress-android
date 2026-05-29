@@ -155,6 +155,27 @@ data class Reactions(
     val onShowLikers: ((subjectId: String, likeCount: Int) -> Unit)? = null,
 )
 
+/**
+ * Flattens a caption's whitespace for display: every run of whitespace —
+ * spaces, tabs, and line breaks (including blank lines between paragraphs) —
+ * collapses to one space, with the ends trimmed. Mirrors the server's
+ * `collapseDescriptionWhitespace` so older posts — stored before the server
+ * flattened breaks — flow onto one line under the 2-line clamp instead of
+ * wasting it on a hard break. Returns null when nothing survives.
+ */
+internal fun collapseCaptionLines(raw: String?): String? {
+    if (raw == null) return null
+    // (?U) makes \s Unicode-aware (Java's default \s is ASCII-only), matching
+    // the server's JS /\s+/ and iOS .whitespacesAndNewlines — so non-ASCII
+    // whitespace like U+2028 (a real line break in Compose Text) is flattened
+    // too, not left to burn a clamp line.
+    val collapsed = raw
+        .split(Regex("(?U)\\s+"))
+        .filter { it.isNotEmpty() }
+        .joinToString(" ")
+    return collapsed.ifEmpty { null }
+}
+
 @Composable
 fun ActivityCard(
     item: ActivityItem,
@@ -426,9 +447,10 @@ private fun ActivityCardHeader(
             }
             // Migration 0039 — the post caption, a 2-line truncated line
             // under the headline; `@mentions` render as tappable pond-toned
-            // spans.
-            val description = item.session?.description
-            if (!description.isNullOrBlank()) {
+            // spans. collapseCaptionLines drops blank lines so a pre-cleanup
+            // post doesn't waste a rendered line on an empty gap.
+            val description = collapseCaptionLines(item.session?.description)
+            if (description != null) {
                 MentionBodyText(
                     text = description,
                     style = frauncesDisplay(12.5.sp, italic = true, weight = FontWeight.Normal)
