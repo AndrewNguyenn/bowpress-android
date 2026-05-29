@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.andrewnguyen.bowpress.core.data.export.ExportJobRepository
 import com.andrewnguyen.bowpress.core.data.repository.SocialRepository
 import com.andrewnguyen.bowpress.core.data.sync.SocialBadgeRefreshBus
+import com.andrewnguyen.bowpress.core.model.ActivityActor
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.ExportJob
 import com.andrewnguyen.bowpress.core.model.ExportJobState
@@ -369,4 +370,12 @@ class FeedViewModel @Inject constructor(
      */
     suspend fun toggleLike(subjectId: String, currentlyLiked: Boolean): ToggleLikeResponse =
         socialRepository.toggleLike(subjectId, currentlyLiked)
+
+    /**
+     * The full liker list for a subject (Social Feed V2 §6.4) — backs the
+     * tap-to-see-all kudos sheet. The feed card only carries the ≤3 most-recent
+     * `likers`; this fetches every archer who liked the post, newest-first.
+     */
+    suspend fun loadLikers(subjectId: String): List<ActivityActor> =
+        socialRepository.getActivityLikers(subjectId)
 }

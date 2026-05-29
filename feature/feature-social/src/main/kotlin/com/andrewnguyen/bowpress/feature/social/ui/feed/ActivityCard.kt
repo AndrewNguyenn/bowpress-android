@@ -145,6 +145,14 @@ data class Reactions(
      * unknown (e.g. previews); the stack then just bumps the count.
      */
     val selfActor: ActivityActor? = null,
+    /**
+     * §6.4 — tapping the kudos stack / "Name & N others" caption opens the
+     * full liker list. Receives the subjectId + the row's current (optimistic)
+     * like count, to seed the sheet header. Null leaves the caption inert (e.g.
+     * previews); the card only carries the 3-deep stack, so the rest are
+     * otherwise invisible.
+     */
+    val onShowLikers: ((subjectId: String, likeCount: Int) -> Unit)? = null,
 )
 
 @Composable
@@ -276,6 +284,7 @@ fun ActivityCard(
                 onToggleLike = reactions.onToggleLike,
                 onOpenComments = reactions.onOpenComments,
                 selfActor = reactions.selfActor,
+                onShowLikers = reactions.onShowLikers,
             )
         }
     }
@@ -1247,6 +1256,7 @@ private fun ReactionsBar(
     onToggleLike: suspend (String, Boolean) -> ToggleLikeResponse,
     onOpenComments: (String) -> Unit,
     selfActor: ActivityActor?,
+    onShowLikers: ((subjectId: String, likeCount: Int) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val subjectId = item.resolvedSubjectId
@@ -1275,6 +1285,10 @@ private fun ReactionsBar(
                 selfActor = selfActor,
             ),
             likeCount = likeCountState,
+            // §6.4 — when there are likes AND the host wired a handler, the
+            // kudos stack + caption open the full liker list on tap. Passes the
+            // optimistic count so the sheet header reads right immediately.
+            onClick = onShowLikers?.let { show -> { show(subjectId, likeCountState) } },
             modifier = Modifier
                 .weight(1f, fill = false)
                 .testTag(TestTags.FeedRowKudos),

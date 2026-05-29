@@ -2,6 +2,7 @@ package com.andrewnguyen.bowpress.feature.social.ui.feed
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -87,9 +89,23 @@ fun KudosRow(
     likers: List<ActivityActor>,
     likeCount: Int,
     modifier: Modifier = Modifier,
+    // §6.4 — when non-null AND there's at least one like, the whole row
+    // (avatar stack + caption) is tappable to open the full liker list. Null
+    // leaves it inert — the read-only contexts pass nothing.
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = modifier,
+        modifier = modifier.let {
+            if (onClick != null && likeCount > 0) {
+                it.clickable(
+                    onClickLabel = "See who liked this",
+                    role = Role.Button,
+                    onClick = onClick,
+                )
+            } else {
+                it
+            }
+        },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // "Be the first" shows ONLY when nothing has landed — a positive

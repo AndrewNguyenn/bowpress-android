@@ -184,6 +184,9 @@ object TestTags {
     const val CommentsSendButton: String = "comments_send_button"
     // Social Feed V2 Part 3 — comment threads & kudos.
     const val FeedRowKudos: String = "feed_row_kudos"
+    // §6.4 — the "who liked this" sheet behind a tapped kudos row.
+    const val LikersSheet: String = "likers_sheet"
+    const val LikersSheetRow: String = "likers_sheet_row"
     const val CommentsSortRecent: String = "comments_sort_recent"
     const val CommentsSortTop: String = "comments_sort_top"
     const val CommentRowLikeButton: String = "comment_row_like_button"

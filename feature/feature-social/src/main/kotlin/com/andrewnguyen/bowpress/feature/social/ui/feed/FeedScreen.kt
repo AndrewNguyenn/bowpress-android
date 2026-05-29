@@ -99,6 +99,11 @@ fun FeedScreen(
     // feed row's location tag opens it.
     var mapLocation by remember { mutableStateOf<SessionLocation?>(null) }
 
+    // §6.4 — the subject whose "who liked this" sheet is open, or null when
+    // none. Owned at screen scope so the sheet survives the source card
+    // scrolling out of the `LazyColumn`.
+    var likersTarget by remember { mutableStateOf<LikersTarget?>(null) }
+
     // §4 — the open photo-strip viewer request, or null when closed. Owned at
     // screen scope (not inside the `LazyColumn` card) so scrolling the source
     // card off-screen does not tear down the viewer mid-look.
@@ -326,6 +331,11 @@ fun FeedScreen(
                     reactions = Reactions(
                         onToggleLike = viewModel::toggleLike,
                         onOpenComments = openComments,
+                        // §6.4 — tapping the kudos stack / caption opens the
+                        // full liker list in a screen-scoped bottom sheet.
+                        onShowLikers = { sid, count ->
+                            likersTarget = LikersTarget(subjectId = sid, likeCount = count)
+                        },
                         // The signed-in caller, so an optimistic self-like puts
                         // the caller's own avatar into the kudos stack (M4).
                         selfActor = state.myProfile?.let { p ->
@@ -463,6 +473,16 @@ fun FeedScreen(
         )
     }
 
+    // §6.4 — the "who liked this" sheet behind a tapped kudos row.
+    likersTarget?.let { target ->
+        LikersBottomSheet(
+            subjectId = target.subjectId,
+            likeCount = target.likeCount,
+            onLoad = viewModel::loadLikers,
+            onDismiss = { likersTarget = null },
+        )
+    }
+
     // §4 — the full-screen photo viewer. Owned here at screen scope so it
     // survives the source card scrolling out of the `LazyColumn`.
     photoViewer?.let { req ->
@@ -491,6 +511,15 @@ fun FeedScreen(
  * the page to open on. [photos] is the already `ready`-filtered, position-
  * sorted list the source card passed up, so [startIndex] indexes it directly.
  */
+/**
+ * §6.4 — an open "who liked this" sheet: the like subject to fetch likers for,
+ * plus the row's known like count (seeds the sheet header before the fetch).
+ */
+private data class LikersTarget(
+    val subjectId: String,
+    val likeCount: Int,
+)
+
 private data class PhotoViewerRequest(
     val sharedSessionId: String,
     val photos: List<com.andrewnguyen.bowpress.core.model.ActivityPhoto>,
