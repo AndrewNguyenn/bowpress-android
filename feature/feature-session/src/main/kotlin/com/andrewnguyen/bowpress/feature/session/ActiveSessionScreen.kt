@@ -150,6 +150,24 @@ fun ActiveSessionScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
 
+            val breakdown = state.endsBreakdown
+
+            // In-progress end arrows — quick live feedback for the end being
+            // plotted right now (not the whole session). Sits ABOVE the target
+            // face so the archer can glance at the running end without looking
+            // past the face. Strip is read-only; a mis-tapped arrow in the
+            // current end is fixed via UNDO LAST, not the per-arrow edit sheet
+            // (which is wired through the completed-ends scorecard below).
+            // Mirrors iOS.
+            if (breakdown.inProgressArrows.isNotEmpty()) {
+                RecentArrowsStrip(
+                    arrows = breakdown.inProgressArrows,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                )
+            }
+
             TargetSection(
                 state = state,
                 onPlot = { plotX, plotY, ring, zone ->
@@ -160,8 +178,6 @@ fun ActiveSessionScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
-
-            val breakdown = state.endsBreakdown
 
             // Undo + Finish-End bar directly under the target — closes the
             // in-progress end and starts the next. Mirrors iOS undoEndButton
@@ -176,20 +192,6 @@ fun ActiveSessionScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
-
-            // In-progress end arrows — quick live feedback for the end being
-            // plotted right now (not the whole session). Strip is read-only;
-            // a mis-tapped arrow in the current end is fixed via UNDO LAST,
-            // not the per-arrow edit sheet (which is wired through the
-            // completed-ends scorecard below). Mirrors iOS.
-            if (breakdown.inProgressArrows.isNotEmpty()) {
-                RecentArrowsStrip(
-                    arrows = breakdown.inProgressArrows,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                )
-            }
 
             // Running ends-history scorecard — every completed end. Mirrors
             // iOS endsHistory. Tapping an end opens its actions; tapping a
