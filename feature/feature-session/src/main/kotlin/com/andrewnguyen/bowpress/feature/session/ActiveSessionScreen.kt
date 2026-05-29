@@ -38,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -66,6 +67,7 @@ import com.andrewnguyen.bowpress.core.designsystem.bp.BPEditLink
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPEyebrow
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetFace
 import com.andrewnguyen.bowpress.core.designsystem.bp.BPTargetStyle
+import com.andrewnguyen.bowpress.core.designsystem.bp.ringTint
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
 import com.andrewnguyen.bowpress.core.designsystem.interUI
 import com.andrewnguyen.bowpress.core.designsystem.jetbrainsMono
@@ -155,18 +157,17 @@ fun ActiveSessionScreen(
             // In-progress end arrows — quick live feedback for the end being
             // plotted right now (not the whole session). Sits ABOVE the target
             // face so the archer can glance at the running end without looking
-            // past the face. Strip is read-only; a mis-tapped arrow in the
-            // current end is fixed via UNDO LAST, not the per-arrow edit sheet
-            // (which is wired through the completed-ends scorecard below).
-            // Mirrors iOS.
-            if (breakdown.inProgressArrows.isNotEmpty()) {
-                RecentArrowsStrip(
-                    arrows = breakdown.inProgressArrows,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                )
-            }
+            // past the face. Always rendered (reserves its height even with no
+            // arrows yet) so the target doesn't snap down when the first arrow
+            // lands. Strip is read-only; a mis-tapped arrow in the current end
+            // is fixed via UNDO LAST, not the per-arrow edit sheet (which is
+            // wired through the completed-ends scorecard below). Mirrors iOS.
+            RecentArrowsStrip(
+                arrows = breakdown.inProgressArrows,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            )
 
             TargetSection(
                 state = state,
@@ -758,19 +759,23 @@ private fun RecentArrowsStrip(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             BPEyebrow("RECENT ARROWS")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = recentAvgString(arrows),
-                    style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
-                        .copy(color = AppPondDk),
-                )
-                Text(
-                    text = " AVG OF LAST ${minOf(6, arrows.size)}",
-                    style = interUI(8.5.sp, weight = FontWeight.SemiBold).copy(
-                        letterSpacing = 0.12.em,
-                        color = AppInk3,
-                    ),
-                )
+            // No average until there's at least one arrow — avoids a
+            // "0.0 AVG OF LAST 0" readout on the reserved empty strip.
+            if (arrows.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = recentAvgString(arrows),
+                        style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
+                            .copy(color = AppPondDk),
+                    )
+                    Text(
+                        text = " AVG OF LAST ${minOf(6, arrows.size)}",
+                        style = interUI(8.5.sp, weight = FontWeight.SemiBold).copy(
+                            letterSpacing = 0.12.em,
+                            color = AppInk3,
+                        ),
+                    )
+                }
             }
         }
 
@@ -783,38 +788,56 @@ private fun RecentArrowsStrip(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val shown = arrows.takeLast(6)
-            val baseNumber = arrows.size - shown.size
-            shown.forEachIndexed { i, arrow ->
+            if (arrows.isEmpty()) {
+                // Reserve one cell's height so the strip is the same height
+                // empty as with arrows — the target below never snaps when the
+                // first arrow lands.
                 RecentCell(
-                    arrow = arrow,
-                    arrowNumber = baseNumber + i + 1,
-                    modifier = Modifier.width(52.dp),
+                    ring = 11,
+                    arrowNumber = 1,
+                    modifier = Modifier.width(52.dp).alpha(0f),
                 )
+            } else {
+                val shown = arrows.takeLast(6)
+                val baseNumber = arrows.size - shown.size
+                shown.forEachIndexed { i, arrow ->
+                    RecentCell(
+                        ring = arrow.ring,
+                        arrowNumber = baseNumber + i + 1,
+                        modifier = Modifier.width(52.dp),
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * A single recent-arrow cell, styled like the scorecard's shot cell: per-ring
+ * tonal tint ([ringTint]) + the scorecard value/colour treatment (X→pond,
+ * miss→maple, else→ink), with the in-end position caption below.
+ */
 @Composable
 private fun RecentCell(
-    arrow: ArrowPlot,
+    ring: Int,
     arrowNumber: Int,
     modifier: Modifier = Modifier,
 ) {
-    val isX = arrow.ring == 11
-    val border = if (isX) AppPondDk else AppLine
-    val valueColor = if (isX) AppPondDk else AppInk
+    val (text, valueColor) = when {
+        ring == 11 -> "X" to AppPondDk
+        ring <= 0 -> "M" to AppMaple
+        else -> "$ring" to AppInk
+    }
     Column(
         modifier = modifier
-            .background(AppPaper)
-            .border(1.dp, border)
+            .background(ringTint(ring))
+            .border(1.dp, AppLine)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = ringLabel(arrow.ring),
-            style = frauncesDisplay(20.sp, italic = true, weight = FontWeight.Medium)
+            text = text,
+            style = frauncesDisplay(14.sp, italic = true, weight = FontWeight.Medium)
                 .copy(color = valueColor),
         )
         Spacer(Modifier.height(2.dp))
