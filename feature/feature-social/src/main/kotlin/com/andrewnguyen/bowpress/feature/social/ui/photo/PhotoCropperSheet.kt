@@ -109,7 +109,13 @@ fun PhotoCropperHost(
         }
         if (lastLaunchedId == pending.id) return@LaunchedEffect
         lastLaunchedId = pending.id
-        val params = CropParams(source = pending.source, mode = launch.mode)
+        // Normalise EXIF orientation upright BEFORE uCrop — uCrop's own parser
+        // misses orientation on some sources (HEIF, re-wrapped content:// URIs)
+        // and would otherwise bake + ship a sideways frame. No-op (returns the
+        // original Uri) when the source needs no rotation; the normaliser
+        // self-cleans its temp files, so there's nothing to track here.
+        val source = ImageOrientationNormalizer.normalizeForCrop(context, pending.source)
+        val params = CropParams(source = source, mode = launch.mode)
         launcher.launch(params)
     }
 }

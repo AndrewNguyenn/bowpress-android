@@ -20,6 +20,9 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    // Robust EXIF orientation read (content:// + HEIF) for ExifOrientation,
+    // shared by PhotoDownscaler and feature-social's ImageOrientationNormalizer.
+    implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
     // Social Feed V2 — building a raw-JPEG RequestBody for the photo upload

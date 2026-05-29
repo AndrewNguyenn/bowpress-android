@@ -47,6 +47,10 @@ playBilling = "7.1.1"
 playServicesLocation = "21.3.0"
 # uCrop — Mantis-equivalent crop step before session/avatar photo upload (D1).
 ucrop = "2.2.8"
+# androidx ExifInterface — robust orientation read across content:// + HEIF,
+# used to normalise a picked photo upright before uCrop (whose hand-rolled
+# parser misses orientation on some sources, shipping sideways frames).
+androidxExifinterface = "1.3.7"
 
 # Media3 — ExoPlayer (preview) + Transformer (trim/export) for the in-finish
 # video pick. Trimmer is Google's modern, actively-maintained replacement
@@ -147,6 +151,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 # (the repo is declared in settings.gradle.kts). Used by PhotoCropperSheet
 # to wrap an Activity-based crop with a Compose-friendly callback.
 ucrop = { group = "com.github.yalantis", name = "ucrop", version.ref = "ucrop" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "androidxExifinterface" }
 
 # Media3 — modern Google-blessed video stack. ExoPlayer drives the trim
 # sheet's preview pane; Transformer runs the frame-accurate trim export
