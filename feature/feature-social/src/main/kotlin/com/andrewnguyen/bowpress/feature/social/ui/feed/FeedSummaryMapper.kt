@@ -52,6 +52,7 @@ private fun FeedSummaryDay.toUi(now: LocalDate, zone: ZoneId): FeedSummaryUi.Day
         label = MON_FIRST_LETTERS[(localDate.dayOfWeek.value - 1).coerceIn(0, 6)],
         arrows = arrows,
         isToday = localDate == now,
+        dayOfMonth = localDate.dayOfMonth,
     )
 }
 

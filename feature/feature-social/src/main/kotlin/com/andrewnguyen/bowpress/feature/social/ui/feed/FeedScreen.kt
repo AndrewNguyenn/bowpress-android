@@ -79,6 +79,7 @@ fun FeedScreen(
     onActorClick: (String) -> Unit,
     onCommentsClick: (subjectId: String, ownerUserId: String) -> Unit,
     onBellClick: () -> Unit,
+    onStreakClick: () -> Unit = {},
     viewModel: FeedViewModel = hiltViewModel(),
     mentionResolver: com.andrewnguyen.bowpress.feature.social.ui.mentions.MentionResolverViewModel = hiltViewModel(),
 ) {
@@ -181,7 +182,8 @@ fun FeedScreen(
                         onOpenBest = summary.bestSession
                             ?.sharedSessionId
                             ?.let { sid -> { onSessionClick(sid, /* isOwn */ false) } },
-                        modifier = Modifier.padding(top = 12.dp),
+                        onOpenStreak = onStreakClick,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
             }

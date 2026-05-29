@@ -22,6 +22,7 @@ import com.andrewnguyen.bowpress.feature.social.ui.leagues.LeaguesScreen
 import com.andrewnguyen.bowpress.feature.social.ui.notifications.NotificationCenterScreen
 import com.andrewnguyen.bowpress.feature.social.ui.privacy.PrivacyScreen
 import com.andrewnguyen.bowpress.feature.social.ui.session.FriendSessionDetailScreen
+import com.andrewnguyen.bowpress.feature.social.ui.streak.StreakCalendarScreen
 import com.andrewnguyen.bowpress.feature.social.ui.you.YouScreen
 
 /**
@@ -68,6 +69,15 @@ fun NavGraphBuilder.socialNavGraph(
                 navController.navigate(SocialRoutes.comments(subjectId, ownerUserId))
             },
             onBellClick = { navController.navigate(SocialRoutes.NOTIFICATION_CENTER) },
+            onStreakClick = { navController.navigate(SocialRoutes.STREAK_CALENDAR) },
+        )
+    }
+
+    // ── Monthly streak calendar (This-week "See more") ─────────────────────────
+
+    composable(SocialRoutes.STREAK_CALENDAR) {
+        StreakCalendarScreen(
+            onBack = { navController.popBackStack() },
         )
     }
 

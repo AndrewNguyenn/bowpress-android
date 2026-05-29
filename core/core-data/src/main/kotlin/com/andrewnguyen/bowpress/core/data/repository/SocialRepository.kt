@@ -22,6 +22,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.FeedPage
 import com.andrewnguyen.bowpress.core.model.FeedSummary
+import com.andrewnguyen.bowpress.core.model.StreakCalendar
 import com.andrewnguyen.bowpress.core.model.CommentSort
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.BlockKind
@@ -480,6 +481,14 @@ class SocialRepository @Inject constructor(
      * every feed refresh. Caller is responsible for handling failures.
      */
     suspend fun getFeedSummary(): FeedSummary = api.getFeedSummary()
+
+    /**
+     * Monthly streak calendar behind the This-week card's "See more"
+     * (`GET /social/streak-calendar`). `month` is 1-based. Not cached —
+     * refetched per month the archer pages to.
+     */
+    suspend fun getStreakCalendar(year: Int, month: Int): StreakCalendar =
+        api.getStreakCalendar(year, month)
 
     // ── Invitations (§11) ──────────────────────────────────────────────────────
     //

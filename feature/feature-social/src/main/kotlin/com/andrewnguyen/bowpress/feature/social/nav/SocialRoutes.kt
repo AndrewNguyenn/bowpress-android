@@ -11,6 +11,9 @@ object SocialRoutes {
     // Notification center — opened from the bell in the feed top-nav.
     const val NOTIFICATION_CENTER = "social/notifications"
 
+    // Monthly streak calendar — opened from the This-week card's "See more".
+    const val STREAK_CALENDAR = "social/streak-calendar"
+
     // You (settings/profile)
     const val YOU = "social/you"
     const val YOU_PRIVACY = "social/you/privacy"

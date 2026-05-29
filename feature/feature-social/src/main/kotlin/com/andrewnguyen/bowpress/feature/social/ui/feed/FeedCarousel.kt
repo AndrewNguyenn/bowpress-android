@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
@@ -41,6 +45,7 @@ import com.andrewnguyen.bowpress.core.designsystem.AppInk2
 import com.andrewnguyen.bowpress.core.designsystem.AppInk3
 import com.andrewnguyen.bowpress.core.designsystem.AppLine
 import com.andrewnguyen.bowpress.core.designsystem.AppMaple
+import com.andrewnguyen.bowpress.core.designsystem.AppPaper
 import com.andrewnguyen.bowpress.core.designsystem.AppPaper2
 import com.andrewnguyen.bowpress.core.designsystem.AppPondDk
 import com.andrewnguyen.bowpress.core.designsystem.frauncesDisplay
@@ -82,7 +87,7 @@ data class FeedSummaryUi(
 ) {
     enum class OpeningCard { ThisWeek, Snapshot, BestSession, Insight }
 
-    data class Day(val label: String, val arrows: Int, val isToday: Boolean = false)
+    data class Day(val label: String, val arrows: Int, val isToday: Boolean = false, val dayOfMonth: Int = 0)
 
     data class ThisWeek(
         val weekStreak: Int,
@@ -173,13 +178,13 @@ data class FeedSummaryUi(
                 totalArrows = 184,
                 sessionCount = 4,
                 days = listOf(
-                    Day("M", 36),
-                    Day("T", 0),
-                    Day("W", 48),
-                    Day("T", 0),
-                    Day("F", 42),
-                    Day("S", 58, isToday = true),
-                    Day("S", 0),
+                    Day("M", 36, dayOfMonth = 25),
+                    Day("T", 0, dayOfMonth = 26),
+                    Day("W", 48, dayOfMonth = 27),
+                    Day("T", 0, dayOfMonth = 28),
+                    Day("F", 42, dayOfMonth = 29),
+                    Day("S", 58, isToday = true, dayOfMonth = 30),
+                    Day("S", 0, dayOfMonth = 31),
                 ),
             ),
             snapshot = Snapshot(
@@ -256,15 +261,16 @@ sealed class FeedSummaryCardUi {
 fun FeedCarousel(
     summary: FeedSummaryUi,
     onOpenBest: (() -> Unit)? = null,
+    onOpenStreak: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val cards = summary.cards
     if (cards.isEmpty()) return
 
     Column(modifier = modifier.testTag("socialFeedCarousel")) {
-        val pagerState = rememberPagerState(
-            initialPage = summary.openingIndex.coerceAtMost(maxOf(0, cards.size - 1)),
-        ) { cards.size }
+        // Always open on the leftmost card — the prior server-side opening
+        // rule landed mid-carousel, which read as "starting on the right".
+        val pagerState = rememberPagerState(initialPage = 0) { cards.size }
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
@@ -272,18 +278,18 @@ fun FeedCarousel(
                 .height(CardHeight),
         ) { idx ->
             val card = cards[idx]
-            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                when (card) {
-                    is FeedSummaryCardUi.ThisWeekCard -> ThisWeekCard(card.data)
-                    is FeedSummaryCardUi.SnapshotCard -> WeeklySnapshotCard(card.data)
-                    is FeedSummaryCardUi.BestSessionCard -> BestSessionCard(
-                        data = card.data,
-                        // iOS parity — only render the "Open ›" link when
-                        // the card has a destination AND an outer handler.
-                        onOpen = if (card.data.sharedSessionId != null) onOpenBest else null,
-                    )
-                    is FeedSummaryCardUi.InsightCard -> TuningInsightCard(card.data)
-                }
+            // Full-bleed like the activity rows below — the card's own
+            // border meets the screen edge (no inset gutter).
+            when (card) {
+                is FeedSummaryCardUi.ThisWeekCard -> ThisWeekCard(card.data, onSeeMore = onOpenStreak)
+                is FeedSummaryCardUi.SnapshotCard -> WeeklySnapshotCard(card.data)
+                is FeedSummaryCardUi.BestSessionCard -> BestSessionCard(
+                    data = card.data,
+                    // iOS parity — only render the "Open ›" link when
+                    // the card has a destination AND an outer handler.
+                    onOpen = if (card.data.sharedSessionId != null) onOpenBest else null,
+                )
+                is FeedSummaryCardUi.InsightCard -> TuningInsightCard(card.data)
             }
         }
 
@@ -320,7 +326,7 @@ fun FeedCarousel(
  * grid) so smaller cards (notably BestSession) don't have the ~40dp of
  * dead space the old 200dp value left below their footer.
  */
-private val CardHeight = 172.dp
+private val CardHeight = 158.dp
 
 // ── Shared chrome ────────────────────────────────────────────────────────────
 
@@ -391,62 +397,123 @@ private fun CardFrame(content: @Composable () -> Unit) {
 // ── 01 · This week ───────────────────────────────────────────────────────────
 
 @Composable
-private fun ThisWeekCard(data: FeedSummaryUi.ThisWeek) {
+private fun ThisWeekCard(data: FeedSummaryUi.ThisWeek, onSeeMore: (() -> Unit)? = null) {
     CardFrame {
         CardHeader(
-            eyebrow = "This week",
-            detail = "${data.sessionCount} sessions · ${data.totalArrows} arrows",
+            eyebrow = "This week", detail = "streak",
+            linkLabel = "See more", onLink = onSeeMore,
         )
-        // 7-day bar row. Max bar maps to the tallest bar in the window so
-        // a 12-arrow day in a quiet week still reads.
-        val maxArrows = (data.days.maxOfOrNull { it.arrows } ?: 0).coerceAtLeast(1)
+        // Maple flame + week-streak count on the left; the 7-day Mon-Sun
+        // strip (target glyph for a day shot, date number for a miss,
+        // today ringed) fills the rest. Mirrors the iOS streak module.
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            data.days.forEach { day ->
-                val ratio = day.arrows.toFloat() / maxArrows
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.width(20.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(10.dp)
-                            .height((ratio * 48f).dp.coerceAtLeast(if (day.arrows > 0) 4.dp else 1.dp))
-                            .background(
-                                when {
-                                    day.arrows == 0 -> AppLine
-                                    day.isToday -> AppPondDk
-                                    else -> AppInk2
-                                },
-                            ),
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = day.label,
-                        style = jetbrainsMono(8.5.sp),
-                        color = if (day.isToday) AppPondDk else AppInk3,
+            StreakMark(weekStreak = data.weekStreak)
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                data.days.forEach { day -> DayCell(day, Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+/** Stacked upward chevrons + the consecutive-week count — a momentum cue
+ *  in the maple accent, on-palette (no literal flame). */
+@Composable
+private fun StreakMark(weekStreak: Int) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy((-6).dp),
+            ) {
+                repeat(3) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = AppMaple,
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "${data.weekStreak}",
-                style = frauncesDisplay(22.sp, weight = FontWeight.Medium),
-                color = AppPondDk,
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = if (data.weekStreak == 1) "week streak" else "weeks streak",
-                style = interUI(10.sp, FontWeight.SemiBold).copy(letterSpacing = 0.2.em),
-                color = AppInk3,
+                text = "$weekStreak",
+                style = interUI(24.sp, FontWeight.Bold),
+                color = AppInk,
             )
         }
+        Text(
+            text = "Weeks",
+            style = interUI(10.sp, FontWeight.SemiBold),
+            color = AppMaple,
+        )
+    }
+}
+
+/** One day in the week strip: weekday letter over a 30dp circle. */
+@Composable
+private fun DayCell(day: FeedSummaryUi.Day, modifier: Modifier = Modifier) {
+    val shot = day.arrows > 0
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = day.label,
+            style = interUI(8.5.sp, FontWeight.SemiBold).copy(letterSpacing = 0.16.em),
+            color = if (day.isToday) AppPondDk else AppInk3,
+        )
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(30.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(if (shot) AppPondDk else Color.Transparent)
+                    .border(
+                        width = if (day.isToday) 1.5.dp else 1.dp,
+                        color = if (day.isToday) AppMaple else AppLine,
+                        shape = CircleShape,
+                    ),
+            )
+            if (shot) {
+                TargetGlyph()
+            } else {
+                Text(
+                    text = "${day.dayOfMonth}",
+                    style = jetbrainsMono(10.sp, FontWeight.Medium),
+                    color = if (day.isToday) AppInk else AppInk2,
+                )
+            }
+        }
+    }
+}
+
+/** Tiny bullseye drawn in paper on a filled "shot" circle. */
+@Composable
+private fun TargetGlyph() {
+    Box(contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .size(13.dp)
+                .clip(CircleShape)
+                .border(1.4.dp, AppPaper, CircleShape),
+        )
+        Box(
+            modifier = Modifier
+                .size(4.5.dp)
+                .clip(CircleShape)
+                .background(AppPaper),
+        )
     }
 }
 

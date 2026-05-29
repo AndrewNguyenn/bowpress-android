@@ -7,6 +7,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityComment
 import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.FeedPage
 import com.andrewnguyen.bowpress.core.model.FeedSummary
+import com.andrewnguyen.bowpress.core.model.StreakCalendar
 import com.andrewnguyen.bowpress.core.model.AdminMatrix
 import com.andrewnguyen.bowpress.core.model.AnalyticsOverview
 import com.andrewnguyen.bowpress.core.model.AnalyticsSuggestion
@@ -531,6 +532,17 @@ interface BowPressApi {
      */
     @GET("social/feed-summary")
     suspend fun getFeedSummary(): FeedSummary
+
+    /**
+     * Monthly streak calendar behind the This-week card's "See more".
+     * `month` is 1-based. Mirrors iOS `fetchStreakCalendar` and the API
+     * `GET /social/streak-calendar` contract.
+     */
+    @GET("social/streak-calendar")
+    suspend fun getStreakCalendar(
+        @Query("year") year: Int,
+        @Query("month") month: Int,
+    ): StreakCalendar
 
     // ---- Social — Invitations (§11) --------------------------------------------
 
