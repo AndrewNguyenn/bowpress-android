@@ -271,21 +271,11 @@ fun ActivityCard(
         if (item.session != null && reactions != null) {
             // Reactions bar — top hairline, then the borderless action row.
             HorizontalDivider(color = AppLine2, thickness = 1.dp)
-            // Derive the right-side tag from the card kind: a range
-            // session with media reads "Session", a range without media
-            // reads "Scorecard", a 3D course reads "Course". `hasMedia`
-            // factors in the video tile (now wired) AND photos. Use the
-            // effective (404-filtered) list so a card whose only photos went
-            // missing — and thus collapsed to the scorecard body — also tags
-            // "Scorecard", matching the body and iOS.
-            val hasMedia = effectiveReadyPhotos.isNotEmpty() || videoAttachment != null
-            val cardTag = cardKindTag(item, hasMedia = hasMedia)
             ReactionsBar(
                 item = item,
                 onToggleLike = reactions.onToggleLike,
                 onOpenComments = reactions.onOpenComments,
                 selfActor = reactions.selfActor,
-                tag = cardTag,
             )
         }
     }
@@ -298,22 +288,6 @@ fun ActivityCard(
             )
         }
     }
-}
-
-/**
- * Resolves the right-side reactions-bar label for a feed card. Mirrors iOS
- * `cardTag` in `SocialTabView.swift`: a range session with media reads
- * "Session", a range without media reads "Scorecard", a 3D course reads
- * "Course", a non-session row passes through as null. The caller owns the
- * `hasMedia` definition (today: photos only; tomorrow: photos OR video).
- */
-private fun cardKindTag(
-    item: ActivityItem,
-    hasMedia: Boolean,
-): String? {
-    val session = item.session ?: return null
-    if (session.isCourse) return "Course"
-    return if (hasMedia) "Session" else "Scorecard"
 }
 
 // ── Header ───────────────────────────────────────────────────────────────────
@@ -1273,7 +1247,6 @@ private fun ReactionsBar(
     onToggleLike: suspend (String, Boolean) -> ToggleLikeResponse,
     onOpenComments: (String) -> Unit,
     selfActor: ActivityActor?,
-    tag: String? = null,
 ) {
     val scope = rememberCoroutineScope()
     val subjectId = item.resolvedSubjectId
@@ -1359,16 +1332,6 @@ private fun ReactionsBar(
                 testTag = TestTags.FeedRowCommentButton,
                 onClick = { onOpenComments(subjectId) },
             )
-            // The design's right-side `.tag` label naming the card kind
-            // ("Session" / "Scorecard" / "Course"). Hidden when null.
-            if (!tag.isNullOrBlank()) {
-                Spacer(Modifier.width(14.dp))
-                Text(
-                    text = tag.uppercase(),
-                    style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.20.em),
-                    color = AppInk3,
-                )
-            }
         }
     }
 }
