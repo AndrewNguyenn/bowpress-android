@@ -357,7 +357,7 @@ private fun ActivityCardHeader(
         modifier = Modifier.padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // 32dp avatar — pond/pine border, paper-2 ground, italic Fraunces initials.
+        // 56dp avatar — pond/pine border, paper-2 ground, italic Fraunces initials.
         // Parity E5 — when the API ships an avatarUrl, render the URL with
         // ?v=<avatarVersion> as a cache-buster; fall back to initials otherwise.
         SocialAvatarImage(
@@ -365,7 +365,7 @@ private fun ActivityCardHeader(
             userId = item.actorUserId.takeIf { it.isNotBlank() },
             avatarUrl = item.actorAvatarUrl,
             avatarVersion = item.actorAvatarVersion,
-            size = 32,
+            size = 56,
             borderTint = avatarColor,
             modifier = if (actorTap != null) Modifier.clickable(onClick = actorTap) else Modifier,
         )
