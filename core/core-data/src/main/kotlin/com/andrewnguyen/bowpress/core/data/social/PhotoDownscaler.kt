@@ -3,8 +3,6 @@ package com.andrewnguyen.bowpress.core.data.social
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -64,7 +62,7 @@ class PhotoDownscaler @Inject constructor(
                 BitmapFactory.decodeStream(it, null, decodeOptions)
             } ?: return@runCatching null
 
-            val oriented = applyExifOrientation(uri, decoded)
+            val oriented = ExifOrientation.applied(context, uri, decoded)
             val scaled = scaleLongEdge(oriented, maxLongEdge)
 
             ByteArrayOutputStream().use { out ->
@@ -95,29 +93,6 @@ class PhotoDownscaler @Inject constructor(
             (bitmap.height * ratio).toInt().coerceAtLeast(1),
             /* filter = */ true,
         )
-    }
-
-    /** Rotate [bitmap] to match the source image's EXIF orientation tag. */
-    private fun applyExifOrientation(uri: Uri, bitmap: Bitmap): Bitmap {
-        val orientation = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { stream ->
-                ExifInterface(stream).getAttributeInt(
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_NORMAL,
-                )
-            } ?: ExifInterface.ORIENTATION_NORMAL
-        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
-
-        val matrix = Matrix()
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
-            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
-            else -> return bitmap
-        }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
     companion object {
