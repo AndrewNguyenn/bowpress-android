@@ -759,23 +759,25 @@ private fun RecentArrowsStrip(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             BPEyebrow("RECENT ARROWS")
-            // No average until there's at least one arrow — avoids a
-            // "0.0 AVG OF LAST 0" readout on the reserved empty strip.
-            if (arrows.isNotEmpty()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = recentAvgString(arrows),
-                        style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
-                            .copy(color = AppPondDk),
-                    )
-                    Text(
-                        text = " AVG OF LAST ${minOf(6, arrows.size)}",
-                        style = interUI(8.5.sp, weight = FontWeight.SemiBold).copy(
-                            letterSpacing = 0.12.em,
-                            color = AppInk3,
-                        ),
-                    )
-                }
+            // Always laid out (so the header height — and the target below —
+            // don't shift when the first arrow lands), but hidden until there's
+            // an arrow so we never show "0.0 AVG OF LAST 0".
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.alpha(if (arrows.isEmpty()) 0f else 1f),
+            ) {
+                Text(
+                    text = recentAvgString(arrows),
+                    style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
+                        .copy(color = AppPondDk),
+                )
+                Text(
+                    text = " AVG OF LAST ${minOf(6, arrows.size)}",
+                    style = interUI(8.5.sp, weight = FontWeight.SemiBold).copy(
+                        letterSpacing = 0.12.em,
+                        color = AppInk3,
+                    ),
+                )
             }
         }
 
