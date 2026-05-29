@@ -61,6 +61,7 @@ import com.andrewnguyen.bowpress.core.model.ActivityItem
 import com.andrewnguyen.bowpress.core.model.SessionLocation
 import com.andrewnguyen.bowpress.feature.social.ui.EmptyAction
 import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatar
+import com.andrewnguyen.bowpress.feature.social.ui.SocialAvatarImage
 import com.andrewnguyen.bowpress.feature.social.ui.SocialEmptyState
 import com.andrewnguyen.bowpress.feature.social.ui.avatarInitials
 import com.andrewnguyen.bowpress.feature.social.ui.location.LocationMapSheet
@@ -130,15 +131,13 @@ fun FeedScreen(
             friendCount = state.friends.size,
             clubCount = state.clubs.size,
             leagueCount = state.leagues.size,
-            // Avatar pill in the top nav — fall back to em-dash (not "?") so
-            // the cluster looks calm before the profile hydrates. iOS hard-
-            // codes "AN" here; an em-dash is the closest no-info equivalent
-            // we can show without inventing initials we don't know.
-            myInitials = state.myProfile
-                ?.displayName
-                ?.takeIf { it.isNotBlank() }
-                ?.let { avatarInitials(it) }
-                ?: "—",
+            // Avatar pill in the top nav — show the user's profile photo when
+            // it exists, falling back to initials, then to a calm em-dash
+            // before the profile hydrates (see FeedTopNav).
+            myDisplayName = state.myProfile?.displayName.orEmpty(),
+            myUserId = state.myProfile?.userId,
+            myAvatarUrl = state.myProfile?.avatarUrl,
+            myAvatarVersion = state.myProfile?.avatarVersion,
             notificationCount = pendingCount,
             pendingFriendRequests = state.pendingIncomingFriendRequests,
             pendingClubInvites = state.pendingClubInvites,
@@ -564,7 +563,10 @@ private fun FeedTopNav(
     friendCount: Int,
     clubCount: Int,
     leagueCount: Int,
-    myInitials: String,
+    myDisplayName: String,
+    myUserId: String?,
+    myAvatarUrl: String?,
+    myAvatarVersion: Int?,
     notificationCount: Int,
     pendingFriendRequests: Int,
     pendingClubInvites: Int,
@@ -650,20 +652,41 @@ private fun FeedTopNav(
                     )
                 }
             }
-            // Avatar button → You screen
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .border(1.dp, AppPondDk)
-                    .background(AppPaper2)
-                    .clickable(onClick = onAvatarClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = myInitials,
-                    style = frauncesDisplay(13.sp),
-                    color = AppPondDk,
+            // Avatar button → You screen. iOS parity — render the user's
+            // profile photo when we have one, falling back to initials.
+            // SocialAvatarImage keeps the same 32dp square + pond-dk border +
+            // paper-2 ground as the prior monogram box, so the cluster's
+            // visual rhythm is unchanged when the photo is absent.
+            //
+            // Until we have something real to draw — a photo or a non-blank
+            // name — keep the calm em-dash placeholder (not "?") rather than
+            // handing a blank name to SocialAvatarImage's initials fallback,
+            // which would resolve to "?".
+            if (myDisplayName.isNotBlank() || myAvatarUrl != null || myAvatarVersion != null) {
+                SocialAvatarImage(
+                    displayName = myDisplayName,
+                    userId = myUserId,
+                    avatarUrl = myAvatarUrl,
+                    avatarVersion = myAvatarVersion,
+                    size = 32,
+                    borderTint = AppPondDk,
+                    modifier = Modifier.clickable(onClick = onAvatarClick),
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .border(1.dp, AppPondDk)
+                        .background(AppPaper2)
+                        .clickable(onClick = onAvatarClick),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "—",
+                        style = frauncesDisplay(13.sp),
+                        color = AppPondDk,
+                    )
+                }
             }
         }
     }
