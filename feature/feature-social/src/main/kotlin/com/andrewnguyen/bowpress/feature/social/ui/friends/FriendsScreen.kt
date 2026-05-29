@@ -69,6 +69,13 @@ fun FriendsScreen(
     val state by viewModel.friendsState.collectAsState()
     val searchState by viewModel.searchState.collectAsState()
 
+    // Set of userIds the signed-in archer is already connected to — drives the
+    // per-row FRIENDS pill in the suggestion list so a fuzzy hit on an existing
+    // friend can't be re-requested. Mirrors iOS AddFriendSheet.existingFriendUserIds.
+    val friendUserIds = remember(state.friends) {
+        state.friends.mapTo(HashSet()) { it.otherUserId }
+    }
+
     // Parity E9 — live, debounced (250ms) substring fuzzy search. Every
     // keystroke kicks `searchSuggestions`; the view model handles the
     // empty-query short-circuit. Mirrors iOS commit 5bcf33a.
@@ -178,6 +185,7 @@ fun FriendsScreen(
                             // sentHandles set the VM updates on a successful
                             // sendFriendRequest.
                             requestSent = hit.handle in searchState.sentHandles,
+                            alreadyFriend = hit.userId in friendUserIds,
                             onAdd = { viewModel.sendFriendRequest(hit.handle) },
                             onOpen = { onFriendClick(hit.userId) },
                         )
@@ -266,6 +274,7 @@ fun FriendsScreen(
 private fun SuggestionRow(
     suggestion: HandleSuggestion,
     requestSent: Boolean,
+    alreadyFriend: Boolean,
     onAdd: () -> Unit,
     onOpen: () -> Unit,
 ) {
@@ -282,8 +291,16 @@ private fun SuggestionRow(
             Text(suggestion.displayName, style = frauncesDisplay(14.sp), color = AppInk)
             Text("@${suggestion.handle}", style = jetbrainsMono(9.5.sp), color = AppInk3)
         }
-        if (requestSent) {
-            Text(
+        when {
+            alreadyFriend -> Text(
+                "FRIENDS",
+                style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
+                color = AppInk3,
+                modifier = Modifier
+                    .border(1.dp, AppInk3)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+            requestSent -> Text(
                 "SENT",
                 style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
                 color = AppStone,
@@ -291,8 +308,7 @@ private fun SuggestionRow(
                     .border(1.dp, AppStone)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             )
-        } else {
-            Text(
+            else -> Text(
                 "CONNECT",
                 style = interUI(9.sp, FontWeight.SemiBold).copy(letterSpacing = 0.22.em),
                 color = AppPondDk,
