@@ -163,6 +163,7 @@ internal fun PhotoStrip(
     onOpenViewer: (startIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
     fillMode: PhotoStripFillMode = PhotoStripFillMode.Aspect,
+    onPhotoUnavailable: ((String) -> Unit)? = null,
 ) {
     val layout = photoStripLayout(readyPhotos.size) ?: return
 
@@ -195,6 +196,7 @@ internal fun PhotoStrip(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(cellAspect(4f / 3f)),
+                onUnavailable = onPhotoUnavailable,
             )
 
             is PhotoStripLayout.Pair -> Row(
@@ -208,6 +210,7 @@ internal fun PhotoStrip(
                         modifier = Modifier
                             .weight(1f)
                             .then(cellAspect(1f)),
+                        onUnavailable = onPhotoUnavailable,
                     )
                 }
             }
@@ -232,6 +235,7 @@ internal fun PhotoStrip(
                         sharedSessionId, readyPhotos[0], loader,
                         onClick = { onOpenViewer(0) },
                         modifier = Modifier.fillMaxSize(),
+                        onUnavailable = onPhotoUnavailable,
                     )
                 }
                 Column(
@@ -248,6 +252,7 @@ internal fun PhotoStrip(
                                 PhotoStripFillMode.Pane ->
                                     Modifier.fillMaxWidth().weight(1f)
                             },
+                            onUnavailable = onPhotoUnavailable,
                         )
                     }
                 }
@@ -281,6 +286,7 @@ internal fun PhotoStrip(
                                     sharedSessionId, readyPhotos[cellIndex], loader,
                                     onClick = { onOpenViewer(cellIndex) },
                                     modifier = Modifier.fillMaxSize(),
+                                    onUnavailable = onPhotoUnavailable,
                                 )
                                 if (showOverflow) {
                                     MoreOverlay(count = layout.overflow)
@@ -310,6 +316,7 @@ private fun Cell(
     loader: SessionPhotoLoader,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onUnavailable: ((String) -> Unit)? = null,
 ) {
     RemoteSessionPhoto(
         sharedSessionId = sharedSessionId,
@@ -318,6 +325,7 @@ private fun Cell(
         background = AppPaper2,
         border = false,
         modifier = modifier.clickable(onClick = onClick),
+        onUnavailable = onUnavailable,
     )
 }
 

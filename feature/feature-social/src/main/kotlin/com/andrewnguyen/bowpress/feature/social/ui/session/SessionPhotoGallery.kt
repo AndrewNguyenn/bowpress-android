@@ -79,6 +79,14 @@ private sealed interface PhotoLoadState {
  * `false` for the photo strip, whose 1dp grid seams come from the strip's own
  * `AppLine` background showing through the gutters (a per-cell border there
  * would double the internal seams and add a 4-side outer frame).
+ *
+ * [onUnavailable] fires with [photo.id] once the tile resolves to the
+ * placeholder state — i.e. the feed believed the photo was `ready` but its
+ * bytes 404 / fail to decode (e.g. a partially-completed delete left an
+ * orphaned `ready` row). The feed card uses this to drop the photo and fall
+ * back to the full-width scorecard instead of showing a blank pane. Defaults
+ * to null — contexts that should keep showing the placeholder (detail gallery,
+ * full-screen viewer) simply don't pass it.
  */
 @Composable
 fun RemoteSessionPhoto(
@@ -89,6 +97,7 @@ fun RemoteSessionPhoto(
     contentScale: ContentScale = ContentScale.Crop,
     background: androidx.compose.ui.graphics.Color = AppCream,
     border: Boolean = true,
+    onUnavailable: ((String) -> Unit)? = null,
 ) {
     var state by remember(sharedSessionId, photo.id) {
         mutableStateOf<PhotoLoadState>(PhotoLoadState.Loading)
@@ -97,22 +106,26 @@ fun RemoteSessionPhoto(
     LaunchedEffect(sharedSessionId, photo.id, photo.status) {
         if (photo.status != PhotoStatus.ready) {
             // pending → keep the spinner; failed/unknown → placeholder.
-            state = if (photo.status == PhotoStatus.pending) {
-                PhotoLoadState.Loading
+            if (photo.status == PhotoStatus.pending) {
+                state = PhotoLoadState.Loading
             } else {
-                PhotoLoadState.Unavailable
+                state = PhotoLoadState.Unavailable
+                onUnavailable?.invoke(photo.id)
             }
             return@LaunchedEffect
         }
         state = PhotoLoadState.Loading
         val bytes = loader.load(sharedSessionId, photo.id)
-        state = if (bytes != null) {
+        val resolved = if (bytes != null) {
             val bmp = runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
                 .getOrNull()
             if (bmp != null) PhotoLoadState.Loaded(bmp.asImageBitmap()) else PhotoLoadState.Unavailable
         } else {
             PhotoLoadState.Unavailable
         }
+        state = resolved
+        // A `ready` photo whose bytes are gone — let the host collapse it.
+        if (resolved is PhotoLoadState.Unavailable) onUnavailable?.invoke(photo.id)
     }
 
     Box(

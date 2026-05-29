@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -238,17 +239,28 @@ fun ActivityCard(
                 ?.sortedBy { it.position }
                 .orEmpty()
         }
+        // A photo the feed marked `ready` whose bytes 404 at fetch time (e.g. a
+        // partially-completed delete left an orphaned `ready` row server-side).
+        // Drop those from the SINGLE shared list so the card collapses to the
+        // full-width scorecard AND cell-tap indices still line up with the
+        // viewer's pages (the divergence the comment above warns about). Keyed
+        // on the session so it resets per card.
+        val unavailablePhotoIds = remember(session?.sharedSessionId) { mutableStateListOf<String>() }
+        val effectiveReadyPhotos = readyPhotos.filter { it.id !in unavailablePhotoIds }
         ActivityCardBody(
             item = item,
             preview = preview,
             photoLoader = photoLoader,
-            readyPhotos = readyPhotos,
+            readyPhotos = effectiveReadyPhotos,
             onOpenPhotoViewer = { index ->
                 if (session != null) {
-                    onOpenPhotoViewer(session.sharedSessionId, readyPhotos, index)
+                    onOpenPhotoViewer(session.sharedSessionId, effectiveReadyPhotos, index)
                 }
             },
             videoAttachment = videoAttachment,
+            onPhotoUnavailable = { id ->
+                if (id !in unavailablePhotoIds) unavailablePhotoIds.add(id)
+            },
         )
         // The reactions bar shows ONLY on a session card AND only when a
         // caller supplies a [Reactions] bundle. iOS parity (A5): the Log
@@ -262,8 +274,11 @@ fun ActivityCard(
             // Derive the right-side tag from the card kind: a range
             // session with media reads "Session", a range without media
             // reads "Scorecard", a 3D course reads "Course". `hasMedia`
-            // factors in the video tile (now wired) AND photos.
-            val hasMedia = readyPhotos.isNotEmpty() || videoAttachment != null
+            // factors in the video tile (now wired) AND photos. Use the
+            // effective (404-filtered) list so a card whose only photos went
+            // missing — and thus collapsed to the scorecard body — also tags
+            // "Scorecard", matching the body and iOS.
+            val hasMedia = effectiveReadyPhotos.isNotEmpty() || videoAttachment != null
             val cardTag = cardKindTag(item, hasMedia = hasMedia)
             ReactionsBar(
                 item = item,
@@ -566,6 +581,7 @@ private fun ActivityCardBody(
     readyPhotos: List<ActivityPhoto>,
     onOpenPhotoViewer: (startIndex: Int) -> Unit,
     videoAttachment: VideoAttachment?,
+    onPhotoUnavailable: (String) -> Unit = {},
 ) {
     when (preview) {
         is ActivityPreview.Target -> RangeSessionBody(
@@ -595,6 +611,7 @@ private fun ActivityCardBody(
             photoLoader = photoLoader,
             onOpenPhotoViewer = onOpenPhotoViewer,
             videoAttachment = videoAttachment,
+            onPhotoUnavailable = onPhotoUnavailable,
         )
         is ActivityPreview.Course -> CourseCardBody(
             score = preview.score,
@@ -639,6 +656,7 @@ private fun RangeSessionBody(
     photoLoader: SessionPhotoLoader? = null,
     onOpenPhotoViewer: (startIndex: Int) -> Unit = {},
     videoAttachment: VideoAttachment? = null,
+    onPhotoUnavailable: (String) -> Unit = {},
 ) {
     val ends = endRings.orEmpty()
     // §B2 — structured field is authoritative; fall back to the legacy
@@ -647,6 +665,8 @@ private fun RangeSessionBody(
     // §B3 — 6-ring at 50/70m → outdoor80 7-zone variant; everything else
     // (20yd or unknown) → Vegas 6-zone. tenRing is distance-invariant.
     val sixRingStyle = sixRingVisualStyleForFeed(distance)
+    // [readyPhotos] is already filtered upstream to exclude photos whose bytes
+    // 404'd (see the caller) so the same list drives the strip and the viewer.
     val hasPhotos = sharedSessionId != null && photoLoader != null && readyPhotos.isNotEmpty()
     val hasVideo = videoAttachment != null
     val hasMedia = hasPhotos || hasVideo
@@ -678,6 +698,7 @@ private fun RangeSessionBody(
                 photoLoader = photoLoader,
                 onOpenPhotoViewer = onOpenPhotoViewer,
                 videoAttachment = videoAttachment,
+                onPhotoUnavailable = onPhotoUnavailable,
             )
         } else {
             StaticSplitStage(
@@ -779,6 +800,7 @@ private fun DualCarouselStage(
     photoLoader: SessionPhotoLoader?,
     onOpenPhotoViewer: (startIndex: Int) -> Unit,
     videoAttachment: VideoAttachment?,
+    onPhotoUnavailable: (String) -> Unit = {},
 ) {
     val hasVideo = videoAttachment != null
     val hasPhotos = sharedSessionId != null && photoLoader != null && readyPhotos.isNotEmpty()
@@ -810,6 +832,7 @@ private fun DualCarouselStage(
                         loader = photoLoader,
                         onOpenViewer = onOpenPhotoViewer,
                         fillMode = PhotoStripFillMode.Pane,
+                        onPhotoUnavailable = onPhotoUnavailable,
                     )
                 },
             )
