@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -752,6 +753,8 @@ private fun RecentArrowsStrip(
     arrows: List<ArrowPlot>,
     modifier: Modifier = Modifier,
 ) {
+    val endScore = arrows.sumOf { minOf(it.ring, 10) }
+    val possible = arrows.size * 10
     Column(
         // Only a bottom rule (separating the strip from the target). The
         // section's top divider is the config banner's bottom rule above, so a
@@ -766,20 +769,21 @@ private fun RecentArrowsStrip(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             BPEyebrow("RECENT ARROWS")
-            // Always laid out (so the header height — and the target below —
-            // don't shift when the first arrow lands), but hidden until there's
-            // an arrow so we never show "0.0 AVG OF LAST 0".
+            // Running total for the current end: points scored out of the
+            // possible (10 per arrow). Always laid out (so the header height —
+            // and the target below — don't shift when the first arrow lands),
+            // but hidden until there's an arrow.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.alpha(if (arrows.isEmpty()) 0f else 1f),
             ) {
                 Text(
-                    text = recentAvgString(arrows),
+                    text = "$endScore/$possible",
                     style = frauncesDisplay(16.sp, italic = true, weight = FontWeight.Medium)
                         .copy(color = AppPondDk),
                 )
                 Text(
-                    text = " AVG OF LAST ${minOf(6, arrows.size)}",
+                    text = " THIS END",
                     style = interUI(8.5.sp, weight = FontWeight.SemiBold).copy(
                         letterSpacing = 0.12.em,
                         color = AppInk3,
@@ -790,38 +794,39 @@ private fun RecentArrowsStrip(
 
         Spacer(Modifier.height(10.dp))
 
-        // One fixed-width cell per arrow actually plotted in this end — no
-        // empty placeholder slots, so a 3-arrow end shows 3 cells. The last
-        // 6 are shown so a long end can't overflow the row. Cells butt together
-        // with 1dp shared dividers inside a single outer border, like the
-        // scorecard grid — no gaps, no per-cell boxes. IntrinsicSize.Min lets
-        // the dividers fill the cell height.
-        Row(
-            modifier = Modifier
-                .height(IntrinsicSize.Min)
-                .then(if (arrows.isEmpty()) Modifier else Modifier.border(1.dp, AppLine)),
-        ) {
-            if (arrows.isEmpty()) {
-                // Reserve one cell's height so the strip is the same height
-                // empty as with arrows — the target below never snaps when the
-                // first arrow lands. No border while empty.
-                RecentCell(
-                    ring = 11,
-                    arrowNumber = 1,
-                    modifier = Modifier.width(52.dp).alpha(0f),
-                )
-            } else {
-                val shown = arrows.takeLast(6)
-                val baseNumber = arrows.size - shown.size
-                shown.forEachIndexed { i, arrow ->
-                    if (i > 0) {
-                        Box(Modifier.width(1.dp).fillMaxHeight().background(AppLine))
-                    }
+        // One fixed-width cell per arrow plotted in this end, butted together
+        // with 1dp shared dividers inside a single outer border (the scorecard
+        // grid look). The row scrolls horizontally so a long end (>6 arrows) can
+        // be dragged through; it auto-reveals the newest arrow as each lands.
+        // IntrinsicSize.Min lets the dividers fill the cell height.
+        val scrollState = rememberScrollState()
+        LaunchedEffect(arrows.size) { scrollState.animateScrollTo(scrollState.maxValue) }
+        Row(modifier = Modifier.horizontalScroll(scrollState)) {
+            Row(
+                modifier = Modifier
+                    .height(IntrinsicSize.Min)
+                    .then(if (arrows.isEmpty()) Modifier else Modifier.border(1.dp, AppLine)),
+            ) {
+                if (arrows.isEmpty()) {
+                    // Reserve one cell's height so the strip is the same height
+                    // empty as with arrows — the target below never snaps when
+                    // the first arrow lands. No border while empty.
                     RecentCell(
-                        ring = arrow.ring,
-                        arrowNumber = baseNumber + i + 1,
-                        modifier = Modifier.width(52.dp),
+                        ring = 11,
+                        arrowNumber = 1,
+                        modifier = Modifier.width(52.dp).alpha(0f),
                     )
+                } else {
+                    arrows.forEachIndexed { i, arrow ->
+                        if (i > 0) {
+                            Box(Modifier.width(1.dp).fillMaxHeight().background(AppLine))
+                        }
+                        RecentCell(
+                            ring = arrow.ring,
+                            arrowNumber = i + 1,
+                            modifier = Modifier.width(52.dp),
+                        )
+                    }
                 }
             }
         }
@@ -869,13 +874,6 @@ private fun RecentCell(
 }
 
 private fun ringLabel(ring: Int): String = if (ring == 11) "X" else ring.toString()
-
-private fun recentAvgString(arrows: List<ArrowPlot>): String {
-    if (arrows.isEmpty()) return "0.0"
-    val last = arrows.takeLast(6)
-    val total = last.sumOf { minOf(it.ring, 10) }
-    return "%.1f".format(total.toDouble() / last.size)
-}
 
 // ---------------------------------------------------------------------------
 // Running totals — AVG / XS / SESSION BEST
