@@ -382,10 +382,13 @@ private fun DrawScope.drawArrowsAtSize(
     arrowDotPx: Float,
 ) {
     val radius = facePx / 2f
-    // 4 dp radius floor (mirrors the 8 dp diameter floor on the underlying
-    // face renderer). The previous 4 px floor collapsed to ~1.3 dp on a 3x
-    // device, making dots inside the lens nearly invisible on wider faces.
-    val dotRadius = (arrowDotPx / 2f).coerceAtLeast(4.dp.toPx())
+    // 8 dp radius floor (= 16 dp diameter). The lens exists so the archer can
+    // place the *next* arrow relative to where the previous ones landed; at
+    // the underlying 4 dp floor a 5 mm arrow on an 80 cm face came out as a
+    // ~8 dp pinprick inside the lens — readable on paper but invisible mid-
+    // draw. Doubling the floor brings the prior-hit dots into the same
+    // readability range as the live footprint ring at the lens centre.
+    val dotRadius = (arrowDotPx / 2f).coerceAtLeast(8.dp.toPx())
     val multiSpot = MultiSpotGeometry.preset(snapshot.targetLayout)
     if (multiSpot != null) {
         // Multi-spot: place each arrow on its bucketed spot.
