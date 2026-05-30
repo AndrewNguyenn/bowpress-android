@@ -24,10 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -267,6 +267,17 @@ fun FeedCarousel(
     val cards = summary.cards
     if (cards.isEmpty()) return
 
+    // Unlike iOS (fixed-point fonts), Compose `.sp` text scales with the OS
+    // font-size setting, so a fixed slot would clip the cards for large-font
+    // users. Grow the slot with the font scale, mirroring iOS's Dynamic-Type
+    // tiers (96/116/140).
+    val fontScale = LocalDensity.current.fontScale
+    val cardHeight = when {
+        fontScale >= 1.6f -> 140.dp
+        fontScale >= 1.3f -> 118.dp
+        else -> 100.dp
+    }
+
     Column(modifier = modifier.testTag("socialFeedCarousel")) {
         // Always open on the leftmost card — the prior server-side opening
         // rule landed mid-carousel, which read as "starting on the right".
@@ -275,7 +286,7 @@ fun FeedCarousel(
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(CardHeight),
+                .height(cardHeight),
         ) { idx ->
             val card = cards[idx]
             // Full-bleed like the activity rows below — the card's own
@@ -293,7 +304,7 @@ fun FeedCarousel(
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
 
         // Pill-dot pagination row. Selected dot stretches to a small
         // capsule per the iOS design.
@@ -318,15 +329,6 @@ fun FeedCarousel(
         }
     }
 }
-
-/**
- * Card slot height — all four cards share this so the activity list
- * below doesn't jump as the user swipes. Tuned to the tallest card's
- * natural content height (Insight headline up to 2 lines + 2x2 metric
- * grid) so smaller cards (notably BestSession) don't have the ~40dp of
- * dead space the old 200dp value left below their footer.
- */
-private val CardHeight = 158.dp
 
 // ── Shared chrome ────────────────────────────────────────────────────────────
 
@@ -387,8 +389,8 @@ private fun CardFrame(content: @Composable () -> Unit) {
             .fillMaxSize()
             .background(AppPaper2)
             .border(1.dp, AppLine)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         content()
     }
@@ -570,7 +572,7 @@ private fun SnapshotCell(
         )
         Text(
             text = value,
-            style = frauncesDisplay(24.sp, italic = true, weight = FontWeight.Medium),
+            style = frauncesDisplay(22.sp, italic = true, weight = FontWeight.Medium),
             color = AppInk,
             modifier = Modifier.padding(top = 2.dp),
         )
@@ -624,7 +626,7 @@ private fun BestSessionCard(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = "%.1f".format(data.avgRing),
-                        style = frauncesDisplay(38.sp, italic = true, weight = FontWeight.Medium),
+                        style = frauncesDisplay(28.sp, italic = true, weight = FontWeight.Medium),
                         color = AppPondDk,
                     )
                     Spacer(Modifier.width(8.dp))
@@ -659,90 +661,15 @@ private fun BestSessionCard(
                     text = data.sessionName,
                     style = frauncesDisplay(14.sp, italic = true, weight = FontWeight.Medium),
                     color = AppInk,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val spec = bestSessionSpecLine(data)
-                if (spec.isNotEmpty()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = spec,
-                        style = jetbrainsMono(10.sp),
-                        color = AppInk3,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
             MiniTargetFace(
                 arrows = data.arrows,
                 layout = data.targetLayout ?: TargetLayout.SINGLE,
                 faceType = data.targetFaceType ?: TargetFaceType.TEN_RING,
-                modifier = Modifier.size(70.dp),
-            )
-        }
-        BestSessionFooter(data)
-    }
-}
-
-private fun bestSessionSpecLine(data: FeedSummaryUi.BestSession): String =
-    listOfNotNull(
-        data.distanceLabel?.takeIf { it.isNotBlank() },
-        data.bowName.takeIf { it.isNotBlank() },
-        data.arrowLabel?.takeIf { it.isNotBlank() },
-    ).joinToString(" · ")
-
-@Composable
-private fun BestSessionFooter(data: FeedSummaryUi.BestSession) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            // iOS draws a 0.5pt hairline above the footer to separate it from
-            // the hero block. drawBehind lets us paint it without nesting a
-            // wrapper Box.
-            .drawBehind {
-                drawLine(
-                    color = AppLine,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 0.5.dp.toPx(),
-                )
-            }
-            .padding(top = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (data.prDeltaAvgRing != null) {
-            val delta = data.prDeltaAvgRing
-            val sign = if (delta >= 0) "+" else "-"
-            val tint = if (delta >= 0) AppPondDk else AppMaple
-            Text(
-                text = "PR · ",
-                style = jetbrainsMono(10.sp),
-                color = AppInk3,
-            )
-            Text(
-                text = "$sign%.1f".format(kotlin.math.abs(delta)),
-                style = jetbrainsMono(10.sp, FontWeight.Medium),
-                color = tint,
-            )
-            Text(
-                text = " over previous best",
-                style = jetbrainsMono(10.sp),
-                color = AppInk3,
-            )
-        } else {
-            Text(
-                text = "New baseline",
-                style = jetbrainsMono(10.sp),
-                color = AppInk3,
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        if (!data.startedAtRelative.isNullOrBlank()) {
-            Text(
-                text = data.startedAtRelative,
-                style = jetbrainsMono(10.sp),
-                color = AppInk3,
+                modifier = Modifier.size(46.dp),
             )
         }
     }
